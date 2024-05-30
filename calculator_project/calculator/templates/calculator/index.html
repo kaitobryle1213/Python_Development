@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Calculator</title>
+</head>
+<body>
+    <h1>Simple Calculator</h1>
+    <form method="post" action="{% url 'calculate' %}">
+        {% csrf_token %}
+        <input type="number" name="number1" step="any" placeholder="First Number" required>
+        <input type="number" name="number2" step="any" placeholder="Second Number" required>
+        <select name="operation">
+            <option value="add">Add</option>
+            <option value="subtract">Subtract</option>
+            <option value="multiply">Multiply</option>
+            <option value="divide">Divide</option>
+        </select>
+        <button type="submit">Calculate</button>
+    </form>
+    {% if result is not None %}
+        <h2>Result: {{ result }}</h2>
+    {% endif %}
+</body>
+</html>
