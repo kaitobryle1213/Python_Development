@@ -1,0 +1,10 @@
+Location: Eiffel Tower, Paris
+Full Address: Tour Eiffel, 5, Avenue Anatole France, Quartier du Gros-Caillou, Paris 7e Arrondissement, Paris, France métropolitaine, 75007, France
+Latitude: 48.8582599
+Longitude: 2.2945006
+----------------------------------------
+Location: Times Square, New York
+Full Address: Times Square, Manhattan Community Board 5, Manhattan, New York County, City of New York, New York, 10036, United States
+Latitude: 40.7572614
+Longitude: -73.9858998
+----------------------------------------
