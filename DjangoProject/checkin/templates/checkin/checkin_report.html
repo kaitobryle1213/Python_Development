@@ -27,7 +27,15 @@
                     {% for field in filter.form %}
                         <div class="col-md-3 col-sm-6">
                             <label for="{{ field.id_for_label }}" class="form-label small">{{ field.label }}</label>
-                            {{ field|add_class:"form-control" }}
+                            
+                            {% if field.name == 'start_date' or field.name == 'end_date' %}
+                                {# Set type="date" for date picker functionality #}
+                                {{ field|add_class:"form-control"|attr:"type:date" }}
+                            {% else %}
+                                {# Render all other fields normally #}
+                                {{ field|add_class:"form-control" }}
+                            {% endif %}
+
                         </div>
                     {% endfor %}
 

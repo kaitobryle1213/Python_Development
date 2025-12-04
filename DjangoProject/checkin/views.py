@@ -1,14 +1,15 @@
 # checkin/views.py
 
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import CheckIn, Company
+from .models import CheckIn, Company 
 from django.views.decorators.http import require_http_methods
 from decimal import Decimal, InvalidOperation
-from .forms import CompanyForm
+from .forms import CompanyForm # Ensure this Form is defined
 from django.http import HttpResponse
 from .filters import CheckInFilter
 import csv
-from datetime import datetime  # ADDED: Import datetime for parsing
+from datetime import datetime
+from django.urls import reverse # Required for redirects if not using name directly
 
 # Define the exact format string matching the JavaScript output: 'Dec 03, 2025 15:50'
 CLIENT_DATETIME_FORMAT = '%b %d, %Y %H:%M'
@@ -58,7 +59,7 @@ def checkin_view(request):
                         # Skip saving if parsing fails
                         raise ValueError("Timestamp parsing failed")
 
-                        # 4. Create and Save Record
+                    # 4. Create and Save Record
                     new_checkin = CheckIn.objects.create(
                         company=company_obj,
                         current_location=current_location_obj,
@@ -121,6 +122,57 @@ def company_list_view(request):
     }
     return render(request, 'checkin/company_list.html', context)
 
+# ----------------------------------------------------------------------
+# ⭐ NEW VIEW: COMPANY EDIT/UPDATE
+# ----------------------------------------------------------------------
+
+@require_http_methods(["GET", "POST"])
+def company_edit_view(request, pk):
+    """Handles editing an existing Company object."""
+    # Retrieve the object instance or return 404
+    company = get_object_or_404(Company, pk=pk)
+
+    if request.method == 'POST':
+        # Bind request data to the form, passing the existing instance
+        form = CompanyForm(request.POST, instance=company)
+        if form.is_valid():
+            form.save()
+            # Redirect back to the list after saving
+            return redirect('company_list')
+    else:
+        # For a GET request, initialize the form with the current instance data
+        form = CompanyForm(instance=company)
+    
+    context = {
+        'form': form,
+        'company': company,
+        'is_editing': True # Useful for template logic
+    }
+    # You need to create this template: 'checkin/company_edit.html'
+    return render(request, 'checkin/company_edit.html', context)
+
+# ----------------------------------------------------------------------
+# ⭐ NEW VIEW: COMPANY DELETE
+# ----------------------------------------------------------------------
+
+@require_http_methods(["GET", "POST"])
+def company_delete_view(request, pk):
+    """Handles the deletion of a Company object."""
+    company = get_object_or_404(Company, pk=pk)
+
+    if request.method == 'POST':
+        # Delete the object if the request is POST (confirming the action)
+        company.delete()
+        # Redirect back to the list after deletion
+        return redirect('company_list')
+    
+    # For a GET request, show the confirmation template
+    context = {
+        'company': company
+    }
+    # You need to create this template: 'checkin/company_confirm_delete.html'
+    return render(request, 'checkin/company_confirm_delete.html', context)
+
 
 # ----------------------------------------------------------------------
 # EXISTING VIEW: REPORT & FILTERING (No changes needed here)
@@ -155,7 +207,7 @@ def export_checkin_csv(request):
 
     # HTTP Response setup for CSV file download
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="checkin_report.csv"'
+    response['Content-Disposition'] = 'attachment; filename="PLS_report.csv"'
 
     writer = csv.writer(response)
 

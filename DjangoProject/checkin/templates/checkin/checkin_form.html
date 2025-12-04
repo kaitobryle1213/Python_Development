@@ -50,12 +50,6 @@
                 <p class="mb-0 small">1st Road Calumpang, General Santos City</p>
             </div>
 
-            <div class="card-header bg-white py-2 text-end">
-                <a href="{% url 'checkin_report' %}" class="btn btn-sm btn-info text-white shadow-sm">
-                    <span class="fw-bold">📊 View Report</span>
-                </a>
-            </div>
-
             <div class="card-body p-4">
 
                 {% if error_message %}
@@ -95,7 +89,8 @@
 
                         <div class="col-12 text-end">
                             <p class="small text-end mt-1 mb-0">
-                                <a href="{% url 'company_list' %}">Manage Company List</a>
+                            <!--comment this so that administrator can only add company list-->
+                              <!--  <a href="{% url 'company_list' %}">Manage Company List</a>-->
                             </p>
                         </div>
 
@@ -135,7 +130,7 @@
                     <p class="small text-muted"></p>
 
                     <button type="button" id="getLocationButton" onclick="getAccurateLocation()" class="btn btn-warning w-100 mb-2">
-                        <span id="button-icon">📍</span> Find My Exact Location
+                        <span id="button-icon"></span> Find My Exact Location
                     </button>
                     <p id="status-message" class="text-center small text-secondary">Click the button to show location.</p>
 
@@ -153,7 +148,17 @@
                     <button type="submit" class="btn btn-success btn-lg w-100 shadow-sm">
                         Save Record
                     </button>
-
+                        <p id="status-message" class="text-center small text-secondary">Click the button to save record.</p>
+                    
+                    <!--Hide this. only administrator can see this.-->
+                    <!--    <hr class="my-4">
+                        <div class="card-header bg-white py-2 text-end">
+                            <a href="{% url 'checkin_report' %}" class="btn btn-lg btn-info text-white w-100 shadow-sm">
+                                <span class="fw-bold">📊 View Report</span>
+                            </a>
+                            <p id="status-message" class="text-center small text-secondary">Click the button to show Report.</p>
+                        </div>
+                    --> 
                 </form>
             </div>
         </div>
