@@ -1,2 +1,7 @@
-pip install django-widget-tweaks
-pip install django-filter
+How to Update pythonanywhere.com from updated github (open bash/consoles)
+1.cd /home/rdc1/Python_Development/DjangoProject
+2.git pull
+3.install requirements
+	*pip install django-widget-tweaks
+	*pip install django-filter
+4.python manage.py migrate
