@@ -1,2 +1,0 @@
-pip install django-widget-tweaks
-pip install django-filter
