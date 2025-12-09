@@ -25,6 +25,7 @@ ALLOWED_HOSTS = [
     'localhost',  # Always keep localhost
     '192.168.223.241', # Your host machine's IP address
     '.ngrok-free.dev',
+    'rdc1.pythonanywhere.com',
 ]
 
 # 2. CSRF_TRUSTED_ORIGINS (NEW SETTING)
