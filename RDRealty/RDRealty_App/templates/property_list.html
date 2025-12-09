@@ -1,0 +1,58 @@
+{% extends "base.html" %} 
+{% load static %}
+
+{% block content %}
+<div class="container-fluid pt-4">
+    <h1><i class="fas fa-list-alt"></i> All Properties</h1>
+    <p class="text-muted">A list of all property records in the database.</p>
+    
+    <div class="d-flex justify-content-end mb-3">
+        <a href="{% url 'add_property' %}" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> Add New Property
+        </a>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body">
+            
+            {% if properties %}
+            <div class="table-responsive">
+                <table class="table table-light table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Title No.</th>
+                            <th>Lot No.</th>
+                            <th>Area (sqm)</th>
+                            <th>Classification</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for property in properties %}
+                        <tr>
+                            <td>{{ property.title_no }}</td>
+                            <td>{{ property.lot_no }}</td>
+                            <td>{{ property.lot_area }}</td>
+                            <td>{{ property.get_title_classification_display }}</td>
+                            <td>{{ property.get_title_status_display }}</td>
+                            <td>
+                                <a href="{% url 'property_detail' pk=property.pk %}" class="btn btn-sm btn-info">View Details</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-warning text-dark" role="alert">
+                <h4 class="alert-heading">No Properties Found!</h4>
+                <p>The database is empty. You can start by adding the first property record.</p>
+                <a href="{% url 'add_property' %}" class="btn btn-warning">Add New Property Now</a>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock content %}

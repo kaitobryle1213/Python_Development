@@ -1,0 +1,114 @@
+{% extends "base.html" %} 
+{% load static %}
+
+{% block title %}Details: {{ property.title_no }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid pt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-search me-2"></i>Property Detail: {{ property.title_no }}</h1>
+        <a href="{% url 'property_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left me-1"></i> Back to List</a>
+    </div>
+
+    <div class="card shadow mb-5">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Basic Information</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong># Title Number:</strong> {{ property.title_no }}</p>
+                    <p><strong>📍 Lot Number:</strong> {{ property.lot_no }}</p>
+                    <p><strong>⌗ Lot Area (sqm):</strong> {{ property.lot_area }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Classification:</strong> <span class="badge bg-info text-dark">{{ property.get_title_classification_display }}</span></p>
+                    <p><strong>Status:</strong> <span class="badge bg-success">{{ property.get_title_status_display }}</span></p>
+                    <p><strong>Description:</strong> {{ property.title_description|default:"N/A" }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer text-end">
+            <a href="#" class="btn btn-sm btn-warning"><i class="fas fa-edit me-1"></i> Edit Property</a>
+        </div>
+    </div>
+
+    <div class="row">
+        
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Title Movements</h5>
+                    <a href="{% url 'add_title_movement' pk=property.pk %}" class="btn btn-sm btn-light text-success">
+                        <i class="fas fa-plus me-1"></i> Add Movement
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if movements %}
+                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-striped table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>New Owner</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for movement in movements %}
+                                    <tr>
+                                        <td>{{ movement.transaction_date|date:"Y-m-d" }}</td>
+                                        <td>{{ movement.get_movement_type_display }}</td>
+                                        <td>{{ movement.new_owner_name }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No title movements recorded for this property.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-money-check-alt me-2"></i>Property Tax Records</h5>
+                    <a href="#" class="btn btn-sm btn-light text-danger">
+                        <i class="fas fa-plus me-1"></i> Add Tax Record
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if tax_records %}
+                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-striped table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Year</th>
+                                        <th>Assessed Value</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for tax in tax_records %}
+                                    <tr>
+                                        <td>{{ tax.tax_year }}</td>
+                                        <td>{{ tax.assessed_value }}</td>
+                                        <td>{{ tax.get_payment_status_display }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No property tax records found for this property.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock content %}
