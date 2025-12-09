@@ -2,22 +2,30 @@ import streamlit as st
 import pandas as pd
 import random
 import time
-import base64  # Needed for Base64 encoding
-from pathlib import Path  # Needed for reliable file path construction
+import base64
+from pathlib import Path
 
+# Define the base directory (where app.py is located)
+BASE_DIR = Path(__file__).parent.resolve()
+
+def get_abs_path(filename: str) -> str:
+    """Returns the absolute path for a file assumed to be in the same directory as app.py."""
+    return str(BASE_DIR / filename)
 
 # ----------------------------------------------------------------------
-# --- BASE64 FUNCTIONS FOR RELIABLE BACKGROUND IMAGE INJECTION (FIXED) ---
+# --- BASE64 FUNCTIONS FOR RELIABLE BACKGROUND IMAGE INJECTION ---
 # ----------------------------------------------------------------------
 
 def get_img_as_base64(file_path):
     """Reads a file and returns its content as a base64 encoded string."""
     try:
-        if not Path(file_path).is_file():
+        path_obj = Path(file_path)
+        if not path_obj.is_file():
+            # In deployment, Streamlit redacts errors, but this helps debug locally
             st.error(f"Image not found or is not a file at: {file_path}")
             return None
 
-        with open(file_path, "rb") as f:
+        with open(path_obj, "rb") as f:
             data = f.read()
         return base64.b64encode(data).decode()
     except Exception as e:
@@ -29,13 +37,10 @@ def set_background_base64(image_file):
     """Injects CSS to set the background image and ensures all content blocks
        are set to fully opaque white."""
 
-    # 1. Determine the correct path to the image
-    try:
-        image_path = Path(__file__).parent / image_file
-    except NameError:
-        image_path = Path(image_file)
-
-        # 2. Convert the image to Base64
+    # 1. Determine the correct path to the image using the helper function
+    image_path = get_abs_path(image_file) 
+    
+    # 2. Convert the image to Base64
     base64_img = get_img_as_base64(image_path)
 
     if base64_img:
@@ -235,7 +240,7 @@ def main():
     st.set_page_config(
         page_title="RD Fishing X'Mas Party!",
         layout="centered",
-        page_icon="rd_fishing_logo.jpg"
+        page_icon=get_abs_path("rd_fishing_logo.jpg") # <-- PATH FIX APPLIED
     )
 
     initialize_session_state()
@@ -243,13 +248,13 @@ def main():
     # ------------------------------------------------------------------
     # --- LOGO & TITLE SECTION (Centered and Larger Logo) ---
     # ------------------------------------------------------------------
-    # Use a spacer column on the left to center the title block (2 + 9 + 2 = 13 total)
+    # Use a spacer column on the left to center the title block (0.1 + 2 + 7 = 9.1 total)
     col_spacer, col_logo, col_title = st.columns([0.1, 2, 7])
 
     # Display the logo in the small column
     with col_logo:
         # 🌟 ADJUSTED: Increased width for a bigger logo
-        st.image("rd_fishing_logo.jpg", width=120)
+        st.image(get_abs_path("rd_fishing_logo.jpg"), width=120) # <-- PATH FIX APPLIED
 
         # Display the title text in the large column
     with col_title:
@@ -335,7 +340,7 @@ def main():
 
     # Optional: Display past winners list
     if st.session_state['past_winners']:
-        st.subheader(f"")
+        st.subheader(f"Past Winners ({len(st.session_state['past_winners'])} of {len(st.session_state['original_roster'])})")
         st.dataframe(
             pd.DataFrame({'Winner': st.session_state['past_winners']}),
             use_container_width=True,
