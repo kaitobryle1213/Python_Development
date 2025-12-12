@@ -1,13 +1,78 @@
 {% extends 'base.html' %}
 
-{%. . 
+{% block title %}Item Management{% endblock %}
 
+{% block content %}
+<div style="background: linear-gradient(135deg, #ffffff 0%, #ffffff 100%); min-height: 100vh; padding: 30px 0;">
+<div class="pos-container-modern">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: linear-gradient(135deg, #e743a3 0%, #ff32a3 100%); padding: 25px; border-radius: 12px;">
+        <h1 style="margin: 0; color: white; font-size: 28px;">📦 Item Management</h1>
+        <a href="{% url 'dashboard' %}" class="btn-cancel-modern-header">← Back to Dashboard</a>
+    </div>
+
+    <div class="breadcrumb" style="margin-bottom: 20px; font-size: 14px; color: #666;">
+        <a href="{% url 'dashboard' %}" style="color: #667eea; text-decoration: none;">Dashboard</a>
+        <span style="margin: 0 5px;">></span>
+        <span style="font-weight: 600;">Items</span>
+    </div>
+
+    {% if messages %}
+        <div class="messages" style="margin-bottom: 20px;">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}" style="padding: 12px 15px; border-radius: 8px; margin-bottom: 10px;">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
     <div class="form-card" style="margin-bottom: 20px;">
-        <div class="card-header" style="background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);">
+        <div class="card-header" style="background: linear-gradient(135deg, #e743a3 0%, #ff32a3 100%);">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">🔍 Search & Filter</h2>
+        </div>
+        <div class="card-body">
+            <form method="get" class="search-form-grid">
+                <div>
+                    <label for="search" class="filter-label">Search by Code or Description</label>
+                    <input type="text" name="search" id="search" placeholder="Enter code or description" 
+                           value="{{ request.GET.search }}" 
+                           class="filter-input"
+                    />
+                </div>
+                
+                <div>
+                    <label for="uom_filter" class="filter-label">Unit of Measure</label>
+                    <select name="uom" id="uom_filter" class="filter-select">
+                        <option value="">All Units</option>
+                        {% for code, label in units %}
+                            <option value="{{ code }}" {% if request.GET.uom == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="stock_filter" class="filter-label">Stock</label>
+                    <select name="stock" id="stock_filter" class="filter-select">
+                        <option value="">All Stock</option>
+                        <option value="low" {% if request.GET.stock == 'low' %}selected{% endif %}>Low Stock (≤5)</option>
+                        <option value="in" {% if request.GET.stock == 'in' %}selected{% endif %}>In Stock (>5)</option>
+                    </select>
+                </div>
+                
+                <div class="search-actions">
+                    <button type="submit" class="btn-search-modern">🔍 Search</button>
+                    <a href="{% url 'item_list' %}" class="btn-reset-modern">↻ Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="form-card" style="margin-bottom: 20px;">
+        <div class="card-header" style="background: linear-gradient(135deg, #e743a3 0%, #ff32a3 100%);">
             <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">⚙️ Controls</h2>
         </div>
         <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;">
-            <a href="{% url 'item_create' %}" class="btn-save-modern" style="padding: 10px 20px; margin: 0; max-width: 180px;">➕ Add New Item</a>
+            <a href="{% url 'item_create' %}" class="btn-save-modern" style="background: linear-gradient(135deg, #e743a3 0%, #ff32a3 100%); padding: 10px 20px; margin: 0; max-width: 180px;">➕ Add New Item</a>
             
             <div style="display: flex; gap: 20px; align-items: center;">
                 <div style="color: #666; font-size: 14px;">
@@ -22,7 +87,7 @@
     
     {% if items %}
         <div class="form-card">
-            <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card-header" style="background: linear-gradient(135deg, #e743a3 0%, #ff32a3 100%);">
                 <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">📋 All Items</h2>
             </div>
             <div class="card-body" style="padding: 0;">
@@ -76,7 +141,7 @@
         </div>
     {% else %}
         <div class="form-card">
-            <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card-header" style="background: linear-gradient(135deg, #e743a3 0%, #ff32a3 100%);">
                 <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">📋 All Items</h2>
             </div>
             <div class="card-body">
@@ -88,6 +153,7 @@
         </div>
     {% endif %}
     
+</div>
 </div>
 
 <style>
@@ -154,6 +220,26 @@
     .btn-cancel-modern:hover {
         background-color: #e6e6f5;
         color: #667eea;
+    }
+    
+    .btn-cancel-modern-header {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        color: white;
+        background-color: rgba(255, 255, 255, 0.2);
+        border: 1px solid white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-cancel-modern-header:hover {
+        background-color: rgba(255, 255, 255, 0.3);
+        color: white;
     }
 
     /* Badge Styles */
@@ -238,3 +324,77 @@
     }
 </style>
 {% endblock %}
+    .search-form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        align-items: flex-end;
+    }
+
+    .filter-label {
+        display: block;
+        font-weight: 600;
+        color: #e743a3;
+        font-size: 12px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .filter-input, .filter-select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .filter-input:focus, .filter-select:focus {
+        outline: none;
+        border-color: #e743a3;
+        box-shadow: 0 0 0 3px rgba(231, 67, 163, 0.12);
+    }
+
+    .search-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-search-modern {
+        flex: 1;
+        padding: 10px 15px;
+        background: linear-gradient(135deg, #e743a3 0%, #ff32a3 100%);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-search-modern:hover {
+        filter: brightness(0.95);
+    }
+
+    .btn-reset-modern {
+        flex: 1;
+        padding: 10px 15px;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-reset-modern:hover {
+        background-color: #5a6268;
+    }

@@ -3,20 +3,27 @@
 {% block title %}{% if is_edit %}Edit Item{% else %}Create Item{% endif %} - POS System{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="page-header">
-        <h1>{% if is_edit %}Edit Item{% else %}Create New Item{% endif %}</h1>
-        <div class="breadcrumb">
-            <a href="{% url 'dashboard' %}">Dashboard</a> > 
-            <a href="{% url 'item_list' %}">Items</a> > 
-            <span>{% if is_edit %}Edit{% else %}Create{% endif %}</span>
-        </div>
+<div style="background: linear-gradient(135deg, #ffffff 0%, #ffffff 100%); min-height: 100vh; padding: 30px 0;">
+<div class="pos-container-modern">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: linear-gradient(135deg, #e743a3 0%, #ff32a3 100%); padding: 25px; border-radius: 12px;">
+        <h1 style="margin: 0; color: white; font-size: 28px;">
+            {% if is_edit %}✏️ Edit Item{% else %}➕ Create New Item{% endif %}
+        </h1>
+        <a href="{% url 'item_list' %}" class="btn-cancel-modern-header">← Back to List</a>
+    </div>
+
+    <div class="breadcrumb" style="margin-bottom: 20px; font-size: 14px; color: #666;">
+        <a href="{% url 'dashboard' %}" style="color: #667eea; text-decoration: none;">Dashboard</a>
+        <span style="margin: 0 5px;">></span>
+        <a href="{% url 'item_list' %}" style="color: #667eea; text-decoration: none;">Items</a>
+        <span style="margin: 0 5px;">></span>
+        <span style="font-weight: 600;">{% if is_edit %}Edit{% else %}Create{% endif %}</span>
     </div>
     
     {% if messages %}
-        <div class="messages">
+        <div class="messages" style="margin-bottom: 20px;">
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">
+                <div class="alert alert-{{ message.tags }}" style="padding: 12px 15px; border-radius: 8px; margin-bottom: 10px;">
                     {{ message }}
                 </div>
             {% endfor %}
@@ -27,35 +34,37 @@
         {% csrf_token %}
         
         <div class="card-body">
-            <div class="form-group">
-                <label for="item_code">Item Code</label>
-                <input 
-                    type="text" 
-                    id="item_code" 
-                    name="item_code" 
-                    {% if is_edit %}value="{{ item.item_code }}" disabled{% endif %}
-                    {% if not is_edit %}required{% endif %}
-                    class="form-control"
-                    placeholder="Enter item code"
-                >
-            </div>
-            
-            <div class="form-group">
-                <label for="item_description">Item Description</label>
-                <input 
-                    type="text" 
-                    id="item_description" 
-                    name="item_description" 
-                    value="{% if is_edit %}{{ item.item_description }}{% endif %}"
-                    required
-                    class="form-control"
-                    placeholder="Enter item description"
-                >
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="item_code" class="filter-label">Item Code</label>
+                    <input 
+                        type="text" 
+                        id="item_code" 
+                        name="item_code" 
+                        {% if is_edit %}value="{{ item.item_code }}" disabled{% endif %}
+                        {% if not is_edit %}required{% endif %}
+                        class="form-control"
+                        placeholder="Enter item code"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="item_description" class="filter-label">Item Description</label>
+                    <input 
+                        type="text" 
+                        id="item_description" 
+                        name="item_description" 
+                        value="{% if is_edit %}{{ item.item_description }}{% endif %}"
+                        required
+                        class="form-control"
+                        placeholder="Enter item description"
+                    >
+                </div>
             </div>
             
             <div class="form-row">
                 <div class="form-group">
-                    <label for="unit_of_measure">Unit of Measure</label>
+                    <label for="unit_of_measure" class="filter-label">Unit of Measure</label>
                     <select id="unit_of_measure" name="unit_of_measure" class="form-control" required>
                         <option value="">Select unit</option>
                         {% for code, label in units %}
@@ -65,7 +74,7 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="quantity_on_hand">Quantity on Hand</label>
+                    <label for="quantity_on_hand" class="filter-label">Quantity on Hand</label>
                     <input 
                         type="number" 
                         id="quantity_on_hand" 
@@ -79,7 +88,7 @@
             
             <div class="form-row">
                 <div class="form-group">
-                    <label for="unit_cost">Unit Cost</label>
+                    <label for="unit_cost" class="filter-label">Unit Cost</label>
                     <input 
                         type="number" 
                         id="unit_cost" 
@@ -93,7 +102,7 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="unit_selling_price">Unit Selling Price</label>
+                    <label for="unit_selling_price" class="filter-label">Unit Selling Price</label>
                     <input 
                         type="number" 
                         id="unit_selling_price" 
@@ -109,93 +118,71 @@
         </div>
         
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">
-                {% if is_edit %}Update Item{% else %}Create Item{% endif %}
-            </button>
-            <a href="{% url 'item_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn-save-modern">{% if is_edit %}Update Item{% else %}Create Item{% endif %}</button>
+            <a href="{% url 'item_list' %}" class="btn-cancel-modern">Cancel</a>
         </div>
     </form>
 </div>
+</div>
 
 <style>
-    .container {
-        max-width: 600px;
+    .pos-container-modern {
+        max-width: 800px;
         margin: 0 auto;
-        padding: 20px;
+        padding: 0 20px;
     }
-    
-    .page-header {
-        margin-bottom: 30px;
-    }
-    
-    .page-header h1 {
-        color: #333;
-        margin-bottom: 10px;
-    }
-    
-    .breadcrumb {
-        font-size: 14px;
-        color: #666;
-    }
-    
-    .breadcrumb a {
-        color: #007bff;
-        text-decoration: none;
-    }
-    
-    .breadcrumb a:hover {
-        text-decoration: underline;
-    }
-    
+
     .form-card {
         background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         overflow: hidden;
     }
-    
+
     .card-body {
         padding: 30px;
     }
-    
+
     .form-group {
         margin-bottom: 20px;
     }
-    
-    .form-group label {
+
+    .filter-label {
         display: block;
-        margin-bottom: 8px;
-        color: #333;
         font-weight: 600;
-        font-size: 14px;
+        color: #e743a3;
+        font-size: 12px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
     }
-    
+
     .form-control {
         width: 100%;
         padding: 12px;
         border: 1px solid #ddd;
-        border-radius: 5px;
+        border-radius: 6px;
         font-size: 14px;
         transition: border-color 0.3s;
+        background: white;
     }
-    
+
     .form-control:focus {
         outline: none;
-        border-color: #007bff;
-        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        border-color: #e743a3;
+        box-shadow: 0 0 0 3px rgba(231, 67, 163, 0.12);
     }
-    
+
     .form-control:disabled {
         background-color: #f5f5f5;
         cursor: not-allowed;
     }
-    
+
     .form-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 15px;
     }
-    
+
     .form-actions {
         padding: 20px 30px;
         background: #f9f9f9;
@@ -204,60 +191,83 @@
         gap: 10px;
         justify-content: center;
     }
-    
-    .btn {
-        padding: 12px 30px;
-        border-radius: 5px;
-        border: none;
-        font-size: 14px;
+
+    .btn-save-modern {
+        padding: 12px 25px;
+        border-radius: 8px;
         font-weight: 600;
-        cursor: pointer;
         text-decoration: none;
-        display: inline-block;
-        transition: all 0.3s;
+        color: white;
+        background: linear-gradient(135deg, #e743a3 0%, #ff32a3 100%);
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.1s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
     }
-    
-    .btn-primary {
-        background-color: #007bff;
+
+    .btn-save-modern:hover {
+        filter: brightness(0.95);
+        transform: translateY(-1px);
+    }
+
+    .btn-cancel-modern {
+        padding: 12px 25px;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        color: #e743a3;
+        background-color: #fde7f4;
+        border: 1px solid #e743a3;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-cancel-modern:hover {
+        background-color: #fbd1ea;
+        color: #d83a93;
+    }
+
+    .btn-cancel-modern-header {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        color: white;
+        background-color: rgba(255, 255, 255, 0.2);
+        border: 1px solid white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-cancel-modern-header:hover {
+        background-color: rgba(255, 255, 255, 0.3);
         color: white;
     }
-    
-    .btn-primary:hover {
-        background-color: #0056b3;
-    }
-    
-    .btn-secondary {
-        background-color: #6c757d;
-        color: white;
-    }
-    
-    .btn-secondary:hover {
-        background-color: #5a6268;
-    }
-    
+
     .messages {
         margin-bottom: 20px;
     }
-    
-    .alert {
-        padding: 12px;
-        border-radius: 5px;
-        margin-bottom: 10px;
-        font-size: 14px;
-    }
-    
+
     .alert-error {
         background-color: #f8d7da;
         color: #721c24;
         border: 1px solid #f5c6cb;
     }
-    
+
     .alert-success {
         background-color: #d4edda;
         color: #155724;
         border: 1px solid #c3e6cb;
     }
-    
+
     @media (max-width: 600px) {
         .form-row {
             grid-template-columns: 1fr;

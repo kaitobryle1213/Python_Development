@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Item{% endblock %}
+
+{% block content %}
+<div class="confirm-container">
+    <div class="confirm-box">
+        <h1>Delete Item</h1>
+        <p>Are you sure you want to delete item <strong>{{ item.item_code }}</strong>?</p>
+        <p class="confirm-details">
+            Description: <strong>{{ item.item_description }}</strong><br>
+            UoM: <strong>{{ item.get_unit_of_measure_display }}</strong>
+        </p>
+        <p class="warning-text">⚠️ This action cannot be undone. If this item is referenced by transactions, deletion will be blocked.</p>
+        
+        <form method="post" class="confirm-form">
+            {% csrf_token %}
+            <button type="submit" class="btn-danger">Yes, Delete Item</button>
+            <a href="{% url 'item_view' item.id %}" class="btn-cancel">No, Go Back</a>
+        </form>
+    </div>
+}</div>
+
+<style>
+.confirm-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 100px);
+    padding: 20px;
+}
+
+.confirm-box {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    max-width: 520px;
+    text-align: center;
+}
+
+.confirm-box h1 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.confirm-box p {
+    color: #666;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+.confirm-details {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.warning-text {
+    color: #c62828;
+    font-weight: 600;
+    margin-bottom: 30px;
+}
+
+.confirm-form {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-danger {
+    padding: 12px 30px;
+    background: linear-gradient(135deg, #e743a3 0%, #ff32a3 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.btn-danger:hover {
+    filter: brightness(0.95);
+}
+
+.btn-cancel {
+    padding: 12px 30px;
+    background-color: #fde7f4;
+    color: #e743a3;
+    border: 1px solid #e743a3;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.btn-cancel:hover {
+    background-color: #fbd1ea;
+    color: #d83a93;
+}
+</style>
+{% endblock %}

@@ -3,139 +3,150 @@
 {% block title %}POS Transactions{% endblock %}
 
 {% block content %}
-<div class="pos-container">
-    <div class="pos-header">
-        <h1>POS Transactions</h1>
-        <div class="header-actions">
-            <a href="{% url 'pos_create' %}" class="btn-primary">New Transaction</a>
-            <a href="{% url 'dashboard' %}" class="btn-secondary">Dashboard</a>
-        </div>
+<div style="background: linear-gradient(135deg, #ffffff 0%, #ffffff 100%); min-height: 100vh; padding: 30px 0;">
+<div class="pos-container-modern">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: linear-gradient(135deg, #da553d 0%, #fa4e23 100%); padding: 25px; border-radius: 12px;">
+        <h1 style="margin: 0; color: white; font-size: 28px;">🧾 POS Transactions</h1>
+        <a href="{% url 'dashboard' %}" class="btn-cancel-modern-header">← Back to Dashboard</a>
     </div>
-    
+
+    <div class="breadcrumb" style="margin-bottom: 20px; font-size: 14px; color: #666;">
+        <a href="{% url 'dashboard' %}" style="color: #667eea; text-decoration: none;">Dashboard</a>
+        <span style="margin: 0 5px;">></span>
+        <span style="font-weight: 600;">Transactions</span>
+    </div>
+
     {% if messages %}
-        <div class="messages">
+        <div class="messages" style="margin-bottom: 20px;">
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">
+                <div class="alert alert-{{ message.tags }}" style="padding: 12px 15px; border-radius: 8px; margin-bottom: 10px;">
                     {{ message }}
                 </div>
             {% endfor %}
         </div>
     {% endif %}
-    
-    <!-- Filter Section -->
-    <div class="filter-section">
-        <form method="get" class="filter-form">
-            <select name="status" id="status_filter" onchange="this.form.submit()">
-                <option value="">All Status</option>
-                {% for status in statuses %}
-                    <option value="{{ status }}" {% if request.GET.status == status %}selected{% endif %}>
-                        {{ status }}
-                    </option>
-                {% endfor %}
-            </select>
-        </form>
+
+    <div class="form-card" style="margin-bottom: 20px;">
+        <div class="card-header" style="background: linear-gradient(135deg, #da553d 0%, #fa4e23 100%);">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">🔍 Search & Filter</h2>
+        </div>
+        <div class="card-body">
+            <form method="get" class="search-form-grid">
+                <div>
+                    <label for="search" class="filter-label">Search by No. or Customer</label>
+                    <input type="text" name="search" id="search" placeholder="Enter transaction no. or customer" 
+                           value="{{ request.GET.search }}" 
+                           class="filter-input"
+                    />
+                </div>
+                
+                <div>
+                    <label for="status_filter" class="filter-label">Status</label>
+                    <select name="status" id="status_filter" class="filter-select">
+                        <option value="">All Status</option>
+                        {% for status in statuses %}
+                            <option value="{{ status }}" {% if request.GET.status == status %}selected{% endif %}>{{ status }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="search-actions">
+                    <button type="submit" class="btn-search-modern" style="background: linear-gradient(135deg, #da553d 0%, #fa4e23 100%);">🔍 Search</button>
+                    <a href="{% url 'pos_list' %}" class="btn-reset-modern">↻ Reset</a>
+                </div>
+            </form>
+        </div>
     </div>
-    
-    <!-- Transactions Table -->
-    <div class="table-container">
-        {% if transactions %}
-            <table class="pos-table">
-                <thead>
-                    <tr>
-                        <th>Transaction No.</th>
-                        <th>Date</th>
-                        <th>Customer</th>
-                        <th>Status</th>
-                        <th>Subtotal</th>
-                        <th>Grand Total</th>
-                        <th>Created By</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for transaction in transactions %}
-                        <tr class="status-{{ transaction.document_status|lower }}">
-                            <td><strong>{{ transaction.transaction_no }}</strong></td>
-                            <td>{{ transaction.transaction_date|date:"M d, Y" }}</td>
-                            <td>{{ transaction.customer_name }}</td>
-                            <td>
-                                <span class="status-badge status-{{ transaction.document_status|lower }}">
-                                    {{ transaction.get_document_status_display }}
-                                </span>
-                            </td>
-                            <td>{{ transaction.subtotal|floatformat:2 }}</td>
-                            <td><strong>{{ transaction.grand_total|floatformat:2 }}</strong></td>
-                            <td>{{ transaction.created_by.username }}</td>
-                            <td>
-                                <a href="{% url 'pos_view' transaction.id %}" class="btn-small">View</a>
-                                {% if transaction.document_status == 'OPEN' %}
-                                    <a href="{% url 'pos_close' transaction.id %}" class="btn-small btn-success">Close</a>
-                                    <a href="{% url 'pos_cancel' transaction.id %}" class="btn-small btn-danger">Cancel</a>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="no-data">
-                <p>No transactions found.</p>
-                <a href="{% url 'pos_create' %}" class="btn-primary">Create New Transaction</a>
+
+    <div class="form-card" style="margin-bottom: 20px;">
+        <div class="card-header" style="background: linear-gradient(135deg, #da553d 0%, #fa4e23 100%);">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">⚙️ Controls</h2>
+        </div>
+        <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;">
+            <a href="{% url 'pos_create' %}" class="btn-save-modern" style="background: linear-gradient(135deg, #da553d 0%, #fa4e23 100%); padding: 10px 20px; margin: 0; max-width: 200px;">➕ New Transaction</a>
+            <div style="color: #666; font-size: 14px;">Total Transactions: <strong>{{ transactions|length }}</strong></div>
+        </div>
+    </div>
+
+    <div class="form-card">
+        <div class="card-header" style="background: linear-gradient(135deg, #da553d 0%, #fa4e23 100%);">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">📋 All Transactions</h2>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <div class="table-container" style="overflow-x: auto;">
+                {% if transactions %}
+                    <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background-color: #f5f7fa;">
+                                <th style="padding: 15px; text-align: left; font-weight: 700; color: #444; border-bottom: 2px solid #e0e0e0;">Transaction No.</th>
+                                <th style="padding: 15px; text-align: left; font-weight: 700; color: #444; border-bottom: 2px solid #e0e0e0;">Date</th>
+                                <th style="padding: 15px; text-align: left; font-weight: 700; color: #444; border-bottom: 2px solid #e0e0e0;">Customer</th>
+                                <th style="padding: 15px; text-align: left; font-weight: 700; color: #444; border-bottom: 2px solid #e0e0e0;">Status</th>
+                                <th style="padding: 15px; text-align: right; font-weight: 700; color: #444; border-bottom: 2px solid #e0e0e0;">Subtotal</th>
+                                <th style="padding: 15px; text-align: right; font-weight: 700; color: #444; border-bottom: 2px solid #e0e0e0;">Grand Total</th>
+                                <th style="padding: 15px; text-align: left; font-weight: 700; color: #444; border-bottom: 2px solid #e0e0e0;">Created By</th>
+                                <th style="padding: 15px; text-align: left; font-weight: 700; color: #444; border-bottom: 2px solid #e0e0e0;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                                <tr style="border-bottom: 1px solid #eee;" class="status-{{ transaction.document_status|lower }}">
+                                    <td style="padding: 15px;"><strong>{{ transaction.transaction_no }}</strong></td>
+                                    <td style="padding: 15px;">{{ transaction.transaction_date|date:"M d, Y" }}</td>
+                                    <td style="padding: 15px;">{{ transaction.customer_name }}</td>
+                                    <td style="padding: 15px;">
+                                        <span class="status-badge status-{{ transaction.document_status|lower }}">{{ transaction.get_document_status_display }}</span>
+                                    </td>
+                                    <td style="padding: 15px; text-align: right;">{{ transaction.subtotal|floatformat:2 }}</td>
+                                    <td style="padding: 15px; text-align: right;"><strong>{{ transaction.grand_total|floatformat:2 }}</strong></td>
+                                    <td style="padding: 15px;">{% if transaction.created_by %}{{ transaction.created_by.username }}{% else %}System{% endif %}</td>
+                                    <td style="padding: 15px;">
+                                        <a href="{% url 'pos_view' transaction.id %}" class="btn-action-view">View</a>
+                                        {% if transaction.document_status == 'OPEN' %}
+                                            <span style="color: #ccc;">|</span>
+                                            <a href="{% url 'pos_close' transaction.id %}" class="btn-action-edit">Close</a>
+                                            <span style="color: #ccc;">|</span>
+                                            <a href="{% url 'pos_cancel' transaction.id %}" class="btn-action-delete">Cancel</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty-state" style="text-align: center; padding: 40px 20px;">
+                        <p style="color: #666; margin-bottom: 20px; font-size: 16px;">No transactions found.</p>
+                        <a href="{% url 'pos_create' %}" class="btn-save-modern" style="background: linear-gradient(135deg, #da553d 0%, #fa4e23 100%); width: auto;">🚀 Create New Transaction</a>
+                    </div>
+                {% endif %}
             </div>
-        {% endif %}
+        </div>
     </div>
+
 </div>
-
+</div>
+ 
 <style>
-.status-badge {
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-    display: inline-block;
-}
-
-.status-open {
-    background-color: #e3f2fd;
-    color: #1976d2;
-}
-
-.status-closed {
-    background-color: #f3e5f5;
-    color: #7b1fa2;
-}
-
-.status-canceled {
-    background-color: #ffebee;
-    color: #c62828;
-}
-
-.no-data {
-    text-align: center;
-    padding: 40px 20px;
-    background: #f9f9f9;
-    border-radius: 8px;
-}
-
-.filter-section {
-    margin-bottom: 20px;
-}
-
-.filter-form {
-    display: flex;
-    gap: 10px;
-}
-
-.filter-form select {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-}
-
-.header-actions {
-    display: flex;
-    gap: 10px;
-}
+    .pos-container-modern { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    .form-card { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 20px; }
+    .card-header { color: white; padding: 15px 20px; font-size: 18px; font-weight: 700; border-bottom: 1px solid #e0e0e0; }
+    .card-body { padding: 20px; }
+    .btn-cancel-modern-header { padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; color: white; background-color: rgba(255,255,255,0.2); border: 1px solid white; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-cancel-modern-header:hover { background-color: rgba(255,255,255,0.3); color: white; }
+    .btn-save-modern { padding: 12px 25px; border-radius: 8px; font-weight: 600; text-decoration: none; color: white; background-color: #fa4e23; border: none; cursor: pointer; transition: background-color 0.3s ease, transform 0.1s ease; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-save-modern:hover { filter: brightness(0.95); transform: translateY(-1px); }
+    .search-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: flex-end; }
+    .filter-label { display: block; font-weight: 600; color: #da553d; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; }
+    .filter-input, .filter-select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; box-sizing: border-box; transition: all 0.3s ease; background: white; }
+    .filter-input:focus, .filter-select:focus { outline: none; border-color: #da553d; box-shadow: 0 0 0 3px rgba(218, 85, 61, 0.12); }
+    .search-actions { display: flex; gap: 10px; }
+    .btn-search-modern { flex: 1; padding: 10px 15px; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+    .btn-reset-modern { flex: 1; padding: 10px 15px; background-color: #6c757d; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; }
+    .btn-reset-modern:hover { background-color: #5a6268; }
+    .data-table tbody tr:hover { background-color: #f8f8f8; }
+    .status-badge { padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+    .status-open { background-color: #e3f2fd; color: #1976d2; }
+    .status-closed { background-color: #c8e6c9; color: #388e3c; }
+    .status-canceled { background-color: #ffcdd2; color: #c62828; }
 </style>
 {% endblock %}

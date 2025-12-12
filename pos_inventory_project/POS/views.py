@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.db import transaction as db_transaction
 from django.db import models
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from datetime import datetime
 import json
@@ -57,6 +58,14 @@ def pos_list(request):
     status = request.GET.get('status')
     if status:
         transactions = transactions.filter(document_status=status)
+    
+    # Search by transaction no or customer name
+    search = request.GET.get('search')
+    if search:
+        transactions = transactions.filter(
+            models.Q(transaction_no__icontains=search) |
+            models.Q(customer_name__icontains=search)
+        )
     
     context = {
         'transactions': transactions,
@@ -571,8 +580,21 @@ def item_list(request):
             models.Q(item_description__icontains=search)
         )
     
+    # Filter by unit of measure
+    uom = request.GET.get('uom')
+    if uom:
+        items = items.filter(unit_of_measure=uom)
+    
+    # Filter by stock level
+    stock = request.GET.get('stock')
+    if stock == 'low':
+        items = items.filter(quantity_on_hand__lte=5)
+    elif stock == 'in':
+        items = items.filter(quantity_on_hand__gt=5)
+    
     context = {
         'items': items,
+        'units': Item.UNIT_CHOICES,
     }
     return render(request, 'POS/item_list.html', context)
 
@@ -658,3 +680,21 @@ def item_edit(request, item_id):
         'is_edit': True,
     }
     return render(request, 'POS/item_form.html', context)
+
+
+@login_required(login_url='login')
+def item_delete(request, item_id):
+    """Delete an item (with protection if referenced by transactions)"""
+    item = get_object_or_404(Item, id=item_id)
+    if request.method == 'POST':
+        try:
+            item.delete()
+            messages.success(request, f'Item {item.item_code} deleted successfully!')
+            return redirect('item_list')
+        except ProtectedError:
+            messages.error(request, 'Cannot delete this item because it is referenced by transactions.')
+            return redirect('item_view', item_id=item.id)
+        except Exception as e:
+            messages.error(request, f'Error deleting item: {str(e)}')
+            return redirect('item_view', item_id=item.id)
+    return render(request, 'POS/item_delete_confirm.html', {'item': item})
