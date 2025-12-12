@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+
+{% block title %}User Detail: {{ user.username }}{% endblock %}
+
+{% block content %}
+<div style="background: linear-gradient(135deg, #ffffff 0%, #ffffff 100%); min-height: 100vh; padding: 30px 0;">
+<div class="pos-container-modern">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); padding: 25px; border-radius: 12px;">
+        <h1 style="margin: 0; color: white; font-size: 28px;">👁️ User Details: {{ user.username }}</h1>
+        <a href="{% url 'user_list' %}" class="btn-cancel-modern-header">← Back to List</a>
+    </div>
+
+    <div class="breadcrumb" style="margin-bottom: 20px; font-size: 14px; color: #666;">
+        <a href="{% url 'dashboard' %}" style="color: #667eea; text-decoration: none;">Dashboard</a>
+        <span style="margin: 0 5px;">></span>
+        <a href="{% url 'user_list' %}" style="color: #667eea; text-decoration: none;">Users</a>
+        <span style="margin: 0 5px;">></span>
+        <span style="font-weight: 600;">{{ user.username }}</span>
+    </div>
+
+    {% if messages %}
+        <div class="messages" style="margin-bottom: 20px;">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}" style="padding: 12px 15px; border-radius: 8px; margin-bottom: 10px;">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Action Buttons Card -->
+    <div class="form-card" style="margin-bottom: 20px;">
+        <div class="card-header" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">⚙️ Actions</h2>
+        </div>
+        <div class="card-body" style="padding: 15px 20px; display: flex; gap: 10px;">
+            <a href="{% url 'user_edit' user.id %}" class="btn-edit-modern">✏️ Edit User</a>
+            <a href="{% url 'user_delete' user.id %}" class="btn-delete-modern">🗑️ Delete User</a>
+        </div>
+    </div>
+
+    <!-- User Details Card -->
+    <div class="form-card">
+        <div class="card-header" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">👤 Profile and Account Information</h2>
+        </div>
+        <div class="card-body" style="padding: 30px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div>
+                    <p class="detail-label">Username:</p>
+                    <p class="detail-value" style="font-weight: 700; color: #333; font-size: 1.2em;">{{ user.username }}</p>
+
+                    <p class="detail-label">Full Name:</p>
+                    <p class="detail-value">{{ user.first_name }} {{ user.last_name }}</p>
+
+                    <p class="detail-label">Email:</p>
+                    <p class="detail-value">{{ user.email }}</p>
+
+                    <p class="detail-label">System Staff:</p>
+                    <p class="detail-value">
+                        {% if user.is_staff %}
+                            <span class="badge badge-cashier-modern">✅ Yes</span>
+                        {% else %}
+                            <span class="badge badge-user-modern">❌ No</span>
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="detail-label">Assigned Role:</p>
+                    <p class="detail-value">
+                        {% if user.is_manager %}
+                            <span class="badge badge-manager-modern">👑 Manager</span>
+                        {% elif user.is_cashier %}
+                            <span class="badge badge-cashier-modern">💵 Cashier</span>
+                        {% else %}
+                            <span class="badge badge-user-modern">👤 Basic User</span>
+                        {% endif %}
+                    </p>
+
+                    <p class="detail-label">Account Status:</p>
+                    <p class="detail-value">
+                        {% if user.is_active %}
+                            <span class="badge badge-status-active">🟢 Active</span>
+                        {% else %}
+                            <span class="badge badge-status-inactive">🔴 Inactive</span>
+                        {% endif %}
+                    </p>
+                    
+                    <p class="detail-label">Date Joined:</p>
+                    <p class="detail-value">{{ user.date_joined|date:"F j, Y, h:i A" }}</p>
+
+                    <p class="detail-label">Last Login:</p>
+                    <p class="detail-value">
+                        {% if user.last_login %}
+                            {{ user.last_login|date:"F j, Y, h:i A" }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+</div>
+</div>
+
+<style>
+    .pos-container-modern {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+
+    /* Card Styling */
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    
+    .card-header {
+        color: white;
+        padding: 15px 20px;
+        font-size: 18px;
+        font-weight: 700;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .card-body {
+        padding: 20px;
+    }
+
+    /* Detail View specific styles */
+    .detail-label {
+        display: block; 
+        font-weight: 600; 
+        color: #ff8c42; /* Changed to orange accent */
+        font-size: 12px; 
+        text-transform: uppercase; 
+        margin-top: 15px; 
+        margin-bottom: 5px;
+        border-bottom: 1px dashed #eee;
+        padding-bottom: 3px;
+    }
+
+    .detail-value {
+        font-size: 16px; 
+        color: #555; 
+        margin-bottom: 15px; 
+        padding-left: 5px;
+    }
+
+    /* Button Styles */
+    .btn-save-modern {
+        padding: 12px 25px;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        color: white;
+        background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.1s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-save-modern:hover {
+        background: linear-gradient(135deg, #ff6b35 0%, #ff5722 100%);
+        transform: translateY(-1px);
+    }
+    
+    .btn-cancel-modern {
+        padding: 12px 25px;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        color: #ff8c42;
+        background-color: #fff3e0;
+        border: 1px solid #ff8c42;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-cancel-modern:hover {
+        background-color: #ffe0b2;
+        color: #ff6b35;
+    }
+
+    .btn-cancel-modern-header {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        color: white;
+        background-color: rgba(255, 255, 255, 0.2);
+        border: 1px solid white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-cancel-modern-header:hover {
+        background-color: rgba(255, 255, 255, 0.3);
+        color: white;
+    }
+
+    .btn-edit-modern {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        color: white;
+        background-color: #ffc107;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-edit-modern:hover {
+        background-color: #e0a800;
+        transform: translateY(-1px);
+    }
+
+    .btn-delete-modern {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        color: white;
+        background-color: #dc3545;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-delete-modern:hover {
+        background-color: #c82333;
+        transform: translateY(-1px);
+    }
+
+    /* Badge Styles */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        gap: 5px;
+    }
+    
+    .badge-manager-modern {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .badge-cashier-modern {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .badge-user-modern {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .badge-status-active {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .badge-status-inactive {
+        background-color: #ffebee;
+        color: #c62828;
+    }
+
+    /* Message Alerts */
+    .alert-error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+        display: flex;
+        align-items: center;
+    }
+
+    .breadcrumb a {
+        color: #667eea;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #764ba2;
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}

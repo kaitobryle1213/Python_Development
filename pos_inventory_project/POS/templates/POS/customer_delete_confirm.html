@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Customer{% endblock %}
+
+{% block content %}
+<div class="confirm-container">
+    <div class="confirm-box">
+        <h1>Delete Customer</h1>
+        <p>Are you sure you want to delete customer <strong>{{ customer.customer_code }}</strong>?</p>
+        <p class="confirm-details">
+            Name: <strong>{{ customer.customer_name }}</strong><br>
+            Type: <strong>{{ customer.get_customer_type_display }}</strong>
+        </p>
+        <p class="warning-text">⚠️ This action cannot be undone! Any transactions linked to this customer will also be deleted.</p>
+        
+        <form method="post" class="confirm-form">
+            {% csrf_token %}
+            <button type="submit" class="btn-danger">Yes, Delete Customer</button>
+            <a href="{% url 'customer_view' customer.id %}" class="btn-cancel">No, Go Back</a>
+        </form>
+    </div>
+</div>
+
+<style>
+.confirm-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 100px);
+    padding: 20px;
+}
+
+.confirm-box {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    max-width: 500px;
+    text-align: center;
+}
+
+.confirm-box h1 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.confirm-box p {
+    color: #666;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+.confirm-details {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.warning-text {
+    color: #c62828;
+    font-weight: 600;
+    margin-bottom: 30px;
+}
+
+.confirm-form {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-danger {
+    padding: 12px 30px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.btn-cancel {
+    padding: 12px 30px;
+    background-color: #ffc107;
+    color: #333;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.btn-cancel:hover {
+    background-color: #e0a800;
+}
+</style>
+{% endblock %}

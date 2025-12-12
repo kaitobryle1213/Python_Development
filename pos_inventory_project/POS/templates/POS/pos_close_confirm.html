@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Close Transaction{% endblock %}
+
+{% block content %}
+<div class="confirm-container">
+    <div class="confirm-box">
+        <h1>Close Transaction</h1>
+        <p>Are you sure you want to close transaction <strong>{{ transaction.transaction_no }}</strong>?</p>
+        <p class="confirm-details">
+            Amount: <strong>{{ transaction.grand_total|floatformat:2 }}</strong>
+        </p>
+        
+        <form method="post" class="confirm-form">
+            {% csrf_token %}
+            <button type="submit" class="btn-confirm">Yes, Close Transaction</button>
+            <a href="{% url 'pos_view' transaction.id %}" class="btn-cancel">Cancel</a>
+        </form>
+    </div>
+</div>
+
+<style>
+.confirm-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 100px);
+    padding: 20px;
+}
+
+.confirm-box {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    max-width: 500px;
+    text-align: center;
+}
+
+.confirm-box h1 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.confirm-box p {
+    color: #666;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+.confirm-details {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 30px;
+}
+
+.confirm-form {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.btn-confirm {
+    padding: 12px 30px;
+    background-color: #667eea;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.btn-confirm:hover {
+    background-color: #764ba2;
+}
+</style>
+{% endblock %}

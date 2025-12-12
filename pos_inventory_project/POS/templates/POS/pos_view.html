@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block title %}Transaction {{ transaction.transaction_no }}{% endblock %}
+
+{% block content %}
+<div class="pos-container-modern">
+    <!-- Header Section -->
+    <div class="pos-header-modern">
+        <div class="header-content">
+            <div>
+                <h1>Transaction {{ transaction.transaction_no }}</h1>
+                <p class="subtitle">View and manage transaction details</p>
+            </div>
+            <a href="{% url 'pos_list' %}" class="btn-back">← Back to Transactions</a>
+        </div>
+    </div>
+    
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <!-- Transaction Header -->
+    <div class="form-card">
+        <div class="card-header">
+            <div class="card-icon">📋</div>
+            <h2>Transaction Information</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Transaction No.</label>
+                    <input type="text" value="{{ transaction.transaction_no }}" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Transaction Date</label>
+                    <input type="text" value="{{ transaction.transaction_date|date:'M d, Y' }}" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <input type="text" value="{{ transaction.get_document_status_display }}" readonly class="status-{{ transaction.document_status|lower }}">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Customer Information -->
+    <div class="form-card">
+        <div class="card-header">
+            <div class="card-icon">👤</div>
+            <h2>Customer Information</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Customer Code</label>
+                    <input type="text" value="{{ transaction.customer_code.customer_code|default:'' }}" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" value="{{ transaction.customer_name }}" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Customer TIN</label>
+                    <input type="text" value="{{ transaction.customer_tin }}" readonly>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Customer Address</label>
+                <textarea readonly rows="2">{{ transaction.customer_address }}</textarea>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Line Items -->
+    <div class="form-card">
+        <div class="card-header">
+            <div class="card-icon">📦</div>
+            <h2>Transaction Items</h2>
+        </div>
+        <div class="card-body">
+            <div class="table-container-modern">
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>Item Code</th>
+                            <th>Description</th>
+                            <th>UOM</th>
+                            <th class="text-center">Qty</th>
+                            <th class="text-right">Unit Cost</th>
+                            <th class="text-right">Unit Price</th>
+                            <th class="text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in line_items %}
+                            <tr>
+                                <td>{{ item.item_code.item_code }}</td>
+                                <td>{{ item.item_description }}</td>
+                                <td>{{ item.unit_of_measure }}</td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-right">{{ item.unit_cost|floatformat:2 }}</td>
+                                <td class="text-right">{{ item.unit_selling_price|floatformat:2 }}</td>
+                                <td class="text-right">{{ item.subtotal|floatformat:2 }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Totals -->
+    <div class="totals-card">
+        <div class="totals-grid">
+            <div class="total-item">
+                <label>Subtotal:</label>
+                <input type="text" value="{{ transaction.subtotal|floatformat:2 }}" readonly style="font-size: 18px; font-weight: 700; color: #333;">
+            </div>
+            <div class="total-item grand-total">
+                <label>Grand Total:</label>
+                <input type="text" value="{{ transaction.grand_total|floatformat:2 }}" readonly style="font-size: 20px; font-weight: 700; color: #f39c12;">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Transaction Metadata -->
+    <div class="form-card">
+        <div class="card-header">
+            <div class="card-icon">⏱️</div>
+            <h2>Transaction Metadata</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Created By</label>
+                    <input type="text" value="{{ transaction.created_by.get_full_name|default:transaction.created_by.username }}" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Created At</label>
+                    <input type="text" value="{{ transaction.created_at|date:'M d, Y H:i' }}" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Last Updated</label>
+                    <input type="text" value="{{ transaction.updated_at|date:'M d, Y H:i' }}" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    {% if can_edit %}
+        <div class="form-actions-modern">
+            {% if transaction.document_status == 'OPEN' %}
+                <a href="{% url 'pos_close' transaction.id %}" class="btn-save-modern">✓ Close Transaction</a>
+                <a href="{% url 'pos_cancel' transaction.id %}" class="btn-cancel-modern">✕ Cancel Transaction</a>
+            {% endif %}
+            <a href="{% url 'pos_list' %}" class="btn-exit-modern">⊗ Back to List</a>
+        </div>
+    {% else %}
+        <div class="form-actions-modern">
+            <a href="{% url 'pos_list' %}" class="btn-exit-modern">⊗ Back to List</a>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}

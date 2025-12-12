@@ -1,0 +1,609 @@
+{% extends 'base.html' %}
+
+{% block title %}New POS Transaction{% endblock %}
+
+{% block content %}
+<div class="pos-container-modern">
+    <!-- Header Section -->
+    <div class="pos-header-modern">
+        <div class="header-content">
+            <div>
+                <h1>New POS Transaction</h1>
+                <p class="subtitle">Create and manage your sales transactions</p>
+            </div>
+            <a href="{% url 'pos_list' %}" class="btn-back">← Back to Transactions</a>
+        </div>
+    </div>
+    
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <form method="post" id="posForm" class="pos-form-modern">
+        {% csrf_token %}
+        
+        <!-- Customer Section -->
+        <div class="form-card">
+            <div class="card-header">
+                <div class="card-icon">👤</div>
+                <h2>Customer Information</h2>
+            </div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="customer_code">Customer Code <span class="required">*</span></label>
+                        <div class="input-group">
+                            <input type="text" id="customer_code" name="customer_code" required 
+                                   placeholder="Search for customer...">
+                            <button type="button" class="btn-search" id="searchCustomerBtn">
+                                <span>🔍</span> Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="customer_name">Customer Name</label>
+                        <input type="text" id="customer_name" name="customer_name" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="customer_tin">Customer TIN</label>
+                        <input type="text" id="customer_tin" name="customer_tin" readonly>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="customer_address">Customer Address</label>
+                    <textarea id="customer_address" name="customer_address" rows="2" readonly></textarea>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Items Section -->
+        <div class="form-card">
+            <div class="card-header">
+                <div class="card-icon">📦</div>
+                <h2>Transaction Items</h2>
+            </div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="item_code">Item Code <span class="required">*</span></label>
+                        <div class="input-group">
+                            <input type="text" id="item_code" placeholder="Search for item...">
+                            <button type="button" class="btn-search" id="searchItemBtn">
+                                <span>🔍</span> Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="item-details" id="itemDetails" style="display: none;">
+                    <div class="item-details-grid">
+                        <div class="form-group">
+                            <label>Item Description</label>
+                            <input type="text" id="item_description" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Unit of Measure</label>
+                            <input type="text" id="item_uom" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Unit Cost</label>
+                            <input type="number" id="item_unit_cost" readonly step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>Unit Selling Price</label>
+                            <input type="number" id="item_unit_selling_price" readonly step="0.01">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="item_quantity">Quantity <span class="required">*</span></label>
+                            <input type="number" id="item_quantity" min="1" value="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Subtotal</label>
+                            <input type="number" id="item_subtotal" readonly step="0.01">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <button type="button" class="btn-add-item" id="addItemBtn">
+                            <span>+</span> Add Item
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Line Items Table -->
+                <div class="table-container-modern">
+                    <table id="lineItemsTable" class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Item Code</th>
+                                <th>Description</th>
+                                <th>UOM</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-right">Unit Cost</th>
+                                <th class="text-right">Unit Price</th>
+                                <th class="text-right">Subtotal</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lineItemsBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Totals Section -->
+        <div class="totals-card">
+            <div class="totals-grid">
+                <div class="total-item">
+                    <label>Subtotal:</label>
+                    <input type="number" id="subtotal" name="subtotal" readonly step="0.01" value="0.00">
+                </div>
+                <div class="total-item grand-total">
+                    <label>Grand Total:</label>
+                    <input type="number" id="grand_total" name="grand_total" readonly step="0.01" value="0.00">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Hidden field to store line items -->
+        <input type="hidden" id="line_items" name="line_items" value="[]">
+        
+        <!-- Action Buttons -->
+        <div class="form-actions-modern">
+            <button type="submit" class="btn-save-modern">💾 Save Transaction</button>
+            <button type="reset" class="btn-cancel-modern" onclick="resetForm(); return false;">✕ Cancel</button>
+            <a href="{% url 'pos_list' %}" class="btn-exit-modern">⊗ Exit</a>
+        </div>
+    </form>
+</div>
+
+<script>
+let lineItems = [];
+
+// Search Customer - show all if empty, search if populated
+document.getElementById('searchCustomerBtn').addEventListener('click', function() {
+    const customerCode = document.getElementById('customer_code').value.trim();
+    
+    fetch('{% url "pos_create" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            action: 'get_customer',
+            customer_code: customerCode
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.customers) {
+                // List all customers mode
+                showCustomerListModal(data.customers);
+            } else {
+                // Single customer found
+                document.getElementById('customer_name').value = data.customer.name;
+                document.getElementById('customer_address').value = data.customer.address;
+                document.getElementById('customer_tin').value = data.customer.tin;
+            }
+        } else {
+            alert(data.message);
+            document.getElementById('customer_name').value = '';
+            document.getElementById('customer_address').value = '';
+            document.getElementById('customer_tin').value = '';
+        }
+    })
+    .catch(error => console.error('Error:', error));
+});
+
+// Show customer list in modal
+function showCustomerListModal(customers) {
+    // Store customers globally for filtering
+    window.allCustomers = customers;
+    
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('customerListModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'customerListModal';
+        modal.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; box-sizing: border-box; width: 100vw; max-width: 100%; overflow: hidden;">
+                <div style="background: white; border-radius: 12px; width: 100%; max-width: 900px; max-height: 85vh; overflow: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3); display: flex; flex-direction: column; box-sizing: border-box;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0;">
+                        <h2 style="margin: 0; font-size: 20px;">Select Customer</h2>
+                        <button type="button" onclick="closeCustomerListModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: white;">&times;</button>
+                    </div>
+                    <div style="padding: 15px 20px;">
+                        <input type="text" id="customerNameFilter" placeholder="Search by customer name..." 
+                               style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+                    </div>
+                    <div style="flex: 1; overflow-y: auto; padding: 0 20px; box-sizing: border-box;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead style="background: #f5f6fa; position: sticky; top: 0;">
+                                <tr>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Customer Code</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Customer Name</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">TIN</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Address</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customerListBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="padding: 15px 20px; border-top: 1px solid #e0e0e0; text-align: right; box-sizing: border-box;">
+                        <button type="button" onclick="closeCustomerListModal()" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer;">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Add event listener for filter input
+        document.getElementById('customerNameFilter').addEventListener('input', filterCustomerList);
+    }
+    
+    // Render customer list
+    renderCustomerList(customers);
+    modal.style.display = 'flex';
+}
+
+// Filter customer list by name
+function filterCustomerList() {
+    const filterText = document.getElementById('customerNameFilter').value.toLowerCase().trim();
+    
+    if (!filterText) {
+        // Show all customers if filter is empty
+        renderCustomerList(window.allCustomers);
+    } else {
+        // Filter customers by name
+        const filtered = window.allCustomers.filter(customer => 
+            customer.customer_name.toLowerCase().includes(filterText)
+        );
+        renderCustomerList(filtered);
+    }
+}
+
+// Render customer list in table
+function renderCustomerList(customers) {
+    const tbody = document.getElementById('customerListBody');
+    tbody.innerHTML = '';
+    
+    if (customers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #999;">No customers found</td></tr>';
+        return;
+    }
+    
+    customers.forEach(customer => {
+        const row = document.createElement('tr');
+        row.style.cssText = 'border-bottom: 1px solid #ddd; cursor: pointer;';
+        row.innerHTML = `
+            <td style="padding: 10px;">${customer.customer_code}</td>
+            <td style="padding: 10px;">${customer.customer_name}</td>
+            <td style="padding: 10px;">${customer.customer_tin}</td>
+            <td style="padding: 10px;">${customer.customer_address}</td>
+        `;
+        row.addEventListener('mouseover', () => row.style.backgroundColor = '#f9f9f9');
+        row.addEventListener('mouseout', () => row.style.backgroundColor = 'transparent');
+        row.addEventListener('click', () => selectCustomer(customer));
+        tbody.appendChild(row);
+    });
+}
+
+// Close customer list modal
+function closeCustomerListModal() {
+    const modal = document.getElementById('customerListModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Select customer from list
+function selectCustomer(customer) {
+    document.getElementById('customer_code').value = customer.customer_code;
+    document.getElementById('customer_name').value = customer.customer_name;
+    document.getElementById('customer_address').value = customer.customer_address;
+    document.getElementById('customer_tin').value = customer.customer_tin;
+    closeCustomerListModal();
+}
+
+// Search Item - show all if empty, search if populated
+document.getElementById('searchItemBtn').addEventListener('click', function() {
+    const itemCode = document.getElementById('item_code').value.trim();
+    
+    fetch('{% url "pos_create" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            action: 'get_item',
+            item_code: itemCode
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.items) {
+                // List all items mode
+                showItemListModal(data.items);
+            } else {
+                // Single item found
+                populateItemDetails(data.item);
+            }
+        } else {
+            alert(data.message);
+            document.getElementById('itemDetails').style.display = 'none';
+        }
+    })
+    .catch(error => console.error('Error:', error));
+});
+
+// Populate item details in form
+function populateItemDetails(item) {
+    document.getElementById('item_code').value = item.code;
+    document.getElementById('item_description').value = item.description;
+    document.getElementById('item_uom').value = item.uom;
+    document.getElementById('item_unit_cost').value = item.unit_cost;
+    document.getElementById('item_unit_selling_price').value = item.unit_selling_price;
+    document.getElementById('item_quantity').value = 1;
+    calculateItemSubtotal();
+    document.getElementById('itemDetails').style.display = 'block';
+}
+
+// Show item list in modal
+function showItemListModal(items) {
+    // Store items globally for filtering
+    window.allItems = items;
+    
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('itemListModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'itemListModal';
+        modal.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; box-sizing: border-box; width: 100vw; max-width: 100%; overflow: hidden;">
+                <div style="background: white; border-radius: 12px; width: 100%; max-width: 900px; max-height: 85vh; overflow: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3); display: flex; flex-direction: column; box-sizing: border-box;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0;">
+                        <h2 style="margin: 0; font-size: 20px;">Select Item</h2>
+                        <button type="button" onclick="closeItemListModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: white;">&times;</button>
+                    </div>
+                    <div style="padding: 15px 20px;">
+                        <input type="text" id="itemDescriptionFilter" placeholder="Search by description..." 
+                               style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+                    </div>
+                    <div style="flex: 1; overflow-y: auto; padding: 0 20px; box-sizing: border-box;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead style="background: #f5f6fa; position: sticky; top: 0;">
+                                <tr>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Item Code</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Description</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">UOM</th>
+                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; font-weight: 600;">Unit Cost</th>
+                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; font-weight: 600;">Unit Price</th>
+                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; font-weight: 600;">Qty On Hand</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemListBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="padding: 15px 20px; border-top: 1px solid #e0e0e0; text-align: right; box-sizing: border-box;">
+                        <button type="button" onclick="closeItemListModal()" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer;">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Add event listener for filter input
+        document.getElementById('itemDescriptionFilter').addEventListener('input', filterItemList);
+    }
+    
+    // Populate item list
+    renderItemList(items);
+    modal.style.display = 'flex';
+}
+
+// Filter item list by description
+function filterItemList() {
+    const filterText = document.getElementById('itemDescriptionFilter').value.toLowerCase().trim();
+    
+    if (!filterText) {
+        // Show all items if filter is empty
+        renderItemList(window.allItems);
+    } else {
+        // Filter items by description
+        const filtered = window.allItems.filter(item => 
+            item.item_description.toLowerCase().includes(filterText)
+        );
+        renderItemList(filtered);
+    }
+}
+
+// Render item list in table
+function renderItemList(items) {
+    const tbody = document.getElementById('itemListBody');
+    tbody.innerHTML = '';
+    
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #999;">No items found</td></tr>';
+        return;
+    }
+    
+    items.forEach(item => {
+        const row = document.createElement('tr');
+        row.style.cssText = 'border-bottom: 1px solid #ddd; cursor: pointer;';
+        row.innerHTML = `
+            <td style="padding: 10px;">${item.item_code}</td>
+            <td style="padding: 10px;">${item.item_description}</td>
+            <td style="padding: 10px;">${item.unit_of_measure}</td>
+            <td style="padding: 10px; text-align: center;">${parseFloat(item.unit_cost).toFixed(2)}</td>
+            <td style="padding: 10px; text-align: center;">${parseFloat(item.unit_selling_price).toFixed(2)}</td>
+            <td style="padding: 10px; text-align: center;">${item.quantity_on_hand}</td>
+        `;
+        row.addEventListener('mouseover', () => row.style.backgroundColor = '#f9f9f9');
+        row.addEventListener('mouseout', () => row.style.backgroundColor = 'transparent');
+        row.addEventListener('click', () => selectItem(item));
+        tbody.appendChild(row);
+    });
+}
+
+// Close item list modal
+function closeItemListModal() {
+    const modal = document.getElementById('itemListModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Select item from list
+function selectItem(item) {
+    document.getElementById('item_code').value = item.item_code;
+    document.getElementById('item_description').value = item.item_description;
+    document.getElementById('item_uom').value = item.unit_of_measure;
+    document.getElementById('item_unit_cost').value = item.unit_cost;
+    document.getElementById('item_unit_selling_price').value = item.unit_selling_price;
+    document.getElementById('item_quantity').value = 1;
+    calculateItemSubtotal();
+    document.getElementById('itemDetails').style.display = 'block';
+    closeItemListModal();
+}
+
+// Calculate item subtotal
+document.getElementById('item_quantity').addEventListener('input', calculateItemSubtotal);
+
+function calculateItemSubtotal() {
+    const quantity = parseInt(document.getElementById('item_quantity').value) || 0;
+    const unitPrice = parseFloat(document.getElementById('item_unit_selling_price').value) || 0;
+    const subtotal = quantity * unitPrice;
+    document.getElementById('item_subtotal').value = subtotal.toFixed(2);
+}
+
+// Add Item to table
+document.getElementById('addItemBtn').addEventListener('click', function() {
+    const itemCode = document.getElementById('item_code').value.trim();
+    const itemDescription = document.getElementById('item_description').value;
+    const itemUom = document.getElementById('item_uom').value;
+    const quantity = parseInt(document.getElementById('item_quantity').value);
+    const unitCost = parseFloat(document.getElementById('item_unit_cost').value);
+    const unitSellingPrice = parseFloat(document.getElementById('item_unit_selling_price').value);
+    const subtotal = parseFloat(document.getElementById('item_subtotal').value);
+    
+    if (!itemCode || !quantity) {
+        alert('Please fill in item code and quantity');
+        return;
+    }
+    
+    // Check if item already exists
+    if (lineItems.some(item => item.item_code === itemCode)) {
+        alert('Item already added to transaction');
+        return;
+    }
+    
+    lineItems.push({
+        item_code: itemCode,
+        item_description: itemDescription,
+        unit_of_measure: itemUom,
+        quantity: quantity,
+        unit_cost: unitCost,
+        unit_selling_price: unitSellingPrice,
+        subtotal: subtotal
+    });
+    
+    renderLineItems();
+    clearItemForm();
+});
+
+// Render line items table
+function renderLineItems() {
+    const tbody = document.getElementById('lineItemsBody');
+    tbody.innerHTML = '';
+    
+    let totalAmount = 0;
+    
+    lineItems.forEach((item, index) => {
+        const row = `
+            <tr>
+                <td>${item.item_code}</td>
+                <td>${item.item_description}</td>
+                <td>${item.unit_of_measure}</td>
+                <td>${item.quantity}</td>
+                <td>${parseFloat(item.unit_cost).toFixed(2)}</td>
+                <td>${parseFloat(item.unit_selling_price).toFixed(2)}</td>
+                <td>${item.subtotal.toFixed(2)}</td>
+                <td><button type="button" class="btn-remove" onclick="removeItem(${index})">Remove</button></td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+        totalAmount += item.subtotal;
+    });
+    
+    document.getElementById('subtotal').value = totalAmount.toFixed(2);
+    document.getElementById('grand_total').value = totalAmount.toFixed(2);
+    document.getElementById('line_items').value = JSON.stringify(lineItems);
+}
+
+// Remove item from table
+function removeItem(index) {
+    lineItems.splice(index, 1);
+    renderLineItems();
+}
+
+// Clear item form
+function clearItemForm() {
+    document.getElementById('item_code').value = '';
+    document.getElementById('item_description').value = '';
+    document.getElementById('item_uom').value = '';
+    document.getElementById('item_unit_cost').value = '';
+    document.getElementById('item_unit_selling_price').value = '';
+    document.getElementById('item_quantity').value = '1';
+    document.getElementById('item_subtotal').value = '';
+    document.getElementById('itemDetails').style.display = 'none';
+}
+
+// Reset form
+function resetForm() {
+    document.getElementById('posForm').reset();
+    lineItems = [];
+    renderLineItems();
+    clearItemForm();
+}
+
+// Form submission
+document.getElementById('posForm').addEventListener('submit', function(e) {
+    const customerCode = document.getElementById('customer_code').value.trim();
+    
+    
+    if (!customerCode) {
+        e.preventDefault();
+        alert('Please select a customer');
+        return;
+    }
+    
+    if (lineItems.length === 0) {
+        e.preventDefault();
+        alert('Please add at least one item');
+        return;
+    }
+});
+</script>
+{% endblock %}

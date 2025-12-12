@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}POS Transactions{% endblock %}
+
+{% block content %}
+<div class="pos-container">
+    <div class="pos-header">
+        <h1>POS Transactions</h1>
+        <div class="header-actions">
+            <a href="{% url 'pos_create' %}" class="btn-primary">New Transaction</a>
+            <a href="{% url 'dashboard' %}" class="btn-secondary">Dashboard</a>
+        </div>
+    </div>
+    
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <form method="get" class="filter-form">
+            <select name="status" id="status_filter" onchange="this.form.submit()">
+                <option value="">All Status</option>
+                {% for status in statuses %}
+                    <option value="{{ status }}" {% if request.GET.status == status %}selected{% endif %}>
+                        {{ status }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+    
+    <!-- Transactions Table -->
+    <div class="table-container">
+        {% if transactions %}
+            <table class="pos-table">
+                <thead>
+                    <tr>
+                        <th>Transaction No.</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Status</th>
+                        <th>Subtotal</th>
+                        <th>Grand Total</th>
+                        <th>Created By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in transactions %}
+                        <tr class="status-{{ transaction.document_status|lower }}">
+                            <td><strong>{{ transaction.transaction_no }}</strong></td>
+                            <td>{{ transaction.transaction_date|date:"M d, Y" }}</td>
+                            <td>{{ transaction.customer_name }}</td>
+                            <td>
+                                <span class="status-badge status-{{ transaction.document_status|lower }}">
+                                    {{ transaction.get_document_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ transaction.subtotal|floatformat:2 }}</td>
+                            <td><strong>{{ transaction.grand_total|floatformat:2 }}</strong></td>
+                            <td>{{ transaction.created_by.username }}</td>
+                            <td>
+                                <a href="{% url 'pos_view' transaction.id %}" class="btn-small">View</a>
+                                {% if transaction.document_status == 'OPEN' %}
+                                    <a href="{% url 'pos_close' transaction.id %}" class="btn-small btn-success">Close</a>
+                                    <a href="{% url 'pos_cancel' transaction.id %}" class="btn-small btn-danger">Cancel</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="no-data">
+                <p>No transactions found.</p>
+                <a href="{% url 'pos_create' %}" class="btn-primary">Create New Transaction</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.status-open {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.status-closed {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.status-canceled {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.no-data {
+    text-align: center;
+    padding: 40px 20px;
+    background: #f9f9f9;
+    border-radius: 8px;
+}
+
+.filter-section {
+    margin-bottom: 20px;
+}
+
+.filter-form {
+    display: flex;
+    gap: 10px;
+}
+
+.filter-form select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+</style>
+{% endblock %}

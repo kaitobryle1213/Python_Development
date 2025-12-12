@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}View Item - POS System{% endblock %}
+
+{% block content %}
+<div class="pos-container-modern">
+    <!-- Header Section -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <h1 style="margin: 0; color: #333; font-size: 28px;">👁️ View Item</h1>
+        <div style="display: flex; gap: 10px;">
+            <a href="{% url 'item_edit' item.id %}" class="btn-save-modern">✏️ Edit</a>
+            <a href="{% url 'item_list' %}" class="btn-cancel-modern">← Back to Items</a>
+        </div>
+    </div>
+    
+    <!-- Item Details Card -->
+    <div class="form-card" style="margin-bottom: 30px;">
+        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">📦 Item Information</h2>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div>
+                    <label style="display: block; font-weight: 600; color: #667eea; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Item Code</label>
+                    <p style="margin: 0; font-size: 16px; color: #333;"><strong>{{ item.item_code }}</strong></p>
+                </div>
+                <div>
+                    <label style="display: block; font-weight: 600; color: #667eea; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Item Description</label>
+                    <p style="margin: 0; font-size: 16px; color: #333;">{{ item.item_description }}</p>
+                </div>
+                <div>
+                    <label style="display: block; font-weight: 600; color: #667eea; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Unit of Measure</label>
+                    <p style="margin: 0; font-size: 16px; color: #333;">{{ item.get_unit_of_measure_display }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pricing Card -->
+    <div class="form-card" style="margin-bottom: 30px;">
+        <div class="card-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">💰 Pricing</h2>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div>
+                    <label style="display: block; font-weight: 600; color: #11998e; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Unit Cost</label>
+                    <p style="margin: 0; font-size: 18px; color: #11998e; font-weight: 600;">₱{{ item.unit_cost|floatformat:2 }}</p>
+                </div>
+                <div>
+                    <label style="display: block; font-weight: 600; color: #11998e; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Unit Selling Price</label>
+                    <p style="margin: 0; font-size: 18px; color: #11998e; font-weight: 600;">₱{{ item.unit_selling_price|floatformat:2 }}</p>
+                </div>
+                <div>
+                    <label style="display: block; font-weight: 600; color: #11998e; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Markup</label>
+                    <p style="margin: 0; font-size: 18px; color: #11998e; font-weight: 600;">
+                        {% widthratio item.unit_selling_price item.unit_cost 100 as markup_percent %}
+                        {{ markup_percent|add:-100 }}%
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Inventory Card -->
+    <div class="form-card" style="margin-bottom: 30px;">
+        <div class="card-header" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">📊 Inventory</h2>
+        </div>
+        <div class="card-body">
+            <div style="text-align: center; padding: 20px;">
+                <p style="margin: 0; font-size: 12px; text-transform: uppercase; color: #999; margin-bottom: 10px; font-weight: 600;">Quantity on Hand</p>
+                <p style="margin: 0; font-size: 36px; color: #f39c12; font-weight: 600;">{{ item.quantity_on_hand }}</p>
+                {% if item.quantity_on_hand <= 5 %}
+                    <p style="margin: 10px 0 0 0; color: #f5576c; font-size: 13px; font-weight: 600;">⚠️ Low Stock Alert</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Audit Information Card -->
+    <div class="form-card">
+        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">⏱️ Audit Information</h2>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div>
+                    <label style="display: block; font-weight: 600; color: #667eea; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Created By</label>
+                    <p style="margin: 0; font-size: 14px; color: #333;">{% if item.created_by %}{{ item.created_by.first_name|default:item.created_by.username }}{% else %}System{% endif %}</p>
+                </div>
+                <div>
+                    <label style="display: block; font-weight: 600; color: #667eea; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Created Date</label>
+                    <p style="margin: 0; font-size: 14px; color: #333;">{{ item.created_at|date:"M d, Y H:i" }}</p>
+                </div>
+                <div>
+                    <label style="display: block; font-weight: 600; color: #667eea; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Updated By</label>
+                    <p style="margin: 0; font-size: 14px; color: #333;">{% if item.updated_by %}{{ item.updated_by.first_name|default:item.updated_by.username }}{% else %}System{% endif %}</p>
+                </div>
+                <div>
+                    <label style="display: block; font-weight: 600; color: #667eea; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Updated Date</label>
+                    <p style="margin: 0; font-size: 14px; color: #333;">{{ item.updated_at|date:"M d, Y H:i" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div style="margin-top: 20px; display: flex; gap: 10px;">
+        <a href="{% url 'item_edit' item.id %}" class="btn-save-modern">✏️ Edit Item</a>
+        <a href="{% url 'item_list' %}" class="btn-cancel-modern">← Back to Items</a>
+    </div>
+</div>
+{% endblock %}
