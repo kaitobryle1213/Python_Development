@@ -4,7 +4,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2 class="mb-1">Payment Schedule</h2>
-        <p class="text-secondary small mb-0">Overview of upcoming and past payments</p>
+        <p class="text-secondary small mb-0">Overview of upcoming and past payments • <span id="last-update" class="text-muted">Updating...</span></p>
     </div>
     <div class="d-flex gap-2">
         <div class="d-flex align-items-center me-3">
@@ -18,7 +18,7 @@
 
 <div class="card border-0">
     <div class="table-responsive">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover mb-0" id="dashboard-table">
             <thead class="bg-light">
                 <tr>
                     <th class="ps-4">Name</th>
@@ -29,7 +29,7 @@
                     <th>Status</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="dashboard-table-body">
                 {% for item in payment_data %}
                 <tr>
                     <td class="ps-4 fw-medium">
@@ -52,7 +52,7 @@
                         {{ item.customer.due_date|date:"M d, Y"|default:"N/A" }}
                     </td>
                     <td class="font-monospace">
-                        {% if item.payment %}
+                        {% if item.payment.amount %}
                             ₱{{ item.payment.amount }}
                         {% elif item.customer.room %}
                             ₱{{ item.customer.room.price }}
@@ -65,7 +65,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr>
+                <tr id="no-data-row">
                     <td colspan="6" class="text-center py-5 text-secondary">
                         <i class="fas fa-calendar-times fa-2x mb-3 d-block opacity-50"></i>
                         No customers or payment schedules found.
@@ -76,4 +76,72 @@
         </table>
     </div>
 </div>
+
+<script>
+    /**
+     * Re-renders the dashboard table rows without refreshing the page.
+     * Logic: If a payment was made TODAY, it stays Green. 
+     * Tomorrow, it reverts to White (Upcoming) automatically.
+     */
+    function refreshDashboard() {
+        // Use the URL name defined in your urls.py
+        fetch("{% url 'dashboard_api' %}")
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                const tbody = document.getElementById('dashboard-table-body');
+                const lastUpdateEl = document.getElementById('last-update');
+                
+                if (data.payment_data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-secondary">
+                                <i class="fas fa-calendar-times fa-2x mb-3 d-block opacity-50"></i>
+                                No customers or payment schedules found.
+                            </td>
+                        </tr>`;
+                    return;
+                }
+
+                let newHtml = '';
+                data.payment_data.forEach(item => {
+                    // Apply dynamic styling based on color/status
+                    const dueStyles = (item.color === 'red' || item.color === 'black') ? 'text-danger fw-bold' : '';
+                    const statusStyles = item.status === 'Paid' ? 'text-success' : 'text-secondary';
+
+                    newHtml += `
+                    <tr>
+                        <td class="ps-4 fw-medium">
+                            <span class="indicator indicator-${item.color}" title="${item.status}"></span>
+                            ${item.name}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary bg-opacity-25 text-light fw-normal">
+                                ${item.room_no}
+                            </span>
+                        </td>
+                        <td class="text-secondary">${item.prev_payment}</td>
+                        <td class="${dueStyles}">${item.due_date}</td>
+                        <td class="font-monospace">${item.amount}</td>
+                        <td class="fw-medium ${statusStyles}">${item.status}</td>
+                    </tr>`;
+                });
+
+                tbody.innerHTML = newHtml;
+                
+                // Update the "Last Updated" text
+                const now = new Date();
+                lastUpdateEl.innerText = "Last checked: " + now.toLocaleTimeString();
+            })
+            .catch(error => {
+                console.error('Dashboard Sync Error:', error);
+                document.getElementById('last-update').innerText = "Connection lost. Retrying...";
+            });
+    }
+
+    // Initialize the auto-refresh every 3 seconds (3000ms)
+    setInterval(refreshDashboard, 3000);
+</script>
 {% endblock %}

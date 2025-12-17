@@ -11,12 +11,34 @@ class RoomForm(forms.ModelForm):
             'status': forms.Select(attrs={'class': 'form-select'}),
             'room_type': forms.Select(attrs={'class': 'form-select'}),
             'price': forms.NumberInput(attrs={'class': 'form-control'}),
+            'capacity': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
         }
+
+    def clean(self):
+        """
+        Custom validation to ensure capacity matches room type rules.
+        """
+        cleaned_data = super().clean()
+        room_type = cleaned_data.get("room_type")
+        capacity = cleaned_data.get("capacity")
+
+        if room_type == 'Single':
+            # Force capacity to 1 for single rooms
+            if capacity and capacity > 1:
+                self.add_error('capacity', "Single rooms can only have a capacity of 1.")
+            cleaned_data['capacity'] = 1
+            
+        elif room_type == 'Bed Spacer':
+            # Ensure bed spacers have at least 1 capacity
+            if not capacity or capacity < 1:
+                self.add_error('capacity', "Bed Spacer rooms must have a capacity of at least 1.")
+
+        return cleaned_data
+        
 
 class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
-        # Added 'due_date' to the fields list
         fields = ['name', 'address', 'age', 'gender', 'status', 'customer_type', 'room', 'due_date']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Full Name'}),
@@ -26,12 +48,36 @@ class CustomerForm(forms.ModelForm):
             'status': forms.Select(attrs={'class': 'form-select'}),
             'customer_type': forms.Select(attrs={'class': 'form-select'}),
             'room': forms.HiddenInput(),
-            # DateInput with type='date' enables the browser's calendar picker
             'due_date': forms.DateInput(attrs={
                 'class': 'form-control',
                 'type': 'date'
             }),
         }
+
+    def save(self, commit=True):
+        """
+        Custom save logic to automatically mark a room as 'Occupied' 
+        if the number of active customers reaches the room's capacity.
+        """
+        customer = super().save(commit=False)
+        if commit:
+            customer.save()
+            
+            # Check if customer has a room assigned
+            room = customer.room
+            if room:
+                # Count current active occupants in this specific room
+                # (Assumes your Customer model has a 'status' field where 'Active' means staying)
+                active_occupants = Customer.objects.filter(room=room, status='Active').count()
+                
+                # Compare occupants to room capacity
+                if active_occupants >= room.capacity:
+                    room.status = 'Occupied'
+                    room.save()
+        
+        return customer        
+
+        
 
 class BoardingHouseUserForm(forms.ModelForm):
     password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}))
@@ -51,6 +97,8 @@ class BoardingHouseUserForm(forms.ModelForm):
         cleaned_data = super().clean()
         password = cleaned_data.get("password")
         confirm_password = cleaned_data.get("confirm_password")
+        room_type = cleaned_data.get("room_type")
+        capacity = cleaned_data.get("capacity")
 
         if password and confirm_password and password != confirm_password:
             self.add_error('confirm_password', "Passwords do not match")
