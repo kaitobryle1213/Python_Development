@@ -104,10 +104,17 @@ class POSTransaction(models.Model):
         ('CLOSED', 'Closed'),
         ('CANCELED', 'Canceled'),
     ]
+    MODE_CHOICES = [
+        ('CASH', 'Cash'),
+        ('PO', 'PO'),
+        ('CHECK', 'Check'),
+        ('ONLINE', 'Online Transfer'),
+    ]
     
     transaction_no = models.CharField(max_length=50, unique=True)
     transaction_date = models.DateField(default=timezone.now)
     document_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='OPEN')
+    mode_of_payment = models.CharField(max_length=20, choices=MODE_CHOICES, default='CASH')
     
     customer_code = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, blank=True)
     customer_name = models.CharField(max_length=255, blank=True)
@@ -116,6 +123,14 @@ class POSTransaction(models.Model):
     
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     grand_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cash_amount_received = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    cash_amount_change = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    check_number = models.CharField(max_length=50, blank=True)
+    check_date = models.DateField(null=True, blank=True)
+    check_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    bank_number = models.CharField(max_length=50, blank=True)
+    bank_code = models.CharField(max_length=20, blank=True)
+    online_transaction_date = models.DateField(null=True, blank=True)
     
     created_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

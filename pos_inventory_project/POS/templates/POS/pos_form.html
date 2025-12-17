@@ -8,10 +8,10 @@
     <div class="pos-header-modern">
         <div class="header-content">
             <div>
-                <h1>New POS Transaction</h1>
-                <p class="subtitle">Create and manage your sales transactions</p>
+                <h1 style="font-size:18px; font-weight:600; margin:0;">New POS Transaction</h1>
+                <p class="subtitle" style="font-size:12px; color:#6b7280; margin-top:4px;">Create and manage your sales transactions</p>
             </div>
-            <a href="{% url 'pos_list' %}" class="btn-back">← Back to Transactions</a>
+            <a href="{% url 'pos_list' %}" class="btn-back" style="font-size:12px;">← Back to Transactions</a>
         </div>
     </div>
     
@@ -29,50 +29,63 @@
         {% csrf_token %}
         
         <!-- Customer Section -->
-        <div class="form-card">
-            <div class="card-header">
-                <div class="card-icon">👤</div>
-                <h2>Customer Information</h2>
+        <div class="form-card" id="area1">
+            <div class="card-header" style="padding:10px 12px;">
+                <div class="card-icon" style="font-size:14px;">👤</div>
+                <h2 style="font-size:14px; font-weight:600; margin:0;">Customer Information</h2>
             </div>
-            <div class="card-body">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="customer_code">Customer Code <span class="required">*</span></label>
-                        <div class="input-group">
-                            <input type="text" id="customer_code" name="customer_code" required 
-                                   placeholder="Search for customer...">
-                            <button type="button" class="btn-search" id="searchCustomerBtn">
-                                <span>🔍</span> Search
-                            </button>
+            <div class="card-body" style="display:grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items:start;">
+                <div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="customer_code">Customer Code <span class="required">*</span></label>
+                            <div class="input-group">
+                                <input type="text" id="customer_code" name="customer_code" required 
+                                       placeholder="Search for customer...">
+                                <button type="button" class="btn-search" id="searchCustomerBtn">
+                                    <span>🔍</span> Search
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="customer_name">Customer Name</label>
-                        <input type="text" id="customer_name" name="customer_name" readonly>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="customer_name">Customer Name</label>
+                            <input type="text" id="customer_name" name="customer_name" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="customer_tin">Customer TIN</label>
+                            <input type="text" id="customer_tin" name="customer_tin" readonly>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label for="customer_tin">Customer TIN</label>
-                        <input type="text" id="customer_tin" name="customer_tin" readonly>
+                        <label for="customer_address">Customer Address</label>
+                        <textarea id="customer_address" name="customer_address" rows="2" readonly></textarea>
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <label for="customer_address">Customer Address</label>
-                    <textarea id="customer_address" name="customer_address" rows="2" readonly></textarea>
+                <div>
+                    <div style="background:#f5f6fa; border:1px solid #e0e0e0; border-radius:10px; padding:12px;">
+                        <div class="form-group">
+                            <label>Status</label>
+                            <input type="text" value="OPEN" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Document Date</label>
+                            <input type="text" value="{% now 'M d, Y' %}" readonly>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         
         <!-- Items Section -->
-        <div class="form-card">
-            <div class="card-header">
-                <div class="card-icon">📦</div>
-                <h2>Transaction Items</h2>
+        <div class="form-card" id="area2">
+            <div class="card-header" style="padding:10px 12px;">
+                <div class="card-icon" style="font-size:14px;">📦</div>
+                <h2 style="font-size:14px; font-weight:600; margin:0;">Transaction Items</h2>
             </div>
             <div class="card-body">
+                
                 <div class="form-row">
                     <div class="form-group">
                         <label for="item_code">Item Code <span class="required">*</span></label>
@@ -89,19 +102,19 @@
                     <div class="item-details-grid">
                         <div class="form-group">
                             <label>Item Description</label>
-                            <input type="text" id="item_description" readonly>
+                            <input type="text" id="item_description">
                         </div>
                         <div class="form-group">
                             <label>Unit of Measure</label>
-                            <input type="text" id="item_uom" readonly>
+                            <input type="text" id="item_uom">
                         </div>
                         <div class="form-group">
                             <label>Unit Cost</label>
-                            <input type="number" id="item_unit_cost" readonly step="0.01">
+                            <input type="number" id="item_unit_cost" step="0.01">
                         </div>
                         <div class="form-group">
                             <label>Unit Selling Price</label>
-                            <input type="number" id="item_unit_selling_price" readonly step="0.01">
+                            <input type="number" id="item_unit_selling_price" step="0.01">
                         </div>
                     </div>
                     
@@ -123,38 +136,99 @@
                     </div>
                 </div>
                 
-                <!-- Line Items Table -->
-                <div class="table-container-modern">
-                    <table id="lineItemsTable" class="modern-table">
-                        <thead>
+                <div class="table-container-modern" style="max-height: 300px; overflow-y: auto;">
+                    <table id="lineItemsTable" class="modern-table" style="width: 100%;">
+                        <thead style="position: sticky; top: 0; background: #f5f6fa; z-index: 1;">
                             <tr>
-                                <th>Item Code</th>
-                                <th>Description</th>
-                                <th>UOM</th>
-                                <th class="text-center">Qty</th>
-                                <th class="text-right">Unit Cost</th>
+                                <th>#</th>
+                                <th>Item No.</th>
+                                <th>Item Description</th>
+                                <th class="text-center">Quantity</th>
                                 <th class="text-right">Unit Price</th>
                                 <th class="text-right">Subtotal</th>
                                 <th class="text-center">Action</th>
                             </tr>
                         </thead>
-                        <tbody id="lineItemsBody">
-                        </tbody>
+                        <tbody id="lineItemsBody"></tbody>
                     </table>
                 </div>
+                
+                
             </div>
         </div>
         
-        <!-- Totals Section -->
-        <div class="totals-card">
-            <div class="totals-grid">
-                <div class="total-item">
-                    <label>Subtotal:</label>
-                    <input type="number" id="subtotal" name="subtotal" readonly step="0.01" value="0.00">
+        <div class="form-card" id="area3">
+            <div class="card-header" style="padding:10px 12px;">
+                <div class="card-icon" style="font-size:14px;">🧾</div>
+                <h2 style="font-size:14px; font-weight:600; margin:0;">Summary & Payment</h2>
+            </div>
+            <div class="card-body" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: start;">
+                <div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; background: #fafafa;">
+                                <div style="font-size: 12px; color: #6b7280;">Subtotal</div>
+                                <input type="number" id="subtotal" name="subtotal" readonly step="0.01" value="0.00" style="width:100%; text-align:right; font-size:16px; font-weight:600; color:#111827; border:none; background:none; padding:0;">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; background: #fafafa;">
+                                <div style="font-size: 12px; color: #6b7280;">Grand Total</div>
+                                <input type="number" id="grand_total" name="grand_total" readonly step="0.01" value="0.00" style="width:100%; text-align:right; font-size:16px; font-weight:600; color:#111827; border:none; background:none; padding:0;">
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="total-item grand-total">
-                    <label>Grand Total:</label>
-                    <input type="number" id="grand_total" name="grand_total" readonly step="0.01" value="0.00">
+                <div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="mode_of_payment">Mode of Payment <span class="required">*</span></label>
+                            <select id="mode_of_payment" name="mode_of_payment" required>
+                                <option value="CASH">Cash</option>
+                                <option value="PO">PO</option>
+                                <option value="CHECK">Check</option>
+                                <option value="ONLINE">Online Transfer</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="cashFields" class="form-row" style="display: none;">
+                        <div class="form-group">
+                            <label for="cash_amount_received">Amount Received</label>
+                            <input type="number" id="cash_amount_received" name="cash_amount_received" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="cash_amount_change">Amount Change</label>
+                            <input type="number" id="cash_amount_change" name="cash_amount_change" step="0.01" readonly>
+                        </div>
+                    </div>
+                    <div id="checkFields" class="form-row" style="display: none;">
+                        <div class="form-group">
+                            <label for="check_number">Check Number</label>
+                            <input type="text" id="check_number" name="check_number">
+                        </div>
+                        <div class="form-group">
+                            <label for="check_date">Check Date</label>
+                            <input type="date" id="check_date" name="check_date">
+                        </div>
+                        <div class="form-group">
+                            <label for="check_amount">Check Amount</label>
+                            <input type="number" id="check_amount" name="check_amount" step="0.01" min="0">
+                        </div>
+                    </div>
+                    <div id="onlineFields" class="form-row" style="display: none;">
+                        <div class="form-group">
+                            <label for="bank_number">Bank Account Number</label>
+                            <input type="text" id="bank_number" name="bank_number">
+                        </div>
+                        <div class="form-group">
+                            <label for="bank_code">Bank Code</label>
+                            <input type="text" id="bank_code" name="bank_code">
+                        </div>
+                        <div class="form-group">
+                            <label for="online_transaction_date">Transaction Date</label>
+                            <input type="date" id="online_transaction_date" name="online_transaction_date">
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -347,7 +421,7 @@ document.getElementById('searchItemBtn').addEventListener('click', function() {
                 showItemListModal(data.items);
             } else {
                 // Single item found
-                populateItemDetails(data.item);
+                addItemToGridFromServerItem(data.item);
             }
         } else {
             alert(data.message);
@@ -369,12 +443,33 @@ function populateItemDetails(item) {
     document.getElementById('itemDetails').style.display = 'block';
 }
 
+// Add item directly to grid from server single-item response
+function addItemToGridFromServerItem(item) {
+    const code = item.code;
+    const description = item.description;
+    const uom = item.uom;
+    const unitCost = parseFloat(item.unit_cost) || 0;
+    const unitPrice = parseFloat(item.unit_selling_price) || 0;
+    if (lineItems.some(li => li.item_code === code)) {
+        alert('Item already added to transaction');
+        return;
+    }
+    lineItems.push({
+        item_code: code,
+        item_description: description,
+        unit_of_measure: uom,
+        quantity: 1,
+        unit_cost: unitCost,
+        unit_selling_price: unitPrice,
+        subtotal: unitPrice * 1
+    });
+    renderLineItems();
+    clearItemForm();
+}
+
 // Show item list in modal
 function showItemListModal(items) {
-    // Store items globally for filtering
     window.allItems = items;
-    
-    // Create modal if it doesn't exist
     let modal = document.getElementById('itemListModal');
     if (!modal) {
         modal = document.createElement('div');
@@ -402,8 +497,7 @@ function showItemListModal(items) {
                                     <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; font-weight: 600;">Qty On Hand</th>
                                 </tr>
                             </thead>
-                            <tbody id="itemListBody">
-                            </tbody>
+                            <tbody id="itemListBody"></tbody>
                         </table>
                     </div>
                     <div style="padding: 15px 20px; border-top: 1px solid #e0e0e0; text-align: right; box-sizing: border-box;">
@@ -413,12 +507,8 @@ function showItemListModal(items) {
             </div>
         `;
         document.body.appendChild(modal);
-        
-        // Add event listener for filter input
         document.getElementById('itemDescriptionFilter').addEventListener('input', filterItemList);
     }
-    
-    // Populate item list
     renderItemList(items);
     modal.style.display = 'flex';
 }
@@ -443,12 +533,10 @@ function filterItemList() {
 function renderItemList(items) {
     const tbody = document.getElementById('itemListBody');
     tbody.innerHTML = '';
-    
     if (items.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #999;">No items found</td></tr>';
         return;
     }
-    
     items.forEach(item => {
         const row = document.createElement('tr');
         row.style.cssText = 'border-bottom: 1px solid #ddd; cursor: pointer;';
@@ -477,14 +565,27 @@ function closeItemListModal() {
 
 // Select item from list
 function selectItem(item) {
-    document.getElementById('item_code').value = item.item_code;
-    document.getElementById('item_description').value = item.item_description;
-    document.getElementById('item_uom').value = item.unit_of_measure;
-    document.getElementById('item_unit_cost').value = item.unit_cost;
-    document.getElementById('item_unit_selling_price').value = item.unit_selling_price;
-    document.getElementById('item_quantity').value = 1;
-    calculateItemSubtotal();
-    document.getElementById('itemDetails').style.display = 'block';
+    const code = item.item_code;
+    const description = item.item_description;
+    const uom = item.unit_of_measure;
+    const unitCost = parseFloat(item.unit_cost) || 0;
+    const unitPrice = parseFloat(item.unit_selling_price) || 0;
+    if (lineItems.some(li => li.item_code === code)) {
+        alert('Item already added to transaction');
+        closeItemListModal();
+        return;
+    }
+    lineItems.push({
+        item_code: code,
+        item_description: description,
+        unit_of_measure: uom,
+        quantity: 1,
+        unit_cost: unitCost,
+        unit_selling_price: unitPrice,
+        subtotal: unitPrice * 1
+    });
+    renderLineItems();
+    clearItemForm();
     closeItemListModal();
 }
 
@@ -537,29 +638,45 @@ document.getElementById('addItemBtn').addEventListener('click', function() {
 function renderLineItems() {
     const tbody = document.getElementById('lineItemsBody');
     tbody.innerHTML = '';
-    
     let totalAmount = 0;
-    
     lineItems.forEach((item, index) => {
-        const row = `
-            <tr>
-                <td>${item.item_code}</td>
-                <td>${item.item_description}</td>
-                <td>${item.unit_of_measure}</td>
-                <td>${item.quantity}</td>
-                <td>${parseFloat(item.unit_cost).toFixed(2)}</td>
-                <td>${parseFloat(item.unit_selling_price).toFixed(2)}</td>
-                <td>${item.subtotal.toFixed(2)}</td>
-                <td><button type="button" class="btn-remove" onclick="removeItem(${index})">Remove</button></td>
-            </tr>
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="text-center">${index + 1}</td>
+            <td><input type="text" value="${item.item_code}" readonly></td>
+            <td><input type="text" class="li-item_description" data-index="${index}" value="${item.item_description}"></td>
+            <td class="text-center"><input type="number" min="1" class="li-quantity" data-index="${index}" value="${item.quantity}"></td>
+            <td class="text-right"><input type="number" step="0.01" class="li-unit_selling_price" data-index="${index}" value="${item.unit_selling_price}"></td>
+            <td class="text-right"><input type="number" step="0.01" class="li-subtotal" data-index="${index}" value="${item.subtotal.toFixed(2)}" readonly></td>
+            <td class="text-center"><button type="button" class="btn-remove" onclick="removeItem(${index})">Remove</button></td>
         `;
-        tbody.innerHTML += row;
+        tbody.appendChild(row);
         totalAmount += item.subtotal;
     });
-    
     document.getElementById('subtotal').value = totalAmount.toFixed(2);
     document.getElementById('grand_total').value = totalAmount.toFixed(2);
     document.getElementById('line_items').value = JSON.stringify(lineItems);
+    bindTableEvents();
+    updateCashChange();
+}
+
+function bindTableEvents() {
+    const onChange = (e) => {
+        const idx = parseInt(e.target.getAttribute('data-index'));
+        const cls = e.target.className;
+        const val = e.target.value;
+        if (cls.includes('li-item_description')) lineItems[idx].item_description = val;
+        else if (cls.includes('li-unit_of_measure')) lineItems[idx].unit_of_measure = val;
+        else if (cls.includes('li-quantity')) lineItems[idx].quantity = parseInt(val) || 0;
+        else if (cls.includes('li-unit_cost')) lineItems[idx].unit_cost = parseFloat(val) || 0;
+        else if (cls.includes('li-unit_selling_price')) lineItems[idx].unit_selling_price = parseFloat(val) || 0;
+        const q = lineItems[idx].quantity || 0;
+        const p = lineItems[idx].unit_selling_price || 0;
+        lineItems[idx].subtotal = q * p;
+        renderLineItems();
+    };
+    document.querySelectorAll('.li-item_description, .li-quantity, .li-unit_selling_price')
+        .forEach(el => el.addEventListener('input', onChange));
 }
 
 // Remove item from table
@@ -604,6 +721,61 @@ document.getElementById('posForm').addEventListener('submit', function(e) {
         alert('Please add at least one item');
         return;
     }
+    const mode = document.getElementById('mode_of_payment').value;
+    if (mode === 'CASH') {
+        const received = document.getElementById('cash_amount_received').value.trim();
+        if (!received) {
+            e.preventDefault();
+            alert('Amount received is required for Cash payment');
+            return;
+        }
+    } else if (mode === 'CHECK') {
+        const num = document.getElementById('check_number').value.trim();
+        const date = document.getElementById('check_date').value.trim();
+        const amt = document.getElementById('check_amount').value.trim();
+        if (!num || !date || !amt) {
+            e.preventDefault();
+            alert('Check number, date, and amount are required');
+            return;
+        }
+    } else if (mode === 'ONLINE') {
+        const bankNum = document.getElementById('bank_number').value.trim();
+        const bankCode = document.getElementById('bank_code').value.trim();
+        const txnDate = document.getElementById('online_transaction_date').value.trim();
+        if (!bankNum || !bankCode || !txnDate) {
+            e.preventDefault();
+            alert('Bank number, bank code, and transaction date are required');
+            return;
+        }
+    }
 });
+
+// Payment mode handling
+function handlePaymentModeChange() {
+    const mode = document.getElementById('mode_of_payment').value;
+    const cash = document.getElementById('cashFields');
+    const check = document.getElementById('checkFields');
+    const online = document.getElementById('onlineFields');
+    cash.style.display = mode === 'CASH' ? 'flex' : 'none';
+    check.style.display = mode === 'CHECK' ? 'flex' : 'none';
+    online.style.display = mode === 'ONLINE' ? 'flex' : 'none';
+}
+
+document.getElementById('mode_of_payment').addEventListener('change', handlePaymentModeChange);
+handlePaymentModeChange();
+
+// Cash change calculation
+function updateCashChange() {
+    const mode = document.getElementById('mode_of_payment').value;
+    if (mode !== 'CASH') return;
+    const received = parseFloat(document.getElementById('cash_amount_received').value) || 0;
+    const total = parseFloat(document.getElementById('grand_total').value) || 0;
+    const change = received - total;
+    document.getElementById('cash_amount_change').value = change.toFixed(2);
+}
+document.getElementById('cash_amount_received').addEventListener('input', updateCashChange);
+
+// Tabs (only Contents active)
+
 </script>
 {% endblock %}

@@ -15,5 +15,12 @@ urlpatterns = [
     path('api/search_customers/', views.search_customers, name='search_customers'),
     path('api/get_balance/<int:customer_id>/', views.get_customer_balance, name='get_customer_balance'),
     path('api/process_payment/', views.process_payment, name='process_payment'),
+    
+    # Room URLs
+    path('rooms/', views.room_view, name='rooms'),
+    path('rooms/create/', views.room_create, name='room_create'),
+    path('rooms/<int:pk>/edit/', views.room_edit, name='room_edit'),
+    path('api/search_rooms/', views.search_rooms, name='search_rooms'),
+
     path('logout/', views.logout_view, name='logout'),
 ]

@@ -1,11 +1,23 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import Customer, BoardingHouseUser
+from .models import Customer, BoardingHouseUser, Room
+
+class RoomForm(forms.ModelForm):
+    class Meta:
+        model = Room
+        fields = '__all__'
+        widgets = {
+            'room_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'room_type': forms.Select(attrs={'class': 'form-select'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
 
 class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
-        fields = '__all__'
+        # Added 'due_date' to the fields list
+        fields = ['name', 'address', 'age', 'gender', 'status', 'customer_type', 'room', 'due_date']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Full Name'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Address'}),
@@ -13,7 +25,12 @@ class CustomerForm(forms.ModelForm):
             'gender': forms.Select(attrs={'class': 'form-select'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
             'customer_type': forms.Select(attrs={'class': 'form-select'}),
-            'room_no': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Room Number'}),
+            'room': forms.HiddenInput(),
+            # DateInput with type='date' enables the browser's calendar picker
+            'due_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
         }
 
 class BoardingHouseUserForm(forms.ModelForm):

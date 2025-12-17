@@ -35,9 +35,24 @@
                 </div>
                 <div class="row mb-3">
                     <div class="col-sm-4 text-secondary">Room No.</div>
-                    <div class="col-sm-8">{{ customer.room_no|default:"-" }}</div>
+                    <div class="col-sm-8">
+                        {% if customer.room %}
+                            {{ customer.room.room_number }}
+                        {% else %}
+                            {{ customer.room_no|default:"-" }}
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4 text-secondary">Due Date</div>
+                    <div class="col-sm-8">
+                        <span class="fw-bold {% if customer.is_overdue %}text-danger{% endif %}">
+                            {{ customer.due_date|date:"F d, Y"|default:"Not Set" }}
+                        </span>
+                    </div>
+                </div>
+                </div>
             <div class="card-footer bg-transparent border-top border-secondary p-4 d-flex justify-content-end gap-2">
                 <a href="{% url 'customers' %}" class="btn btn-outline-secondary">Back to List</a>
                 <a href="{% url 'customer_edit' customer.customer_id %}" class="btn btn-primary">Edit Customer</a>

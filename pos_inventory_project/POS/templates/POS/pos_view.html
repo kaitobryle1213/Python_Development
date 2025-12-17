@@ -8,10 +8,10 @@
     <div class="pos-header-modern">
         <div class="header-content">
             <div>
-                <h1>Transaction {{ transaction.transaction_no }}</h1>
-                <p class="subtitle">View and manage transaction details</p>
+                <h1 style="font-size:18px; font-weight:600; margin:0;">Transaction {{ transaction.transaction_no }}</h1>
+                <p class="subtitle" style="font-size:12px; color:#6b7280; margin-top:4px;">View and manage transaction details</p>
             </div>
-            <a href="{% url 'pos_list' %}" class="btn-back">← Back to Transactions</a>
+            <a href="{% url 'pos_list' %}" class="btn-back" style="font-size:12px;">← Back to Transactions</a>
         </div>
     </div>
     
@@ -25,74 +25,68 @@
         </div>
     {% endif %}
     
-    <!-- Transaction Header -->
-    <div class="form-card">
-        <div class="card-header">
-            <div class="card-icon">📋</div>
-            <h2>Transaction Information</h2>
-        </div>
-        <div class="card-body">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Transaction No.</label>
-                    <input type="text" value="{{ transaction.transaction_no }}" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Transaction Date</label>
-                    <input type="text" value="{{ transaction.transaction_date|date:'M d, Y' }}" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Status</label>
-                    <input type="text" value="{{ transaction.get_document_status_display }}" readonly class="status-{{ transaction.document_status|lower }}">
-                </div>
-            </div>
-        </div>
-    </div>
     
-    <!-- Customer Information -->
+
     <div class="form-card">
-        <div class="card-header">
-            <div class="card-icon">👤</div>
-            <h2>Customer Information</h2>
+        <div class="card-header" style="padding:10px 12px;">
+            <div class="card-icon" style="font-size:14px;">👤</div>
+            <h2 style="font-size:14px; font-weight:600; margin:0;">Customer Information</h2>
         </div>
-        <div class="card-body">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Customer Code</label>
-                    <input type="text" value="{{ transaction.customer_code.customer_code|default:'' }}" readonly>
+        <div class="card-body" style="display:grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items:start;">
+            <div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Customer Code</label>
+                        <input type="text" value="{{ transaction.customer_code.customer_code|default:'' }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Customer Name</label>
+                        <input type="text" value="{{ transaction.customer_name }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Customer TIN</label>
+                        <input type="text" value="{{ transaction.customer_tin }}" readonly>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Customer Name</label>
-                    <input type="text" value="{{ transaction.customer_name }}" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Customer TIN</label>
-                    <input type="text" value="{{ transaction.customer_tin }}" readonly>
+                    <label>Customer Address</label>
+                    <textarea readonly rows="2">{{ transaction.customer_address }}</textarea>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Customer Address</label>
-                <textarea readonly rows="2">{{ transaction.customer_address }}</textarea>
+            <div>
+                <div style="background:#f5f6fa; border:1px solid #e0e0e0; border-radius:10px; padding:12px;">
+                    <div class="form-group">
+                        <label>Transaction No.</label>
+                        <input type="text" value="{{ transaction.transaction_no }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <input type="text" value="{{ transaction.get_document_status_display }}" readonly class="status-{{ transaction.document_status|lower }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Document Date</label>
+                        <input type="text" value="{{ transaction.transaction_date|date:'M d, Y' }}" readonly>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
     <!-- Line Items -->
     <div class="form-card">
-        <div class="card-header">
-            <div class="card-icon">📦</div>
-            <h2>Transaction Items</h2>
+        <div class="card-header" style="padding:10px 12px;">
+            <div class="card-icon" style="font-size:14px;">📦</div>
+            <h2 style="font-size:14px; font-weight:600; margin:0;">Transaction Items</h2>
         </div>
         <div class="card-body">
             <div class="table-container-modern">
                 <table class="modern-table">
-                    <thead>
+                    <thead style="position: sticky; top: 0; background: #f5f6fa; z-index: 1;">
                         <tr>
-                            <th>Item Code</th>
-                            <th>Description</th>
-                            <th>UOM</th>
-                            <th class="text-center">Qty</th>
-                            <th class="text-right">Unit Cost</th>
+                            <th>#</th>
+                            <th>Item No.</th>
+                            <th>Item Description</th>
+                            <th class="text-center">Quantity</th>
                             <th class="text-right">Unit Price</th>
                             <th class="text-right">Subtotal</th>
                         </tr>
@@ -100,11 +94,10 @@
                     <tbody>
                         {% for item in line_items %}
                             <tr>
+                                <td class="text-center">{{ forloop.counter }}</td>
                                 <td>{{ item.item_code.item_code }}</td>
                                 <td>{{ item.item_description }}</td>
-                                <td>{{ item.unit_of_measure }}</td>
                                 <td class="text-center">{{ item.quantity }}</td>
-                                <td class="text-right">{{ item.unit_cost|floatformat:2 }}</td>
                                 <td class="text-right">{{ item.unit_selling_price|floatformat:2 }}</td>
                                 <td class="text-right">{{ item.subtotal|floatformat:2 }}</td>
                             </tr>
@@ -115,25 +108,87 @@
         </div>
     </div>
     
-    <!-- Totals -->
-    <div class="totals-card">
-        <div class="totals-grid">
-            <div class="total-item">
-                <label>Subtotal:</label>
-                <input type="text" value="{{ transaction.subtotal|floatformat:2 }}" readonly style="font-size: 18px; font-weight: 700; color: #333;">
+    <div class="form-card">
+        <div class="card-header" style="padding:10px 12px;">
+            <div class="card-icon" style="font-size:14px;">💳</div>
+            <h2 style="font-size:14px; font-weight:600; margin:0;">Payment Information</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Mode of Payment</label>
+                    <input type="text" value="{{ transaction.get_mode_of_payment_display|default:transaction.mode_of_payment }}" readonly>
+                </div>
             </div>
-            <div class="total-item grand-total">
-                <label>Grand Total:</label>
-                <input type="text" value="{{ transaction.grand_total|floatformat:2 }}" readonly style="font-size: 20px; font-weight: 700; color: #f39c12;">
+            {% if transaction.mode_of_payment == 'CASH' %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Amount Received</label>
+                        <input type="text" value="{{ transaction.cash_amount_received|floatformat:2 }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Change</label>
+                        <input type="text" value="{{ transaction.cash_amount_change|floatformat:2 }}" readonly>
+                    </div>
+                </div>
+            {% elif transaction.mode_of_payment == 'CHECK' %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Check Number</label>
+                        <input type="text" value="{{ transaction.check_number }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Check Date</label>
+                        <input type="text" value="{{ transaction.check_date|date:'M d, Y' }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Check Amount</label>
+                        <input type="text" value="{{ transaction.check_amount|floatformat:2 }}" readonly>
+                    </div>
+                </div>
+            {% elif transaction.mode_of_payment == 'ONLINE' %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Bank Number</label>
+                        <input type="text" value="{{ transaction.bank_number }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Bank Code</label>
+                        <input type="text" value="{{ transaction.bank_code }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Transaction Date</label>
+                        <input type="text" value="{{ transaction.online_transaction_date|date:'M d, Y' }}" readonly>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="form-card">
+        <div class="card-header" style="padding:10px 12px;">
+            <div class="card-icon" style="font-size:14px;">💰</div>
+            <h2 style="font-size:14px; font-weight:600; margin:0;">Totals</h2>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end;">
+                <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; background: #fafafa;">
+                    <div style="font-size: 12px; color: #6b7280;">Subtotal</div>
+                    <div style="font-size: 16px; font-weight: 600; color: #111827; text-align: right;">{{ transaction.subtotal|floatformat:2 }}</div>
+                </div>
+                <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; background: #ffffff;">
+                    <div style="font-size: 12px; color: #6b7280;">Grand Total</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #111827; text-align: right;">{{ transaction.grand_total|floatformat:2 }}</div>
+                </div>
             </div>
         </div>
     </div>
     
     <!-- Transaction Metadata -->
     <div class="form-card">
-        <div class="card-header">
-            <div class="card-icon">⏱️</div>
-            <h2>Transaction Metadata</h2>
+        <div class="card-header" style="padding:10px 12px;">
+            <div class="card-icon" style="font-size:14px;">⏱️</div>
+            <h2 style="font-size:14px; font-weight:600; margin:0;">Transaction Metadata</h2>
         </div>
         <div class="card-body">
             <div class="form-row">

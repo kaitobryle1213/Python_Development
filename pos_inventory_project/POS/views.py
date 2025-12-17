@@ -10,6 +10,7 @@ from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from datetime import datetime
 import json
+from decimal import Decimal
 
 from .models import CustomUser, POSTransaction, POSLineItem, Customer, Item
 
@@ -170,6 +171,7 @@ def pos_create(request):
                         customer_name=request.POST.get('customer_name', ''),
                         customer_address=request.POST.get('customer_address', ''),
                         customer_tin=request.POST.get('customer_tin', ''),
+                        mode_of_payment=request.POST.get('mode_of_payment', 'CASH'),
                         created_by=request.user
                     )
                     
@@ -184,10 +186,10 @@ def pos_create(request):
                             POSLineItem.objects.create(
                                 transaction=pos_transaction,
                                 item_code=item,
-                                item_description=item.item_description,
-                                unit_of_measure=item.unit_of_measure,
+                                item_description=item_data.get('item_description', item.item_description),
+                                unit_of_measure=item_data.get('unit_of_measure', item.unit_of_measure),
                                 quantity=item_data['quantity'],
-                                unit_cost=item.unit_cost,
+                                unit_cost=item_data.get('unit_cost', item.unit_cost),
                                 unit_selling_price=item_data['unit_selling_price'],
                                 subtotal=subtotal
                             )
@@ -195,6 +197,34 @@ def pos_create(request):
                         pass
                     
                     pos_transaction.calculate_totals()
+                    mode = request.POST.get('mode_of_payment', 'CASH')
+                    pos_transaction.mode_of_payment = mode
+                    if mode == 'CASH':
+                        amount_received_str = request.POST.get('cash_amount_received', '').strip()
+                        if not amount_received_str:
+                            raise ValueError('Cash amount received is required for Cash payment.')
+                        amount_received = Decimal(amount_received_str)
+                        pos_transaction.cash_amount_received = amount_received
+                        pos_transaction.cash_amount_change = amount_received - Decimal(pos_transaction.grand_total)
+                    elif mode == 'CHECK':
+                        check_number = request.POST.get('check_number', '').strip()
+                        check_date_str = request.POST.get('check_date', '').strip()
+                        check_amount_str = request.POST.get('check_amount', '').strip()
+                        if not (check_number and check_date_str and check_amount_str):
+                            raise ValueError('Check number, check date, and check amount are required for Check payment.')
+                        pos_transaction.check_number = check_number
+                        pos_transaction.check_date = datetime.strptime(check_date_str, '%Y-%m-%d').date()
+                        pos_transaction.check_amount = Decimal(check_amount_str)
+                    elif mode == 'ONLINE':
+                        bank_number = request.POST.get('bank_number', '').strip()
+                        bank_code = request.POST.get('bank_code', '').strip()
+                        online_date_str = request.POST.get('online_transaction_date', '').strip()
+                        if not (bank_number and bank_code and online_date_str):
+                            raise ValueError('Bank number, bank code, and transaction date are required for Online Transfer.')
+                        pos_transaction.bank_number = bank_number
+                        pos_transaction.bank_code = bank_code
+                        pos_transaction.online_transaction_date = datetime.strptime(online_date_str, '%Y-%m-%d').date()
+                    pos_transaction.save()
                     messages.success(request, f'Transaction {transaction_no} created successfully!')
                     return redirect('pos_view', transaction_id=pos_transaction.id)
             

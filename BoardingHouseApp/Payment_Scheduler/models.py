@@ -20,6 +20,26 @@ class BoardingHouseUser(AbstractUser):
     def __str__(self):
         return self.username
 
+class Room(models.Model):
+    STATUS_CHOICES = (
+        ('Available', 'Available'),
+        ('Under Maintenance', 'Under Maintenance'),
+        ('Occupied', 'Occupied'),
+    )
+    TYPE_CHOICES = (
+        ('Single', 'Single'),
+        ('Bed Spacer', 'Bed Spacer'),
+    )
+
+    room_number = models.CharField(max_length=50, unique=True, verbose_name="Room No.")
+    date_created = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Available')
+    room_type = models.CharField(max_length=20, choices=TYPE_CHOICES, verbose_name="Room Type")
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Room Price")
+
+    def __str__(self):
+        return f"{self.room_number} - {self.room_type}"
+
 class Customer(models.Model):
     STATUS_CHOICES = (
         ('Active', 'Active'),
@@ -41,7 +61,11 @@ class Customer(models.Model):
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
     customer_type = models.CharField(max_length=20, choices=TYPE_CHOICES, verbose_name="Type")
-    room_no = models.CharField(max_length=50, blank=True, null=True, verbose_name="Room No.")
+    room_no = models.CharField(max_length=50, blank=True, null=True, verbose_name="Room No. (Legacy)")
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='customers')
+    due_date = models.DateField(null=True, blank=True)
+
+    def __str__(self):due_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return self.name

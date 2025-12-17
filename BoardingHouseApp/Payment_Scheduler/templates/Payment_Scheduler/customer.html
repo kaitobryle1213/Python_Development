@@ -24,6 +24,7 @@
                     <th>Status</th>
                     <th>Type</th>
                     <th>Room</th>
+                    <th>Due Date</th> 
                     <th class="text-end pe-4">Actions</th>
                 </tr>
             </thead>
@@ -41,7 +42,16 @@
                         </span>
                     </td>
                     <td>{{ customer.customer_type }}</td>
-                    <td>{{ customer.room_no|default:"-" }}</td>
+                    <td>
+                        {% if customer.room %}
+                            {{ customer.room.room_number }}
+                        {% else %}
+                            {{ customer.room_no|default:"-" }}
+                        {% endif %}
+                    </td>
+                    <td class="text-nowrap">
+                        {{ customer.due_date|date:"M d, Y"|default:"-" }}
+                    </td>
                     <td class="text-end pe-4">
                         <div class="btn-group btn-group-sm">
                             <a href="{% url 'customer_detail' customer.customer_id %}" class="btn btn-outline-secondary" title="View">
@@ -55,7 +65,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="9" class="text-center py-5 text-secondary">
+                    <td colspan="10" class="text-center py-5 text-secondary">
                         <i class="fas fa-users-slash fa-2x mb-3 d-block opacity-50"></i>
                         No customers found.
                     </td>

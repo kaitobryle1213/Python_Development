@@ -14,16 +14,41 @@
                 {% endif %}
 
                 {% for field in form %}
-                <div class="mb-3">
-                    <label class="form-label text-secondary small">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.help_text %}
-                    <div class="form-text text-muted">{{ field.help_text }}</div>
+                    {% if field.name == 'room' %}
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">{{ field.label }}</label>
+                            {{ field }} 
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="room_display" placeholder="Select a room" readonly 
+                                       value="{% if form.instance.room %}{{ form.instance.room.room_number }} - {{ form.instance.room.room_type }}{% endif %}">
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#roomModal">
+                                    Select Room
+                                </button>
+                            </div>
+                            {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    
+                    {% elif field.name == 'due_date' %}
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">{{ field.label }}</label>
+                            <input type="date" name="{{ field.name }}" class="form-control" 
+                                   value="{{ field.value|date:'Y-m-d'|default:'' }}" id="{{ field.id_for_label }}">
+                            {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                    {% else %}
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">{{ field.label }}</label>
+                            {{ field }}
+                            {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
                     {% endif %}
-                    {% for error in field.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                    {% endfor %}
-                </div>
                 {% endfor %}
 
                 <div class="d-flex gap-2 mt-4">
@@ -34,4 +59,81 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="roomModal" tabindex="-1" aria-labelledby="roomModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="roomModalLabel">Select Room</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group mb-3">
+                    <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="roomSearch" placeholder="Search available rooms..." onkeyup="searchRooms()">
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Room No.</th>
+                                <th>Type</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roomList">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('roomModal').addEventListener('show.bs.modal', function () {
+        searchRooms();
+    });
+
+    function searchRooms() {
+        const query = document.getElementById('roomSearch').value;
+        fetch(`{% url 'search_rooms' %}?q=${query}`)
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById('roomList');
+                tbody.innerHTML = '';
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary">No available rooms found.</td></tr>';
+                    return;
+                }
+                data.forEach(room => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="fw-bold">${room.room_number}</td>
+                        <td>${room.room_type}</td>
+                        <td>₱${room.price}</td>
+                        <td><span class="badge bg-success bg-opacity-75">${room.status}</span></td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="selectRoom('${room.id}', '${room.room_number}', '${room.room_type}')">
+                                Select
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
+    }
+
+    function selectRoom(id, number, type) {
+        // 'id_room' is the default ID Django gives the room field
+        document.getElementById('id_room').value = id;
+        document.getElementById('room_display').value = `${number} - ${type}`;
+        
+        const modalElement = document.getElementById('roomModal');
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        modal.hide();
+    }
+</script>
 {% endblock %}
