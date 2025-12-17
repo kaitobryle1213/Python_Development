@@ -1,0 +1,59 @@
+{% extends 'Payment_Scheduler/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">Payment Schedule</h2>
+        <p class="text-secondary small mb-0">Overview of upcoming and past payments</p>
+    </div>
+    <div class="d-flex gap-2">
+        <div class="d-flex align-items-center me-3">
+            <span class="indicator indicator-white"></span> <span class="small text-secondary me-2">Paid</span>
+            <span class="indicator indicator-yellow"></span> <span class="small text-secondary me-2">Due Soon</span>
+            <span class="indicator indicator-red"></span> <span class="small text-secondary me-2">Due Today</span>
+            <span class="indicator indicator-black"></span> <span class="small text-secondary">Overdue</span>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="bg-light">
+                <tr>
+                    <th class="ps-4">Name</th>
+                    <th>Room No.</th>
+                    <th>Previous Payment</th>
+                    <th>Due Date</th>
+                    <th>Amount</th>
+                    <th>Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in payment_data %}
+                <tr>
+                    <td class="ps-4 fw-medium">
+                        <span class="indicator indicator-{{ item.color }}" title="{{ item.color|title }}"></span>
+                        {{ item.payment.customer.name }}
+                    </td>
+                    <td><span class="badge bg-secondary bg-opacity-25 text-light fw-normal">{{ item.payment.customer.room_no }}</span></td>
+                    <td class="text-secondary">{{ item.payment.previous_date|default:"-" }}</td>
+                    <td class="{% if item.color == 'red' %}text-danger fw-bold{% elif item.color == 'black' %}text-dark fw-bold{% endif %}">
+                        {{ item.payment.due_date }}
+                    </td>
+                    <td class="font-monospace">{{ item.payment.amount }}</td>
+                    <td class="text-secondary fst-italic">{{ item.payment.remarks|default:"" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-secondary">
+                        <i class="fas fa-calendar-times fa-2x mb-3 d-block opacity-50"></i>
+                        No payment schedules found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

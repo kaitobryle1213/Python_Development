@@ -1,0 +1,68 @@
+{% extends 'Payment_Scheduler/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1">Customer Records</h2>
+        <p class="text-secondary small mb-0">Manage customer information</p>
+    </div>
+    <a href="{% url 'customer_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>New Customer
+    </a>
+</div>
+
+<div class="card border-0">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th class="ps-4">ID</th>
+                    <th>Name</th>
+                    <th>Address</th>
+                    <th>Age</th>
+                    <th>Gender</th>
+                    <th>Status</th>
+                    <th>Type</th>
+                    <th>Room</th>
+                    <th class="text-end pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr>
+                    <td class="ps-4 text-secondary">#{{ customer.customer_id }}</td>
+                    <td class="fw-medium">{{ customer.name }}</td>
+                    <td class="text-secondary text-truncate" style="max-width: 150px;" title="{{ customer.address }}">{{ customer.address }}</td>
+                    <td>{{ customer.age }}</td>
+                    <td>{{ customer.gender }}</td>
+                    <td>
+                        <span class="badge {% if customer.status == 'Active' %}bg-success{% else %}bg-secondary{% endif %} bg-opacity-25 text-light fw-normal">
+                            {{ customer.status }}
+                        </span>
+                    </td>
+                    <td>{{ customer.customer_type }}</td>
+                    <td>{{ customer.room_no|default:"-" }}</td>
+                    <td class="text-end pe-4">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'customer_detail' customer.customer_id %}" class="btn btn-outline-secondary" title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'customer_edit' customer.customer_id %}" class="btn btn-outline-secondary" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center py-5 text-secondary">
+                        <i class="fas fa-users-slash fa-2x mb-3 d-block opacity-50"></i>
+                        No customers found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
