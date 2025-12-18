@@ -45,6 +45,13 @@
                 </div>
                 
                 <div class="row mb-3">
+                    <div class="col-sm-4 text-secondary">Date Entry</div>
+                    <div class="col-sm-8">
+                        {{ customer.date_entry|date:"F d, Y"|default:"-" }}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
                     <div class="col-sm-4 text-secondary">Due Date</div>
                     <div class="col-sm-8">
                         <span class="fw-bold {% if customer.is_overdue %}text-danger{% endif %}">

@@ -159,10 +159,11 @@
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
                         <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a></li>
+                        {% if user.role == 'Admin' %}
                         <li class="nav-item"><a class="nav-link" href="{% url 'customers' %}">Customers</a></li>
                         <li class="nav-item"><a class="nav-link" href="{% url 'rooms' %}">Rooms</a></li>
                         <li class="nav-item"><a class="nav-link" href="{% url 'payment' %}">Payments</a></li>
-                        {% if user.role == 'Admin' %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'report' %}">Report</a></li>
                         <li class="nav-item"><a class="nav-link" href="{% url 'users' %}">Users</a></li>
                         {% endif %}
                         <li class="nav-item ms-3">

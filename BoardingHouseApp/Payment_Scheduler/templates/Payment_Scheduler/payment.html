@@ -69,6 +69,10 @@
                                     <input type="number" class="form-control bg-light border-start-0 fw-bold text-success" id="amount_change" readonly>
                                 </div>
                             </div>
+                            <div class="col-12">
+                                <label class="form-label text-secondary small">Remarks</label>
+                                <textarea class="form-control" id="remarks" rows="2" placeholder="Enter remarks (optional)"></textarea>
+                            </div>
                         </div>
 
                         <div class="d-flex justify-content-end">
@@ -206,6 +210,7 @@
                 document.getElementById('balance_amount').value = data.balance;
                 document.getElementById('payment_id').value = data.payment_id || "";
                 
+                
                 document.getElementById('saveBtn').disabled = false;
                 
                 // Hide modal
@@ -239,6 +244,7 @@
         formData.append('payment_id', document.getElementById('payment_id').value);
         formData.append('amount_received', received);
         formData.append('change_amount', document.getElementById('amount_change').value);
+        formData.append('remarks', document.getElementById('remarks').value);
         formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
         fetch("{% url 'process_payment' %}", {
@@ -257,6 +263,7 @@
                 document.getElementById('r_due').innerText = document.getElementById('balance_amount').value;
                 document.getElementById('r_cash').innerText = received;
                 document.getElementById('r_change').innerText = document.getElementById('amount_change').value;
+                
 
                 new bootstrap.Modal(document.getElementById('receiptModal')).show();
             } else {

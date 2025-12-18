@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 
 # Create your models here.
 
@@ -80,6 +81,7 @@ class Customer(models.Model):
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='customers')
     due_date = models.DateField(null=True, blank=True)
     date_left = models.DateField(null=True, blank=True)
+    date_entry = models.DateField(default=timezone.now, null=True, blank=True)
 
     def __str__(self):due_date = models.DateField(null=True, blank=True)
 

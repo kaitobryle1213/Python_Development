@@ -11,6 +11,7 @@ urlpatterns = [
     path('customers/', views.customer_view, name='customers'),
     path('customers/create/', views.customer_create, name='customer_create'),
     path('customers/<int:pk>/edit/', views.customer_edit, name='customer_edit'),
+    path('customers/<int:pk>/delete/', views.customer_delete, name='customer_delete'),
     path('customers/<int:pk>/', views.customer_detail, name='customer_detail'),
     path('payment/', views.payment_view, name='payment'),
     path('api/search_customers/', views.search_customers, name='search_customers'),
@@ -20,8 +21,12 @@ urlpatterns = [
     # Room URLs
     path('rooms/', views.room_view, name='rooms'),
     path('rooms/create/', views.room_create, name='room_create'),
-    path('rooms/<int:pk>/edit/', views.room_edit, name='room_edit'),
-    path('api/search_rooms/', views.search_rooms, name='search_rooms'),
+     path('rooms/<int:pk>/edit/', views.room_edit, name='room_edit'),
+     path('rooms/<int:pk>/delete/', views.room_delete, name='room_delete'),
+     path('rooms/<int:pk>/occupants/', views.room_occupants, name='room_occupants'),
+     path('rooms/transfer/<int:customer_id>/', views.transfer_customer, name='transfer_customer'),
+     path('api/search_rooms/', views.search_rooms, name='search_rooms'),
+     path('report/', views.report_view, name='report'),
 
     path('logout/', views.logout_view, name='logout'),
 ]

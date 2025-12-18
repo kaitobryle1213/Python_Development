@@ -62,6 +62,12 @@
                             <a href="{% url 'room_edit' room.pk %}" class="btn btn-outline-primary" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            <a href="{% url 'room_occupants' room.pk %}" class="btn btn-outline-info" title="View Occupants">
+                                <i class="fas fa-users"></i>
+                            </a>
+                            <a href="{% url 'room_delete' room.pk %}" class="btn btn-outline-danger" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </a>
                         </div>
                     </td>
                 </tr>

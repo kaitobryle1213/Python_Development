@@ -24,6 +24,7 @@
                     <th>Status</th>
                     <th>Type</th>
                     <th>Room</th>
+                    <th>Date Entry</th>
                     <th>Due Date</th> 
                     <th class="text-end pe-4">Actions</th>
                 </tr>
@@ -50,6 +51,9 @@
                         {% endif %}
                     </td>
                     <td class="text-nowrap">
+                        {{ customer.date_entry|date:"M d, Y"|default:"-" }}
+                    </td>
+                    <td class="text-nowrap">
                         {{ customer.due_date|date:"M d, Y"|default:"-" }}
                     </td>
                     <td class="text-end pe-4">
@@ -60,12 +64,16 @@
                             <a href="{% url 'customer_edit' customer.customer_id %}" class="btn btn-outline-secondary" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            <button type="button" class="btn btn-outline-danger" title="Delete" 
+                                    onclick="confirmDelete('{{ customer.customer_id }}', '{{ customer.name }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="10" class="text-center py-5 text-secondary">
+                    <td colspan="11" class="text-center py-5 text-secondary">
                         <i class="fas fa-users-slash fa-2x mb-3 d-block opacity-50"></i>
                         No customers found.
                     </td>
@@ -75,4 +83,39 @@
         </table>
     </div>
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Customer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteCustomerName"></strong>?</p>
+                <p class="text-danger small mb-0"><i class="fas fa-exclamation-triangle me-1"></i> This action is irreversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" action="">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete Customer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function confirmDelete(customerId, name) {
+        document.getElementById('deleteCustomerName').textContent = name;
+        const form = document.getElementById('deleteForm');
+        // Construct the URL dynamically. Ensure the URL pattern matches your urls.py
+        form.action = `/customers/${customerId}/delete/`; 
+        
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    }
+</script>
 {% endblock %}

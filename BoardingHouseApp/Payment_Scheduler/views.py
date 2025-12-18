@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import AuthenticationForm
 from .models import Customer, Payment, BoardingHouseUser, Room
 from .forms import CustomerForm, BoardingHouseUserForm, BoardingHouseUserEditForm, RoomForm
@@ -17,6 +17,11 @@ from django.shortcuts import render
 from .models import Room
 
 # --- AUTHENTICATION ---
+
+def is_admin(user):
+    return user.role == 'Admin'
+
+admin_required = user_passes_test(is_admin, login_url='dashboard')
 
 def login_view(request):
     if request.method == 'POST':
@@ -104,6 +109,7 @@ def dashboard_view(request):
 # --- ROOM MANAGEMENT ---
 
 @login_required
+@admin_required
 def room_view(request):
     rooms = (
         Room.objects.annotate(
@@ -125,6 +131,8 @@ def room_view(request):
     
     return render(request, 'Payment_Scheduler/room.html', {'rooms': rooms})
 
+@login_required
+@admin_required
 def room_list(request):
     # This specifically counts customers per room whose status is 'Active'
     rooms = Room.objects.annotate(
@@ -137,6 +145,7 @@ def room_list(request):
     return render(request, 'Payment_Scheduler/room.html', {'rooms': rooms})
 
 @login_required
+@admin_required
 def room_create(request):
     if request.method == 'POST':
         form = RoomForm(request.POST)
@@ -148,6 +157,7 @@ def room_create(request):
     return render(request, 'Payment_Scheduler/room_form.html', {'form': form, 'title': 'Create Room'})
 
 @login_required
+@admin_required
 def room_edit(request, pk):
     room = get_object_or_404(Room, pk=pk)
     if request.method == 'POST':
@@ -159,21 +169,132 @@ def room_edit(request, pk):
         form = RoomForm(instance=room)
     return render(request, 'Payment_Scheduler/room_form.html', {'form': form, 'title': 'Edit Room'})
 
+# ... (existing imports)
+
 @login_required
+@admin_required
+def room_delete(request, pk):
+    room = get_object_or_404(Room, pk=pk)
+    # Filter only Active customers
+    occupants = room.customers.filter(status='Active')
+    occupant_count = occupants.count()
+
+    if request.method == 'POST':
+        if 'confirm_delete' in request.POST:
+            if occupant_count == 0:
+                room.delete()
+                return redirect('rooms')
+        
+        elif 'transfer_delete' in request.POST:
+            new_room_id = request.POST.get('new_room')
+            if new_room_id:
+                new_room = get_object_or_404(Room, pk=new_room_id)
+                
+                # Bulk update room for all occupants
+                occupants.update(room=new_room)
+                
+                # Update new room status
+                # Check if new room is now full or just occupied
+                new_room_occupants = Customer.objects.filter(room=new_room, status='Active').count()
+                if new_room_occupants >= new_room.capacity:
+                    new_room.status = 'Full'
+                else:
+                    new_room.status = 'Occupied'
+                new_room.save(update_fields=['status'])
+                
+                room.delete()
+                return redirect('rooms')
+
+    # GET request: Prepare context for confirmation page
+    # Find available rooms with capacity > current_occupants
+    # We use Python filtering to avoid MySQL HAVING clause issues with F() expressions
+    all_rooms = Room.objects.exclude(pk=room.pk).exclude(status='Under Maintenance').annotate(
+        active_count=Count('customers', filter=Q(customers__status='Active'))
+    )
+    
+    available_rooms = [r for r in all_rooms if r.active_count < r.capacity]
+    
+    context = {
+        'room': room,
+        'occupant_count': occupant_count,
+        'available_rooms': available_rooms,
+        'has_vacant_rooms': len(available_rooms) > 0
+    }
+    return render(request, 'Payment_Scheduler/room_delete.html', context)
+
+@login_required
+@admin_required
+def room_occupants(request, pk):
+    room = get_object_or_404(Room, pk=pk)
+    occupants = room.customers.filter(status='Active')
+    
+    # Get available rooms for transfer (excluding current one)
+    # Python filtering to avoid MySQL errors
+    all_rooms = Room.objects.exclude(pk=room.pk).exclude(status='Under Maintenance').annotate(
+        active_count=Count('customers', filter=Q(customers__status='Active'))
+    )
+    
+    available_rooms = [r for r in all_rooms if r.active_count < r.capacity]
+    
+    return render(request, 'Payment_Scheduler/room_occupants.html', {
+        'room': room,
+        'occupants': occupants,
+        'available_rooms': available_rooms
+    })
+
+@login_required
+@admin_required
+def transfer_customer(request, customer_id):
+    if request.method == 'POST':
+        customer = get_object_or_404(Customer, pk=customer_id)
+        old_room = customer.room
+        new_room_id = request.POST.get('new_room')
+        
+        if new_room_id:
+            new_room = get_object_or_404(Room, pk=new_room_id)
+            
+            # Update customer room
+            customer.room = new_room
+            customer.save()
+            
+            # Update old room status
+            if old_room:
+                old_room_active = Customer.objects.filter(room=old_room, status='Active').count()
+                if old_room_active == 0:
+                    old_room.status = 'Available'
+                else:
+                    # Check if it was full and now is just occupied
+                    if old_room.status == 'Full':
+                        old_room.status = 'Occupied'
+                old_room.save(update_fields=['status'])
+                
+            # Update new room status
+            new_room_active = Customer.objects.filter(room=new_room, status='Active').count()
+            if new_room_active >= new_room.capacity:
+                new_room.status = 'Full'
+            else:
+                new_room.status = 'Occupied'
+            new_room.save(update_fields=['status'])
+            
+            return redirect('room_occupants', pk=old_room.pk if old_room else new_room.pk)
+            
+    return redirect('rooms')
+
+@login_required
+@admin_required
 def search_rooms(request):
     query = request.GET.get('q', '')
     
     # Filter for rooms that are NOT Under Maintenance
-    rooms = Room.objects.exclude(status='Under Maintenance').annotate(
-        current_occupants=Count('customers', filter=Q(customers__status='Active')),
-        safe_capacity=Coalesce(F('capacity'), Value(1))
-    ).filter(
-        # Room must have at least one empty slot
-        current_occupants__lt=F('safe_capacity')
+    rooms_qs = Room.objects.exclude(status='Under Maintenance').annotate(
+        current_occupants=Count('customers', filter=Q(customers__status='Active'))
     )
 
     if query:
-        rooms = rooms.filter(room_number__icontains=query)
+        rooms_qs = rooms_qs.filter(room_number__icontains=query)
+        
+    # Python filtering to avoid MySQL errors
+    rooms = [r for r in rooms_qs if r.current_occupants < r.capacity]
 
     results = []
     for r in rooms:
@@ -185,7 +306,7 @@ def search_rooms(request):
             'room_type': r.room_type, 
             'price': str(r.price),
             'status': r.status,
-            'available_slots': r.safe_capacity - r.current_occupants
+            'available_slots': r.capacity - r.current_occupants
         })
     
     return JsonResponse(results, safe=False)
@@ -194,11 +315,13 @@ def search_rooms(request):
 # --- USER MANAGEMENT ---
 
 @login_required
+@admin_required
 def user_management_view(request):
     users = BoardingHouseUser.objects.all()
     return render(request, 'Payment_Scheduler/user.html', {'users': users})
 
 @login_required
+@admin_required
 def user_create(request):
     if request.method == 'POST':
         form = BoardingHouseUserForm(request.POST)
@@ -210,6 +333,7 @@ def user_create(request):
     return render(request, 'Payment_Scheduler/user_form.html', {'form': form, 'title': 'Create User'})
 
 @login_required
+@admin_required
 def user_edit(request, pk):
     user_obj = get_object_or_404(BoardingHouseUser, pk=pk)
     if request.method == 'POST':
@@ -225,11 +349,13 @@ def user_edit(request, pk):
 # --- CUSTOMER MANAGEMENT ---
 
 @login_required
+@admin_required
 def customer_view(request):
     customers = Customer.objects.all()
     return render(request, 'Payment_Scheduler/customer.html', {'customers': customers})
 
 @login_required
+@admin_required
 def customer_create(request):
     if request.method == 'POST':
         form = CustomerForm(request.POST)
@@ -249,6 +375,7 @@ def customer_create(request):
     return render(request, 'Payment_Scheduler/customer_form.html', {'form': form, 'title': 'Create Customer'})
 
 @login_required
+@admin_required
 def customer_edit(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     if request.method == 'POST':
@@ -301,18 +428,41 @@ def customer_edit(request, pk):
     return render(request, 'Payment_Scheduler/customer_form.html', {'form': form, 'title': 'Edit Customer'})
 
 @login_required
+@admin_required
 def customer_detail(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     return render(request, 'Payment_Scheduler/customer_detail.html', {'customer': customer})
+
+@login_required
+@admin_required
+def customer_delete(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    if request.method == 'POST':
+        room = customer.room
+        customer.delete()
+        
+        # Update room status if it becomes empty
+        if room:
+            # Check remaining active customers
+            active_occupants = Customer.objects.filter(room=room, status='Active').count()
+            if active_occupants == 0:
+                room.status = 'Available'
+                room.save(update_fields=['status'])
+                
+        return redirect('customers')
+    return redirect('customers')
+
 
 
 # --- PAYMENT PROCESSING ---
 
 @login_required
+@admin_required
 def payment_view(request):
     return render(request, 'Payment_Scheduler/payment.html')
 
 @login_required
+@admin_required
 def search_customers(request):
     query = request.GET.get('q', '')
     if query:
@@ -332,6 +482,7 @@ def search_customers(request):
     return JsonResponse([], safe=False)
 
 @login_required
+@admin_required
 def get_customer_balance(request, customer_id):
     customer = get_object_or_404(Customer, pk=customer_id)
     payment = Payment.objects.filter(customer=customer, due_date=customer.due_date, is_paid=False).first()
@@ -341,6 +492,14 @@ def get_customer_balance(request, customer_id):
     else:
         due_date_str = timezone.now().date().strftime('%Y-%m-%d')
 
+    cycle_paid = Payment.objects.filter(
+        customer=customer,
+        due_date=customer.due_date,
+        is_paid=True
+    ).aggregate(Sum('amount_received'))['amount_received__sum'] or 0
+    total_due = customer.room.price if customer.room else 0
+    remaining_balance = max(total_due - cycle_paid, 0)
+
     return JsonResponse({
         'customer_id': customer.customer_id,
         'customer_db_id': customer.pk,
@@ -348,7 +507,7 @@ def get_customer_balance(request, customer_id):
         'room_no': customer.room.room_number if customer.room else (customer.room_number if customer.room_number else "N/A"),
         'payment_id': payment.id if payment else "", 
         'due_date': due_date_str,
-        'balance': customer.room.price if customer.room else 0,
+        'balance': remaining_balance,
     })
 
 @login_required
@@ -359,10 +518,22 @@ def dashboard_api(request):
     data = []
     
     for customer in customers:
+        if customer.due_date and customer.due_date < today:
+            customer.due_date = customer.due_date + relativedelta(months=1)
+            customer.save(update_fields=['due_date'])
+
         last_payment = customer.payments.filter(is_paid=True).order_by('-date_paid').first()
         is_paid_today = last_payment and last_payment.date_paid == today
 
-        if is_paid_today:
+        cycle_paid = Payment.objects.filter(
+            customer=customer,
+            due_date=customer.due_date,
+            is_paid=True
+        ).aggregate(Sum('amount_received'))['amount_received__sum'] or 0
+        price = customer.room.price if customer.room else 0
+        balance_amount = max(price - cycle_paid, 0)
+
+        if is_paid_today and cycle_paid >= price and price > 0:
             color, status = 'green', "Paid"
         elif customer.due_date:
             days = (customer.due_date - today).days
@@ -373,24 +544,32 @@ def dashboard_api(request):
         else:
             color, status = 'white', "No Schedule"
 
+        if price > 0 and cycle_paid > 0 and cycle_paid < price:
+            status = f"Partially Paid • Balance: ₱{balance_amount}"
+        elif price > 0 and cycle_paid >= price:
+            status = "Paid"
+
         data.append({
             'name': customer.name,
             'room_no': customer.room.room_number if customer.room else (customer.room_no or "-"),
             'prev_payment': last_payment.date_paid.strftime('%b %d, %Y') if last_payment else "-",
             'due_date': customer.due_date.strftime('%b %d, %Y') if customer.due_date else "N/A",
-            'amount': f"₱{customer.room.price}" if customer.room else "-",
+            'room_rate': f"₱{price}" if customer.room else "-",
+            'amount': f"₱{cycle_paid}" if cycle_paid else "-",
             'status': status,
             'color': color
         })
     return JsonResponse({'payment_data': data})
 
 @login_required
+@admin_required
 def process_payment(request):
     if request.method == 'POST':
         payment_id = request.POST.get('payment_id')
         customer_id = request.POST.get('customer_id') 
         amount_received = request.POST.get('amount_received')
         change_amount = request.POST.get('change_amount')
+        remarks = request.POST.get('remarks')
         
         try:
             customer = Customer.objects.get(pk=customer_id)
@@ -404,16 +583,21 @@ def process_payment(request):
                     due_date=customer.due_date or timezone.now().date()
                 )
 
+            # Record the previous payment date (what was seen on dashboard)
+            # Only if we are marking it paid now (it was not paid before)
+            # Update: User requested to save the current date_paid into previous_date as well
+            payment.date_paid = timezone.now().date()
+            payment.previous_date = payment.date_paid
+            
             payment.amount_received = amount_received
             payment.change_amount = change_amount
-            payment.date_paid = timezone.now().date()
+            payment.remarks = remarks
             payment.is_paid = True
             payment.save()
             
-            # --- ADVANCE DUE DATE BY 1 MONTH ---
-            if customer.due_date:
+            if customer.due_date and timezone.now().date() > customer.due_date:
                 customer.due_date = customer.due_date + relativedelta(months=1)
-                customer.save()
+                customer.save(update_fields=['due_date'])
             
             return JsonResponse({'success': True})
             
@@ -423,3 +607,78 @@ def process_payment(request):
             return JsonResponse({'success': False, 'error': str(e)})
             
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+@login_required
+@admin_required
+def report_view(request):
+    today = timezone.now().date()
+    customers = Customer.objects.select_related('room').prefetch_related('payments').all()
+
+    # Filters
+    room_id = request.GET.get('room')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    customer_name = request.GET.get('customer_name')
+
+    if room_id:
+        customers = customers.filter(room__id=room_id)
+    if customer_name:
+        customers = customers.filter(name__icontains=customer_name)
+
+    rows = []
+    total_collected = 0
+
+    for c in customers:
+        # Advance due date only after it passes (keep cycles aligned)
+        if c.due_date and c.due_date < today:
+            c.due_date = c.due_date + relativedelta(months=1)
+            c.save(update_fields=['due_date'])
+
+        price = c.room.price if c.room else 0
+        cycle_qs = Payment.objects.filter(customer=c, due_date=c.due_date, is_paid=True)
+        cycle_sum = cycle_qs.aggregate(Sum('amount_received'))['amount_received__sum'] or 0
+        last_paid = cycle_qs.order_by('-date_paid').first()
+
+        # Optional date filters apply to the last payment date for inclusion
+        if date_from and last_paid and str(last_paid.date_paid) < date_from:
+            continue
+        if date_to and last_paid and str(last_paid.date_paid) > date_to:
+            continue
+
+        balance = max(price - cycle_sum, 0)
+        if price > 0 and cycle_sum >= price:
+            status = "Paid"
+        elif cycle_sum > 0:
+            status = f"Partially Paid • Balance: ₱{balance}"
+        else:
+            status = "Unpaid"
+
+        total_collected += cycle_sum
+
+        rows.append({
+            'name': c.name,
+            'room_no': c.room.room_number if c.room else (c.room_no or "-"),
+            'date_entry': c.date_entry,
+            'due_date': c.due_date,
+            'paid_amount': cycle_sum,
+            'date_amount_paid': last_paid.date_paid if last_paid else None,
+            'remarks': last_paid.remarks if last_paid and last_paid.remarks else "",
+            'status': status,
+        })
+
+    total_amount = "{:,.2f}".format(total_collected)
+
+    # Get all rooms for the filter dropdown
+    rooms = Room.objects.all().order_by('room_number')
+
+    context = {
+        'rows': rows,
+        'total_amount': total_amount,
+        'rooms': rooms,
+        # Pass back filter values to keep them in the form
+        'filter_room': int(room_id) if room_id else '',
+        'filter_date_from': date_from,
+        'filter_date_to': date_to,
+        'filter_name': customer_name,
+    }
+    return render(request, 'Payment_Scheduler/report.html', context)

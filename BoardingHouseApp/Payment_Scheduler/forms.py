@@ -5,7 +5,7 @@ from .models import Customer, BoardingHouseUser, Room
 class RoomForm(forms.ModelForm):
     class Meta:
         model = Room
-        fields = '__all__'
+        exclude = ['date_left', 'date_created']
         widgets = {
             'room_number': forms.TextInput(attrs={'class': 'form-control'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
@@ -39,7 +39,7 @@ class RoomForm(forms.ModelForm):
 class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
-        fields = ['name', 'address', 'age', 'gender', 'status', 'customer_type', 'room', 'due_date']
+        fields = ['name', 'address', 'age', 'gender', 'status', 'customer_type', 'room', 'due_date', 'date_entry']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Full Name'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Address'}),
@@ -49,6 +49,10 @@ class CustomerForm(forms.ModelForm):
             'customer_type': forms.Select(attrs={'class': 'form-select'}),
             'room': forms.HiddenInput(),
             'due_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'date_entry': forms.DateInput(attrs={
                 'class': 'form-control',
                 'type': 'date'
             }),

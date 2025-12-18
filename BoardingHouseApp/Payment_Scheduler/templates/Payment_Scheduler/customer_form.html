@@ -30,12 +30,19 @@
                             {{ field }}
                         </div>
                         <div class="mb-3" id="leave_date_container" style="display: none;">
-                            <label class="form-label text-danger small">Date Left</label>
+                            <label class="form-label text-danger small">Date left</label>
                             <input type="date" name="date_left" id="id_date_left" class="form-control" 
                                    value="{{ form.instance.date_left|date:'Y-m-d'|default:'' }}">
                         </div>
 
                     {% elif field.name == 'due_date' %}
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">{{ field.label }}</label>
+                            <input type="date" name="{{ field.name }}" class="form-control" 
+                                   value="{{ field.value|date:'Y-m-d'|default:'' }}" id="{{ field.id_for_label }}">
+                        </div>
+
+                    {% elif field.name == 'date_entry' %}
                         <div class="mb-3">
                             <label class="form-label text-secondary small">{{ field.label }}</label>
                             <input type="date" name="{{ field.name }}" class="form-control" 

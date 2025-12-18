@@ -25,7 +25,8 @@
                     <th>Room No.</th>
                     <th>Previous Payment</th>
                     <th>Due Date</th>
-                    <th>Amount</th>
+                    <th>Room Rate</th>
+                    <th>Paid Amount</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -38,6 +39,7 @@
                     </td>
                     <td>
                         <span class="badge bg-secondary bg-opacity-25 text-light fw-normal">
+                            RM. #: 
                             {% if item.customer.room %}
                                 {{ item.customer.room.room_number }}
                             {% else %}
@@ -118,12 +120,13 @@
                             ${item.name}
                         </td>
                         <td>
-                            <span class="badge bg-secondary bg-opacity-25 text-light fw-normal">
-                                ${item.room_no}
+                            <span class="badge bg-black fw-medium">
+                               RM. #: ${item.room_no}
                             </span>
                         </td>
                         <td class="text-secondary">${item.prev_payment}</td>
                         <td class="${dueStyles}">${item.due_date}</td>
+                        <td class="font-monospace">${item.room_rate}</td>
                         <td class="font-monospace">${item.amount}</td>
                         <td class="fw-medium ${statusStyles}">${item.status}</td>
                     </tr>`;
