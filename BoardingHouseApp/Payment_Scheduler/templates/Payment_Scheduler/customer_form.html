@@ -130,11 +130,15 @@
                 }
                 data.forEach(room => {
                     const tr = document.createElement('tr');
+                    const slots = room.available_slots > 0 ? `${room.available_slots} slots` : 'Full';
                     tr.innerHTML = `
                         <td class="fw-bold">${room.room_number}</td>
                         <td>${room.room_type}</td>
                         <td>₱${room.price}</td>
-                        <td><span class="badge bg-success">${room.status}</span></td>
+                        <td>
+                            <span class="badge bg-success">${room.status}</span>
+                            <small class="text-muted ms-2">(${slots})</small>
+                        </td>
                         <td>
                             <button type="button" class="btn btn-sm btn-primary" 
                                 onclick="selectRoom('${room.id}', '${room.room_number}', '${room.room_type}')">

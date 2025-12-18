@@ -158,9 +158,8 @@
             return;
         }
 
-        // Generate URL using Django template tag to ensure it's correct
-        const searchBaseUrl = "{% url 'search_customers' %}";
-        const searchUrl = `${searchBaseUrl}?q=${encodeURIComponent(query)}`;
+        // Use the API endpoint path directly to avoid template tag issues if any
+        const searchUrl = `/api/search_customers/?q=${encodeURIComponent(query)}`;
 
         fetch(searchUrl)
             .then(response => {
@@ -192,8 +191,8 @@
     }
 
     function selectCustomer(pk) {
-        // Construct the get_balance URL dynamically
-        const balanceUrl = "{% url 'get_customer_balance' 0 %}".replace('0', pk);
+        // Use direct API path for consistency
+        const balanceUrl = `/api/get_balance/${pk}/`;
 
         fetch(balanceUrl)
             .then(res => res.json())

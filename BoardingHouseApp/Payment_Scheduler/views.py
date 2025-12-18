@@ -7,7 +7,7 @@ from .forms import CustomerForm, BoardingHouseUserForm, BoardingHouseUserEditFor
 from datetime import date, timedelta
 from django.utils import timezone
 from django.http import JsonResponse
-from django.db.models import Q, Count, F
+from django.db.models import Q, Count, F, Sum
 from dateutil.relativedelta import relativedelta
 from django.db.models.functions import Coalesce
 from django.db.models import Value
@@ -41,21 +41,25 @@ def logout_view(request):
 
 @login_required
 def dashboard_view(request):
-    """
-    Logic Updated: 
-    1. If a payment was made TODAY, status is 'Paid' (Green).
-    2. On the following day, it automatically shifts to 'Upcoming' (White) 
-       based on the new advanced due_date.
-    """
-    customers = Customer.objects.all().select_related('room').prefetch_related('payments')
     today = timezone.now().date()
-    payment_data = []
+    # Calculate stats
+    total_customers = Customer.objects.count()
+    active_customers = Customer.objects.filter(status='Active').count()
+    occupied_rooms = Customer.objects.filter(status='Active').exclude(room=None).count() # Or use Room model logic
     
+    # Calculate revenue
+    monthly_revenue = Payment.objects.filter(
+        date_paid__year=today.year,
+        date_paid__month=today.month,
+        is_paid=True
+    ).aggregate(Sum('amount'))['amount__sum'] or 0
+
+    customers = Customer.objects.all().select_related('room').prefetch_related('payments')
+    
+    # Prepare data for template
+    customer_data = []
     for customer in customers:
-        # Get the most recent successful payment
         last_payment = customer.payments.filter(is_paid=True).order_by('-date_paid').first()
-        
-        # Check if the payment was made specifically TODAY
         is_paid_today = last_payment and last_payment.date_paid == today
 
         if is_paid_today:
@@ -69,7 +73,7 @@ def dashboard_view(request):
             elif days_until_due == 0:
                 color = 'red'
                 status_text = "Due Today"
-            elif days_until_due <= 3: 
+            elif days_until_due <= 5: 
                 color = 'yellow'
                 status_text = "Due Soon"
             else:
@@ -78,18 +82,23 @@ def dashboard_view(request):
         else:
             color = 'white'
             status_text = "No Schedule"
-        
-        payment_data.append({
+
+        customer_data.append({
             'customer': customer,
-            'payment': {
-                'amount': customer.room.price if customer.room else 0,
-                'previous_date': last_payment.date_paid if last_payment else "-"
-            },
             'color': color,
-            'status_text': status_text
+            'status_text': status_text,
+            'last_payment_date': last_payment.date_paid if last_payment else None
         })
-        
-    return render(request, 'Payment_Scheduler/dashboard.html', {'payment_data': payment_data})
+
+    context = {
+        'total_customers': total_customers,
+        'active_customers': active_customers,
+        'occupied_rooms': occupied_rooms,
+        'monthly_revenue': monthly_revenue,
+        'customers': customer_data,
+        'today': today,
+    }
+    return render(request, 'Payment_Scheduler/dashboard.html', context)
 
 
 # --- ROOM MANAGEMENT ---
@@ -309,8 +318,7 @@ def search_customers(request):
     if query:
         customers = Customer.objects.filter(
             Q(name__icontains=query) | 
-            Q(room__room_number__icontains=query) |
-            Q(room_no__icontains=query)
+            Q(room__room_number__icontains=query)
         )[:10]
         results = []
         for c in customers:
@@ -318,7 +326,7 @@ def search_customers(request):
                 'id': c.pk,
                 'display_id': c.customer_id,
                 'name': c.name,
-                'room_no': c.room.room_number if c.room else (c.room_no if c.room_no else "N/A"),
+                'room_no': c.room.room_number if c.room else "N/A",
             })
         return JsonResponse(results, safe=False)
     return JsonResponse([], safe=False)
@@ -337,7 +345,7 @@ def get_customer_balance(request, customer_id):
         'customer_id': customer.customer_id,
         'customer_db_id': customer.pk,
         'name': customer.name,
-        'room_no': customer.room.room_number if customer.room else (customer.room_no if customer.room_no else "N/A"),
+        'room_no': customer.room.room_number if customer.room else (customer.room_number if customer.room_number else "N/A"),
         'payment_id': payment.id if payment else "", 
         'due_date': due_date_str,
         'balance': customer.room.price if customer.room else 0,
