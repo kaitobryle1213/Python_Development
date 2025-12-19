@@ -1,0 +1,7 @@
+1. Install Python (Google)
+2. Check version in powershell --> python --version
+3. Locate where the manage.py in the project. Type this in powershell --> cd D:\Projects\new_roullette
+3.1* activate venv environment --> .\.venv\Scripts\Activate.ps1
+3.2* If you get an error saying "scripts is disabled on this system," run PowerShell as Administrator and enter: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+4. copy and paste this in the powershell --> pip install -r requirements.txt
+5. run the program --> python manage.py runserver

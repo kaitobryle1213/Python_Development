@@ -1,0 +1,387 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RD Fishing X'Mas Party!</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-red: #ff4b4b;
+            --dark-red: #d90429;
+            --gold: #ffd700;
+            --xmas-green: #2b9348;
+        }
+
+        body {
+            background-color: #f8f9fa; 
+            background-image: url("{% static 'background.png' %}?v=3");
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        .main-container {
+            background-color: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            padding: 50px;
+            border-radius: 30px;
+            border: 4px solid var(--gold);
+            box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+            max-width: 900px;
+            width: 95%;
+            position: relative;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+
+        .main-container:hover {
+            transform: translateY(-5px);
+        }
+
+        /* --- Winner Box --- */
+        .winner-display {
+            text-align: center;
+            padding: 60px 20px;
+            border: 8px double var(--primary-red);
+            border-radius: 20px;
+            background: radial-gradient(circle, #ffffff 0%, #fffafa 100%);
+            margin: 30px 0;
+            min-height: 250px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        .winner-name {
+            font-size: 80px;
+            font-weight: 900;
+            background: -webkit-linear-gradient(45deg, var(--dark-red), var(--primary-red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            margin: 0;
+            filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.1));
+        }
+
+        .pulse-effect {
+            animation: winnerPulse 0.8s infinite alternate;
+        }
+
+        @keyframes winnerPulse {
+            from { transform: scale(1); box-shadow: 0 0 30px var(--primary-red); }
+            to { transform: scale(1.05); box-shadow: 0 0 60px var(--gold), 0 0 20px var(--xmas-green); }
+        }
+
+        /* --- Balloon Styling --- */
+        .celebration-container {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 1000; display: none;
+        }
+
+        .balloon {
+            position: absolute;
+            bottom: -200px;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+            animation: floatUpBalloon 5s ease-in forwards;
+            opacity: 0.9;
+        }
+
+        @keyframes floatUpBalloon {
+            0% { transform: translateY(0) rotate(0deg) scale(0.8); opacity: 0.8; }
+            40% { opacity: 1; }
+            70% { opacity: 1; transform: translateY(-80vh) rotate(10deg) scale(1); }
+            90% { opacity: 1; transform: translateY(-100vh) rotate(15deg) scale(1.2); }
+            100% { transform: translateY(-110vh) rotate(20deg) scale(2.0); opacity: 0; display: none; }
+        }
+
+        .btn-spin {
+            background: linear-gradient(135deg, var(--primary-red), #b90321);
+            color: white;
+            font-size: 24px !important;
+            border: none;
+            box-shadow: 0 8px 0 #800216, 0 15px 20px rgba(0,0,0,0.3);
+            transition: all 0.1s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 100%;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-spin:active {
+            transform: translateY(5px);
+            box-shadow: 0 3px 0 #800216, 0 5px 10px rgba(0,0,0,0.3);
+        }
+        
+        .btn-reset {
+            font-size: 24px !important;
+            border: 3px solid #6c757d;
+            width: 100%;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #6c757d;
+            transition: all 0.2s;
+        }
+
+        .btn-reset:hover {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 120px;
+            height: 120px;
+            overflow: hidden;
+            border-radius: 50%; /* Make it circular */
+            background-color: transparent; /* Remove any white box if present */
+        }
+        
+        .logo-container img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+        }
+        
+        .logo-anim {
+            animation: floatLogo 3s ease-in-out infinite;
+        }
+
+        @keyframes floatLogo {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        canvas {
+            pointer-events: none !important;
+        }
+    </style>
+</head>
+<body>
+
+<audio id="win-sound" src="{% static 'jingle.mp3' %}" preload="auto"></audio>
+
+<div id="celebration" class="celebration-container"></div>
+
+<div class="main-container text-center">
+    <div class="header-section d-flex align-items-center justify-content-center gap-3 mb-4">
+        <!-- Logo on the left -->
+        <div class="logo-container">
+            <img src="{% static 'rd_fishing_logo.jpg' %}" width="120" alt="RD Fishing Logo" class="logo-anim">
+        </div>
+        
+        <!-- Text on the right -->
+        <div class="text-start">
+            <h1 class="display-5 fw-bold m-0" style="color: var(--dark-red);">RD Fishing Christmas Party!</h1>
+            <p class="text-muted m-0">Once an employee is selected, they are <strong>excluded</strong> from future spins.</p>
+        </div>
+    </div>
+
+    {% if not roster_loaded %}
+    <div class="p-5 border border-3 border-dashed rounded-4 bg-light">
+        <form action="{% url 'upload_roster' %}" method="post" enctype="multipart/form-data" id="uploadForm">
+            {% csrf_token %}
+            <h3 class="mb-4">🎄 Upload Roster to Start</h3>
+            <input type="file" name="roster" class="form-control form-control-lg" accept=".xlsx" required onchange="document.getElementById('uploadForm').submit()">
+        </form>
+    </div>
+    {% else %}
+    <div class="alert alert-info border-0 shadow-sm mb-4">
+        <h4 class="mb-0 text-dark">🎯 <strong id="roster-count">{{ roster_count }}</strong> Participants Remaining</h4>
+    </div>
+    {% endif %}
+
+    <div class="winner-display shadow-lg" id="display-box">
+        <h2 id="winner-text" class="winner-name">Let's Spin!</h2>
+    </div>
+
+    <div class="d-grid gap-3 d-md-flex justify-content-center w-100">
+        <button id="spin-btn" class="btn btn-spin btn-lg rounded-pill flex-fill" {% if not roster_loaded %}disabled{% endif %}>
+            🎰 SPIN NOW
+        </button>
+        <form action="{% url 'reset_roster' %}" method="post" class="flex-fill">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-reset btn-lg rounded-pill w-100">🔄 RESET</button>
+        </form>
+    </div>
+
+    {% if past_winners %}
+    <div class="mt-5">
+        <h4 class="text-muted border-bottom pb-2">⭐ Winner History</h4>
+        <div class="table-responsive" style="max-height: 200px;">
+            <table class="table table-hover">
+                <tbody id="past-winners-list">
+                    {% for winner in past_winners %}
+                    <tr class="table-success">
+                        <td class="fw-bold fs-5 text-uppercase">{{ winner }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    const spinBtn = document.getElementById('spin-btn');
+    const winnerText = document.getElementById('winner-text');
+    const displayBox = document.getElementById('display-box');
+    const winSound = document.getElementById('win-sound');
+
+    spinBtn.addEventListener('click', async () => {
+        spinBtn.disabled = true;
+        displayBox.classList.remove('pulse-effect');
+        winnerText.style.fontSize = "40px";
+        winnerText.style.color = "#666";
+
+        try {
+            const response = await fetch("{% url 'get_winner' %}");
+            const data = await response.json();
+
+            if (data.error) {
+                alert(data.error);
+                spinBtn.disabled = false;
+                return;
+            }
+
+            // Shuffle effect with deceleration
+            let duration = 15000; // 15 seconds total
+            let start = Date.now();
+            
+            function spinStep() {
+                let elapsed = Date.now() - start;
+                let progress = elapsed / duration; // 0.0 to 1.0
+
+                // Safety check if roster is empty
+                if (data.roster && data.roster.length > 0) {
+                    let pick = data.roster[Math.floor(Math.random() * data.roster.length)];
+                    winnerText.innerText = pick.toUpperCase();
+                }
+
+                if (elapsed >= duration) {
+                    // Reveal Winner
+                    winnerText.innerText = data.winner;
+                    winnerText.style.fontSize = "72px";
+                    winnerText.style.color = "var(--dark-red)";
+                    displayBox.classList.add('pulse-effect');
+                    
+                    // Play Sound & Visuals
+                    winSound.play();
+                    launchConfetti();
+                    launchBalloons();
+                    
+                    // Update Table
+                    const tableBody = document.getElementById('past-winners-list');
+                    const newRow = `<tr class="table-success"><td class="fw-bold fs-5 text-uppercase">${data.winner}</td></tr>`;
+                    
+                    if (tableBody) {
+                        tableBody.insertAdjacentHTML('afterbegin', newRow);
+                    } else {
+                        // Create table structure if it doesn't exist
+                        const historyContainer = document.createElement('div');
+                        historyContainer.className = 'mt-5';
+                        historyContainer.innerHTML = `
+                            <h4 class="text-muted border-bottom pb-2">⭐ Winner History</h4>
+                            <div class="table-responsive" style="max-height: 200px;">
+                                <table class="table table-hover">
+                                    <tbody id="past-winners-list">
+                                        ${newRow}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                        document.querySelector('.main-container').appendChild(historyContainer);
+                    }
+                    
+                    // Update Count
+                    const countElement = document.getElementById('roster-count');
+                    if (countElement) {
+                        countElement.innerText = data.roster.length;
+                    }
+
+                    spinBtn.disabled = false;
+                } else {
+                    // Calculate delay: Starts fast (50ms) and slows down (to ~500ms)
+                    // Quadratic easing: delay = start_delay + (max_added_delay * progress^2)
+                    let delay = 50 + (450 * Math.pow(progress, 2));
+                    setTimeout(spinStep, delay);
+                }
+            }
+            
+            spinStep();
+        } catch (e) {
+            alert("Connection error!");
+            spinBtn.disabled = false;
+        }
+    });
+
+    function launchConfetti() {
+        var duration = 5 * 1000;
+        var animationEnd = Date.now() + duration;
+        var defaults = { startVelocity: 45, spread: 360, ticks: 100, zIndex: 2000, scalar: 1.5 };
+
+        function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+
+        var interval = setInterval(function() {
+            var timeLeft = animationEnd - Date.now();
+            if (timeLeft <= 0) return clearInterval(interval);
+
+            var particleCount = 100 * (timeLeft / duration);
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+        }, 200);
+    }
+
+    function launchBalloons() {
+        const container = document.getElementById('celebration');
+        container.style.display = 'block';
+        container.innerHTML = '';
+        const colors = ['#ff4b4b', '#ffd700', '#ffffff', '#2b9348', '#d90429'];
+
+        for (let i = 0; i < 40; i++) {
+            const b = document.createElement('div');
+            b.className = 'balloon';
+            b.style.left = Math.random() * 95 + '%';
+            b.style.animationDelay = (Math.random() * 2) + 's';
+            b.style.color = colors[Math.floor(Math.random() * colors.length)];
+            
+            // Randomize size slightly
+            const scale = 0.8 + Math.random() * 0.5; // 0.8 to 1.3
+            b.style.transform = `scale(${scale})`;
+            
+            b.innerHTML = `
+                <svg width="150" height="180" viewBox="0 0 100 120">
+                    <path d="M50,0 C20,0 0,20 0,50 C0,80 20,100 50,100 C80,100 100,80 100,50 C100,20 80,0 50,0 Z" fill="currentColor"/>
+                    <line x1="50" y1="100" x2="50" y2="130" stroke="#333" stroke-width="2" />
+                    <circle cx="30" cy="30" r="10" fill="rgba(255,255,255,0.3)" />
+                </svg>`;
+            container.appendChild(b);
+        }
+        setTimeout(() => { container.style.display = 'none'; }, 8000);
+    }
+</script>
+
+</body>
+</html>
