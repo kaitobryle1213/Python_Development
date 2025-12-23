@@ -460,16 +460,39 @@ def global_search(request):
 
 @login_required
 def notifications_api(request):
-    notifications = Notification.objects.filter(
+    notifications_qs = Notification.objects.filter(
         created_at__gte=request.user.date_joined
-    ).order_by('-created_at')[:15]
+    )
+
+    if not (request.user.is_staff or request.user.is_superuser):
+        notifications_qs = notifications_qs.filter(category='PROPERTY')
+
+    notifications = notifications_qs.order_by('-created_at')[:15]
     data = []
     for n in notifications:
+        url = ''
+        if n.category == 'PROPERTY':
+            marker = 'Title No.:'
+            if marker in n.message:
+                title_no = n.message.split(marker, 1)[1].strip()
+                if title_no:
+                    prop = Property.objects.filter(title_no=title_no).first()
+                    if prop:
+                        url = str(reverse_lazy('property_detail', kwargs={'pk': prop.pk}))
+        elif n.category == 'USER':
+            if ':' in n.message:
+                username = n.message.split(':', 1)[1].strip()
+                if username:
+                    user = User.objects.filter(username=username).first()
+                    if user:
+                        url = str(reverse_lazy('user_view', kwargs={'user_id': user.id}))
+
         data.append({
             'id': n.id,
             'category': n.category,
             'message': n.message,
             'created_at': n.created_at.strftime('%Y-%m-%d %H:%M'),
+            'url': url,
         })
     return JsonResponse({'notifications': data})
 
@@ -605,3 +628,10 @@ def user_delete(request, user_id):
         )
         return redirect('user_list')
     return render(request, 'user_form.html', {'mode': 'delete', 'target': target})
+
+@login_required
+@user_passes_test(is_admin)
+def user_view(request, user_id):
+    target = User.objects.get(id=user_id)
+    profile = getattr(target, 'profile', None)
+    return render(request, 'user_view.html', {'target': target, 'profile': profile})

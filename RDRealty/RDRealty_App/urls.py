@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     DashboardView, PropertyCreateView, PropertyListView, PropertyDetailView, PropertyUpdateView,
-    global_search, notifications_api, login_view, logout_view, user_list, user_create, user_update, user_delete,
+    global_search, notifications_api, login_view, logout_view, user_list, user_create, user_update, user_delete, user_view,
     get_provinces, get_cities, get_barangays
 )
 
@@ -38,6 +38,7 @@ urlpatterns = [
     # 6. User Management
     path('user-management/', user_list, name='user_list'),
     path('user-management/add/', user_create, name='user_create'),
+    path('user-management/<int:user_id>/view/', user_view, name='user_view'),
     path('user-management/<int:user_id>/edit/', user_update, name='user_update'),
     path('user-management/<int:user_id>/delete/', user_delete, name='user_delete'),
 ]

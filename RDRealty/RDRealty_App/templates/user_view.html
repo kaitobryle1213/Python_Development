@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}View User{% endblock %}
+
+{% block breadcrumbs %}
+<div class="d-flex align-items-center">
+    <a href="{% url 'dashboard' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-home me-2"></i> 
+        <span class="me-2">Dashboard</span>
+    </a>
+    <i class="fa-solid fa-chevron-right me-2 text-muted" style="font-size: 0.7rem;"></i>
+    <a href="{% url 'user_list' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-users-cog me-2 text-muted"></i>
+        <span class="me-2">User Management</span>
+    </a>
+    <i class="fa-solid fa-chevron-right me-2 text-muted" style="font-size: 0.7rem;"></i>
+    <span class="fw-bold">View User</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold mb-0">User Details</h2>
+        <a href="{% url 'user_list' %}" class="btn btn-secondary">Back</a>
+    </div>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Username</label>
+                    <div class="form-control-plaintext">{{ target.username }}</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Fullname</label>
+                    <div class="form-control-plaintext">
+                        {% if profile %}
+                        {{ profile.full_name }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Role</label>
+                    <div class="form-control-plaintext">
+                        {% if target.is_staff %}Admin{% else %}User{% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Status</label>
+                    <div class="form-control-plaintext">
+                        {% if target.is_active %}Active{% else %}Inactive{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Date Joined</label>
+                    <div class="form-control-plaintext">{{ target.date_joined|date:"Y-m-d H:i" }}</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Last Login</label>
+                    <div class="form-control-plaintext">
+                        {% if target.last_login %}
+                        {{ target.last_login|date:"Y-m-d H:i" }}
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
