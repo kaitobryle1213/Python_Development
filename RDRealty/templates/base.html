@@ -316,6 +316,70 @@
             margin-left: 10px;
         }
 
+        .notification-bell-wrapper {
+            position: relative;
+        }
+
+        .notification-dropdown {
+            position: absolute;
+            right: 0;
+            top: 120%;
+            width: 320px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
+            display: none;
+            z-index: 1100;
+        }
+
+        .notification-dropdown.show {
+            display: block;
+        }
+
+        .notification-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.85rem;
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+
+        .notification-item-time {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        .notification-empty {
+            padding: 20px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+
+        .notification-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background-color: #dc3545;
+        }
+
+        @keyframes bell-shake {
+            0% { transform: rotate(0); }
+            20% { transform: rotate(-15deg); }
+            40% { transform: rotate(10deg); }
+            60% { transform: rotate(-8deg); }
+            80% { transform: rotate(4deg); }
+            100% { transform: rotate(0); }
+        }
+
+        .bell-animate {
+            animation: bell-shake 0.7s ease-in-out;
+            transform-origin: top center;
+        }
+
         /* Custom Status Badge Styles */
         .status-badge { 
             display: inline-block; 
@@ -432,8 +496,18 @@
                 <span class="shortcut-badge"></span>
             </div>
             
-            <div>
-                <i class="far fa-bell text-muted" style="cursor: pointer;"></i>
+            <div class="notification-bell-wrapper">
+                <i id="notificationBell" class="far fa-bell text-muted" style="cursor: pointer;"></i>
+                <span id="notificationDot" class="notification-dot position-absolute top-0 start-100 translate-middle d-none"></span>
+                <div id="notificationDropdown" class="notification-dropdown">
+                    <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                        <strong>Notifications</strong>
+                        <button type="button" id="markAllAsRead" class="btn btn-sm btn-outline-secondary">Mark all as read</button>
+                    </div>
+                    <div id="notificationList" style="max-height: 320px; overflow-y: auto;">
+                        <div class="text-center py-3 text-muted small">Loading...</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -600,6 +674,81 @@
                     });
             }, 300);
         });
+        const notificationsUrl = "{% url 'notifications_api' %}";
+        const notificationBell = document.getElementById('notificationBell');
+        const notificationDropdown = document.getElementById('notificationDropdown');
+        const notificationList = document.getElementById('notificationList');
+        const notificationDot = document.getElementById('notificationDot');
+        const markAllAsReadBtn = document.getElementById('markAllAsRead');
+        let latestNotificationId = null;
+
+        function renderNotifications(data) {
+            const items = data.notifications || [];
+            if (items.length === 0) {
+                notificationList.innerHTML = '<div class="notification-empty">No recent notifications.</div>';
+                return;
+            }
+            let html = '';
+            items.forEach(item => {
+                html += `
+                    <div class="notification-item">
+                        <div>${item.message}</div>
+                        <div class="notification-item-time">${item.created_at}</div>
+                    </div>
+                `;
+            });
+            notificationList.innerHTML = html;
+            latestNotificationId = items[0].id;
+
+            const stored = localStorage.getItem('rd_notif_last_id');
+            if (latestNotificationId && (!stored || parseInt(stored, 10) < latestNotificationId)) {
+                notificationDot.classList.remove('d-none');
+                notificationBell.classList.add('bell-animate');
+                setTimeout(() => {
+                    notificationBell.classList.remove('bell-animate');
+                }, 700);
+            }
+        }
+
+        function fetchNotifications() {
+            fetch(notificationsUrl)
+                .then(r => r.json())
+                .then(data => {
+                    renderNotifications(data);
+                })
+                .catch(() => {
+                    notificationList.innerHTML = '<div class="notification-empty text-danger">Failed to load notifications.</div>';
+                });
+        }
+
+        if (notificationBell && notificationDropdown && notificationList) {
+            fetchNotifications();
+
+            notificationBell.addEventListener('click', function (e) {
+                e.stopPropagation();
+                notificationDropdown.classList.toggle('show');
+                notificationDot.classList.add('d-none');
+                if (latestNotificationId) {
+                    localStorage.setItem('rd_notif_last_id', latestNotificationId.toString());
+                }
+            });
+
+            if (markAllAsReadBtn) {
+                markAllAsReadBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    notificationDot.classList.add('d-none');
+                    if (latestNotificationId) {
+                        localStorage.setItem('rd_notif_last_id', latestNotificationId.toString());
+                    }
+                });
+            }
+
+            document.addEventListener('click', function (e) {
+                if (!notificationDropdown.contains(e.target) && e.target !== notificationBell) {
+                    notificationDropdown.classList.remove('show');
+                }
+            });
+        }
     });
 </script>
 

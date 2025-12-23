@@ -191,3 +191,16 @@ class UserProfile(models.Model):
     full_name = models.CharField(max_length=255)
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
+
+
+class Notification(models.Model):
+    CATEGORY_CHOICES = [
+        ('PROPERTY', 'Property'),
+        ('USER', 'User'),
+    ]
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    message = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']

@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     DashboardView, PropertyCreateView, PropertyListView, PropertyDetailView, PropertyUpdateView,
-    global_search, login_view, logout_view, user_list, user_create, user_update, user_delete,
+    global_search, notifications_api, login_view, logout_view, user_list, user_create, user_update, user_delete,
     get_provinces, get_cities, get_barangays
 )
 
@@ -28,6 +28,7 @@ urlpatterns = [
     
     # 5. Global Search API
     path('api/search/', global_search, name='global_search'),
+    path('api/notifications/', notifications_api, name='notifications_api'),
     
     # Locations API (Proxied)
     path('api/locations/provinces/', get_provinces, name='get_provinces'),

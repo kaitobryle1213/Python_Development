@@ -18,7 +18,7 @@ from django.conf import settings
 from django.utils import timezone
 import zipfile
 
-from .models import Property, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument, UserProfile
+from .models import Property, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument, UserProfile, Notification
 from .forms import PropertyCreateForm
 
 
@@ -138,6 +138,11 @@ class PropertyCreateView(CreateView):
                 property_id=self.object.property_id,
                 file=f
             )
+
+        Notification.objects.create(
+            category='PROPERTY',
+            message=f"New Property added with Title No.: {self.object.title_no}"
+        )
 
         return response
 
@@ -291,6 +296,11 @@ class PropertyUpdateView(UpdateView):
                 property_id=self.object.property_id,
                 file=f
             )
+
+        Notification.objects.create(
+            category='PROPERTY',
+            message=f"Property updated with Title No.: {self.object.title_no}"
+        )
 
         return response
 
@@ -447,6 +457,22 @@ def global_search(request):
             
     return JsonResponse({'results': results})
 
+
+@login_required
+def notifications_api(request):
+    notifications = Notification.objects.filter(
+        created_at__gte=request.user.date_joined
+    ).order_by('-created_at')[:15]
+    data = []
+    for n in notifications:
+        data.append({
+            'id': n.id,
+            'category': n.category,
+            'message': n.message,
+            'created_at': n.created_at.strftime('%Y-%m-%d %H:%M'),
+        })
+    return JsonResponse({'notifications': data})
+
 # --- 5. AUTH: LOGIN VIEW ---
 def login_view(request):
     if request.method == 'POST':
@@ -527,6 +553,10 @@ def user_create(request):
         else:
             u.is_staff = False
         u.save()
+        Notification.objects.create(
+            category='USER',
+            message=f"New user added: {u.username}"
+        )
         return redirect('user_list')
     return render(request, 'user_form.html', {'mode': 'create'})
 
@@ -555,6 +585,10 @@ def user_update(request, user_id):
             target.set_password(password1)
         target.save()
         profile.save()
+        Notification.objects.create(
+            category='USER',
+            message=f"User updated: {target.username}"
+        )
         return redirect('user_list')
     return render(request, 'user_form.html', {'mode': 'update', 'target': target, 'profile': profile})
 
@@ -563,6 +597,11 @@ def user_update(request, user_id):
 def user_delete(request, user_id):
     target = User.objects.get(id=user_id)
     if request.method == 'POST':
+        username = target.username
         target.delete()
+        Notification.objects.create(
+            category='USER',
+            message=f"User deleted: {username}"
+        )
         return redirect('user_list')
     return render(request, 'user_form.html', {'mode': 'delete', 'target': target})
