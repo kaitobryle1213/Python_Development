@@ -14,8 +14,11 @@ import json
 import os
 from pathlib import Path
 from urllib.request import urlopen
+from django.conf import settings
+from django.utils import timezone
+import zipfile
 
-from .models import Property, LocalInformation, OwnerInformation, FinancialInformation
+from .models import Property, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument
 from .forms import PropertyCreateForm
 
 
@@ -75,6 +78,21 @@ class PropertyCreateView(CreateView):
     success_url = reverse_lazy('property_list')
     
     def form_valid(self, form):
+        # Handle file uploads validation BEFORE saving anything
+        files = self.request.FILES.getlist('ai_supp_docs')
+        MAX_FILES = 5
+        MAX_SIZE_MB = 10
+        MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
+
+        if len(files) > MAX_FILES:
+            form.add_error(None, f"You can only upload a maximum of {MAX_FILES} files.")
+            return self.form_invalid(form)
+
+        for f in files:
+            if f.size > MAX_SIZE_BYTES:
+                form.add_error(None, f"File {f.name} exceeds the {MAX_SIZE_MB}MB limit.")
+                return self.form_invalid(form)
+
         response = super().form_valid(form)
         loc_specific = self.request.POST.get('loc_specific', '')
         loc_province = self.request.POST.get('loc_province', '')
@@ -107,6 +125,20 @@ class PropertyCreateView(CreateView):
             fi_mortgage=fi_mortgage,
             fi_borrower=fi_borrower
         )
+
+        ai_remarks = self.request.POST.get('ai_remarks', '')
+        AdditionalInformation.objects.create(
+            property_id=self.object.property_id,
+            ai_remarks=ai_remarks
+        )
+
+        # Save files after successful form validation
+        for f in files:
+            SupportingDocument.objects.create(
+                property_id=self.object.property_id,
+                file=f
+            )
+
         return response
 
 # --- 1.5 PROPERTY UPDATE VIEW ---
@@ -139,9 +171,64 @@ class PropertyUpdateView(UpdateView):
         except FinancialInformation.DoesNotExist:
             context['financial_info'] = None
 
+        # Try to get existing additional info
+        try:
+            additional_info = AdditionalInformation.objects.get(property_id=self.object.property_id)
+            context['additional_info'] = additional_info
+        except AdditionalInformation.DoesNotExist:
+            context['additional_info'] = None
+
+        # Get existing supporting documents
+        context['supporting_docs'] = SupportingDocument.objects.filter(property_id=self.object.property_id)
+
         return context
 
     def form_valid(self, form):
+        files = self.request.FILES.getlist('ai_supp_docs')
+        delete_ids = self.request.POST.getlist('delete_files')
+        
+        current_docs = SupportingDocument.objects.filter(property_id=self.object.property_id)
+        current_count = current_docs.count()
+        
+        valid_delete_ids = list(current_docs.filter(id__in=delete_ids).values_list('id', flat=True))
+        
+        projected_count = current_count - len(valid_delete_ids) + len(files)
+        
+        MAX_FILES = 5
+        MAX_SIZE_MB = 10
+        MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
+
+        if projected_count > MAX_FILES:
+             form.add_error(None, f"Total files cannot exceed {MAX_FILES}. You currently have {current_count}, are deleting {len(valid_delete_ids)}, and adding {len(files)}.")
+             return self.form_invalid(form)
+
+        for f in files:
+            if f.size > MAX_SIZE_BYTES:
+                form.add_error(None, f"File {f.name} exceeds the {MAX_SIZE_MB}MB limit.")
+                return self.form_invalid(form)
+
+        docs_to_delete = []
+        if valid_delete_ids:
+            docs_to_delete = list(SupportingDocument.objects.filter(id__in=valid_delete_ids))
+            deleted_root = Path(settings.MEDIA_ROOT) / "supporting_docs" / "Deleted_Files"
+            deleted_root.mkdir(parents=True, exist_ok=True)
+            timestamp = timezone.now().strftime("%Y%m%d%H%M%S")
+            zip_name = f"deleted_{self.object.property_id}_{timestamp}.zip"
+            zip_path = deleted_root / zip_name
+            with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                for doc in docs_to_delete:
+                    try:
+                        file_path = Path(doc.file.path)
+                    except (ValueError, AttributeError):
+                        continue
+                    if file_path.is_file():
+                        archive.write(str(file_path), arcname=file_path.name)
+                        try:
+                            file_path.unlink()
+                        except OSError:
+                            pass
+            SupportingDocument.objects.filter(id__in=valid_delete_ids).delete()
+
         response = super().form_valid(form)
         loc_specific = self.request.POST.get('loc_specific', '')
         loc_province = self.request.POST.get('loc_province', '')
@@ -184,6 +271,22 @@ class PropertyUpdateView(UpdateView):
                 'fi_borrower': fi_borrower
             }
         )
+
+        ai_remarks = self.request.POST.get('ai_remarks', '')
+        AdditionalInformation.objects.update_or_create(
+            property_id=self.object.property_id,
+            defaults={
+                'ai_remarks': ai_remarks
+            }
+        )
+
+        # Handle file uploads (append new files)
+        for f in files:
+            SupportingDocument.objects.create(
+                property_id=self.object.property_id,
+                file=f
+            )
+
         return response
 
 # --- 2. PROPERTY LIST VIEW (KEPT) ---
@@ -263,6 +366,10 @@ class PropertyDetailView(DetailView):
         context['owner_info'] = self.object.ownerinformation_set.first()
         # Fetch related FinancialInformation
         context['financial_info'] = self.object.financialinformation_set.first()
+        # Fetch related AdditionalInformation
+        context['additional_info'] = self.object.additionalinformation_set.first()
+        # Fetch related SupportingDocuments
+        context['supporting_docs'] = self.object.supportingdocument_set.all()
         return context
 
 # --- 4. GLOBAL SEARCH API ---

@@ -1,6 +1,7 @@
 from django.db import models
-from django.utils import timezone # Import for default date setting
+from django.utils import timezone
 from django.db.models import Max
+import os
 
 # --- 1. PROPERTY MODEL ---
 class Property(models.Model):
@@ -143,3 +144,38 @@ class FinancialInformation(models.Model):
     
     class Meta:
         db_table = 'rdrealty_financial_information'
+
+class AdditionalInformation(models.Model):
+    property = models.ForeignKey(
+        Property,
+        to_field='property_id',
+        db_column='property_id',
+        on_delete=models.CASCADE
+    )
+    ai_remarks = models.CharField(max_length=250, blank=True, null=True)
+    
+    class Meta:
+        db_table = 'rdrealty_additional_information'
+
+def supporting_document_upload_to(instance, filename):
+    base, ext = os.path.splitext(filename)
+    prop_id = getattr(instance, "property_id", None)
+    if not prop_id and getattr(instance, "property", None):
+        prop_id = getattr(instance.property, "property_id", "")
+    timestamp = timezone.now().strftime("%Y%m%d")
+    safe_base = base.replace(" ", "_")
+    return f"supporting_docs/{safe_base}_{prop_id}_{timestamp}{ext}"
+
+
+class SupportingDocument(models.Model):
+    property = models.ForeignKey(
+        Property,
+        to_field='property_id',
+        db_column='property_id',
+        on_delete=models.CASCADE
+    )
+    file = models.FileField(upload_to=supporting_document_upload_to)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'rdrealty_supporting_documents'

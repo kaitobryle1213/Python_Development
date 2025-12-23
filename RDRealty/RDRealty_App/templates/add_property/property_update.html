@@ -36,7 +36,7 @@
         <p class="text-muted">Update property information</p>
     </div>
     
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
         <div class="card mb-4 shadow-sm border-0">
@@ -186,6 +186,61 @@
             </div>
         </div>
 
+        <div class="card mb-4 shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h3 class="h5 mb-0 text-dark fw-bold"><i class="fas fa-info-circle me-2"></i>Additional Information</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Remarks</label>
+                        <textarea name="ai_remarks" class="form-control" rows="4" placeholder="Additional notes or remarks">{{ additional_info.ai_remarks|default:'' }}</textarea>
+                        <small class="form-text text-muted">Any additional notes or remarks</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold"><i class="fas fa-upload me-1"></i>Supporting Documents</label>
+
+                        <div class="p-4 border border-dashed rounded text-center bg-light mb-3">
+                            <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                            <p class="mb-2 fw-semibold">Drop up to 5 files here or click to browse</p>
+                            <input id="aiSuppDocsInput" type="file" name="ai_supp_docs" class="form-control" multiple accept="image/*,.pdf,.doc,.docx" style="max-width: 100%;">
+                            <small class="d-block text-muted mt-2">Maximum file size: 10MB • Up to 5 files</small>
+                        </div>
+                        <div id="uploadedFilesWrapper" class="mb-3 d-none">
+                            <p class="mb-2 text-muted small fw-bold">Uploaded Files (<span id="uploadedFilesCount">0</span>/5)</p>
+                            <ul id="uploadedFilesList" class="list-group list-group-flush small"></ul>
+                        </div>
+
+                        {% if supporting_docs %}
+                        <div class="mb-3">
+                            <p class="mb-2 text-muted small fw-bold">EXISTING FILES:</p>
+                            <div style="max-height: 260px; overflow-y: auto;">
+                                <ul class="list-group list-group-flush small">
+                                    {% for doc in supporting_docs %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center bg-light">
+                                        <div class="d-flex align-items-center" style="max-width: 90%;">
+                                            <div class="form-check me-2">
+                                                <input class="form-check-input" type="checkbox" name="delete_files" value="{{ doc.id }}" id="del_{{ doc.id }}">
+                                            </div>
+                                            <a href="{{ doc.file.url }}" target="_blank" class="text-decoration-none text-truncate">
+                                                <i class="fas fa-file me-2"></i>{{ doc.file.name }}
+                                            </a>
+                                        </div>
+                                        <label class="form-check-label text-danger small fw-bold" for="del_{{ doc.id }}" title="Check to delete">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </label>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <small class="form-text text-danger">Check the box and click Update to delete selected files.</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="mb-5">
             <button type="submit" class="btn btn-primary px-4 shadow-sm">
                 <i class="fas fa-save me-1"></i> Update Property
@@ -307,6 +362,78 @@ document.addEventListener('DOMContentLoaded', function () {
         resetSelect(barangaySelect, 'Select barangay...', true);
         if (code) loadBarangays(code);
     });
+
+    const fileInput = document.getElementById('aiSuppDocsInput');
+    const filesWrapper = document.getElementById('uploadedFilesWrapper');
+    const filesList = document.getElementById('uploadedFilesList');
+    const filesCount = document.getElementById('uploadedFilesCount');
+    let dataTransfer = new DataTransfer();
+
+    function renderFiles() {
+        filesList.innerHTML = '';
+        const files = Array.from(dataTransfer.files);
+        if (!files.length) {
+            filesWrapper.classList.add('d-none');
+            filesCount.textContent = '0';
+            return;
+        }
+        filesWrapper.classList.remove('d-none');
+        filesCount.textContent = String(files.length);
+        files.forEach((file, index) => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center bg-success-subtle';
+            const left = document.createElement('div');
+            left.className = 'd-flex align-items-center';
+            const indexSpan = document.createElement('span');
+            indexSpan.className = 'me-2 text-muted';
+            indexSpan.textContent = String(index + 1) + '.';
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'fw-semibold';
+            nameSpan.textContent = file.name;
+            left.appendChild(indexSpan);
+            left.appendChild(nameSpan);
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-sm btn-outline-danger';
+            removeBtn.textContent = '×';
+            removeBtn.addEventListener('click', function () {
+                const nextTransfer = new DataTransfer();
+                Array.from(dataTransfer.files).forEach(function (f, i) {
+                    if (i !== index) {
+                        nextTransfer.items.add(f);
+                    }
+                });
+                dataTransfer = nextTransfer;
+                fileInput.files = dataTransfer.files;
+                renderFiles();
+            });
+            li.appendChild(left);
+            li.appendChild(removeBtn);
+            filesList.appendChild(li);
+        });
+    }
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function () {
+            const selected = Array.from(fileInput.files);
+            const MAX_FILES = 5;
+            const MAX_SIZE = 10 * 1024 * 1024;
+            selected.forEach(function (file) {
+                if (file.size > MAX_SIZE) {
+                    alert('"' + file.name + '" exceeds 10MB and will be ignored.');
+                    return;
+                }
+                if (dataTransfer.files.length >= MAX_FILES) {
+                    alert('Maximum of ' + MAX_FILES + ' files allowed.');
+                    return;
+                }
+                dataTransfer.items.add(file);
+            });
+            fileInput.value = '';
+            fileInput.files = dataTransfer.files;
+            renderFiles();
+        });
+    }
 });
 </script>
 {% endblock content %}

@@ -1,7 +1,9 @@
 # D:\Projects\RDRealty\RDRealty\urls.py (Your Project's main urls.py)
 
 from django.contrib import admin
-from django.urls import path, include  # <-- Make sure to import 'include'
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     # 1. Admin Interface (Standard Django Path)
@@ -15,3 +17,7 @@ urlpatterns = [
     # This includes URLs for login, logout, password change, etc.
     path('accounts/', include('django.contrib.auth.urls')),
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
