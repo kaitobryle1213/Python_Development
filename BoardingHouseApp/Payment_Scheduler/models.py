@@ -61,22 +61,14 @@ class Customer(models.Model):
         ('Active', 'Active'),
         ('Inactive', 'Inactive'),
     )
-    TYPE_CHOICES = (
-        ('Student', 'Student'),
-        ('Non-Student', 'Non-Student'),
-    )
-    GENDER_CHOICES = (
-        ('Male', 'Male'),
-        ('Female', 'Female'),
-    )
 
     customer_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
     address = models.TextField()
-    age = models.IntegerField()
-    gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
+    contact_number = models.CharField(max_length=20, null=True, blank=True)
+    parents_name = models.CharField(max_length=255, null=True, blank=True)
+    parents_contact_number = models.CharField(max_length=20, null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
-    customer_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     # This is the critical connection:
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='customers')
     due_date = models.DateField(null=True, blank=True)

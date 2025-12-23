@@ -22,16 +22,16 @@
                     <div class="col-sm-8">{{ customer.address }}</div>
                 </div>
                 <div class="row mb-3">
-                    <div class="col-sm-4 text-secondary">Age</div>
-                    <div class="col-sm-8">{{ customer.age }}</div>
+                    <div class="col-sm-4 text-secondary">Contact Number</div>
+                    <div class="col-sm-8">{{ customer.contact_number|default:"-" }}</div>
                 </div>
                 <div class="row mb-3">
-                    <div class="col-sm-4 text-secondary">Gender</div>
-                    <div class="col-sm-8">{{ customer.gender }}</div>
+                    <div class="col-sm-4 text-secondary">Parent's Name</div>
+                    <div class="col-sm-8">{{ customer.parents_name|default:"-" }}</div>
                 </div>
                 <div class="row mb-3">
-                    <div class="col-sm-4 text-secondary">Type</div>
-                    <div class="col-sm-8">{{ customer.customer_type }}</div>
+                    <div class="col-sm-4 text-secondary">Parent's Contact</div>
+                    <div class="col-sm-8">{{ customer.parents_contact_number|default:"-" }}</div>
                 </div>
                 <div class="row mb-3">
                     <div class="col-sm-4 text-secondary">Room No.</div>

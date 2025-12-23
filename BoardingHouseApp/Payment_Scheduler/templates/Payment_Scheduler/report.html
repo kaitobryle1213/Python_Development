@@ -65,12 +65,33 @@
     </div>
 </div>
 
+<style>
+    /* Custom Scrollbar Styling */
+    .custom-scroll::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+        background: #f1f1f1; 
+        border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+        background: #c1c1c1; 
+        border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8; 
+    }
+</style>
+
 <div class="card border-0 shadow-sm">
-    <div class="table-responsive">
+    <div class="table-responsive custom-scroll" style="max-height: 500px; overflow-y: auto;">
         <table class="table table-hover mb-0">
-            <thead class="bg-light">
+            <thead class="bg-light" style="position: sticky; top: 0; z-index: 1;">
                 <tr>
                     <th class="ps-4">Customer Name</th>
+                    <th>Contact No.</th>
+                    <th>Parent's Name</th>
                     <th>Room No.</th>
                     <th>Date Entry</th>
                     <th>Due Date</th>
@@ -84,6 +105,8 @@
                 {% for r in rows %}
                 <tr>
                     <td class="ps-4 fw-medium">{{ r.name }}</td>
+                    <td>{{ r.contact_number|default:"-" }}</td>
+                    <td>{{ r.parents_name|default:"-" }}</td>
                     <td>
                         <span class="badge bg-secondary bg-opacity-25 text-dark fw-normal">RM. #: {{ r.room_no|default:"-" }}</span>
                     </td>
@@ -96,7 +119,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center py-5 text-secondary">
+                    <td colspan="10" class="text-center py-5 text-secondary">
                         <i class="fas fa-file-invoice-dollar fa-2x mb-3 d-block opacity-50"></i>
                         No payment records found for the selected criteria.
                     </td>

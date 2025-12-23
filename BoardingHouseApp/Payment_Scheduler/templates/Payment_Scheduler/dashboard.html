@@ -16,10 +16,30 @@
     </div>
 </div>
 
+<style>
+    /* Custom Scrollbar Styling */
+    .custom-scroll::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+        background: #f1f1f1; 
+        border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+        background: #c1c1c1; 
+        border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8; 
+    }
+</style>
+
 <div class="card border-0">
-    <div class="table-responsive">
+    <!-- Reduced max-height to 500px to ensure overflow on smaller screens -->
+    <div id="dashboard-scroll-container" class="table-responsive custom-scroll" style="max-height: 500px; overflow-y: auto;">
         <table class="table table-hover mb-0" id="dashboard-table">
-            <thead class="bg-light">
+            <thead class="bg-light" style="position: sticky; top: 0; z-index: 1;">
                 <tr>
                     <th class="ps-4">Name</th>
                     <th>Room No.</th>
@@ -31,120 +51,102 @@
                 </tr>
             </thead>
             <tbody id="dashboard-table-body">
-                {% for item in payment_data %}
-                <tr>
-                    <td class="ps-4 fw-medium">
-                        <span class="indicator indicator-{{ item.color }}" title="{{ item.status_text }}"></span>
-                        {{ item.customer.name }}
-                    </td>
-                    <td>
-                        <span class="badge bg-secondary bg-opacity-25 text-light fw-normal">
-                            RM. #: 
-                            {% if item.customer.room %}
-                                {{ item.customer.room.room_number }}
-                            {% else %}
-                                {{ item.customer.room_no|default:"-" }}
-                            {% endif %}
-                        </span>
-                    </td>
-                    <td class="text-secondary">
-                        {{ item.payment.previous_date|default:"-" }}
-                    </td>
-                    <td class="{% if item.color == 'red' %}text-danger fw-bold{% elif item.color == 'black' %}text-dark fw-bold{% endif %}">
-                        {{ item.customer.due_date|date:"M d, Y"|default:"N/A" }}
-                    </td>
-                    <td class="font-monospace">
-                        {% if item.payment.amount %}
-                            ₱{{ item.payment.amount }}
-                        {% elif item.customer.room %}
-                            ₱{{ item.customer.room.price }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td class="fw-medium {% if item.status_text == 'Paid' %}text-success{% else %}text-secondary{% endif %}">
-                        {{ item.status_text }}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr id="no-data-row">
-                    <td colspan="6" class="text-center py-5 text-secondary">
-                        <i class="fas fa-calendar-times fa-2x mb-3 d-block opacity-50"></i>
-                        No customers or payment schedules found.
-                    </td>
-                </tr>
-                {% endfor %}
+                <tr id="loading-row"><td colspan="7" class="text-center py-3 text-secondary">Loading...</td></tr>
             </tbody>
         </table>
+        <div id="dashboard-sentinel" class="py-1"></div>
+    </div>
+    <!-- Manual Load More Button (Hidden by default, shown if infinite scroll fails/ends) -->
+    <div id="load-more-container" class="text-center py-2 border-top" style="display: none;">
+        <button class="btn btn-sm btn-outline-primary" onclick="loadMoreDashboard()">
+            <i class="fas fa-chevron-down me-1"></i> Load More Customers
+        </button>
     </div>
 </div>
 
 <script>
-    /**
-     * Re-renders the dashboard table rows without refreshing the page.
-     * Logic: If a payment was made TODAY, it stays Green. 
-     * Tomorrow, it reverts to White (Upcoming) automatically.
-     */
-    function refreshDashboard() {
-        // Use the URL name defined in your urls.py
-        fetch("{% url 'dashboard_api' %}")
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then(data => {
-                const tbody = document.getElementById('dashboard-table-body');
-                const lastUpdateEl = document.getElementById('last-update');
-                
-                if (data.payment_data.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="6" class="text-center py-5 text-secondary">
-                                <i class="fas fa-calendar-times fa-2x mb-3 d-block opacity-50"></i>
-                                No customers or payment schedules found.
-                            </td>
-                        </tr>`;
-                    return;
-                }
+    let dashOffset = 0;
+    const dashLimit = 12;
+    let dashHasMore = true;
+    let dashLoading = false;
 
-                let newHtml = '';
-                data.payment_data.forEach(item => {
-                    // Apply dynamic styling based on color/status
-                    const dueStyles = (item.color === 'red' || item.color === 'black') ? 'text-danger fw-bold' : '';
-                    const statusStyles = item.status === 'Paid' ? 'text-success' : 'text-secondary';
-
-                    newHtml += `
-                    <tr>
-                        <td class="ps-4 fw-medium">
-                            <span class="indicator indicator-${item.color}" title="${item.status}"></span>
-                            ${item.name}
-                        </td>
-                        <td>
-                            <span class="badge bg-black fw-medium">
-                               RM. #: ${item.room_no}
-                            </span>
-                        </td>
-                        <td class="text-secondary">${item.prev_payment}</td>
-                        <td class="${dueStyles}">${item.due_date}</td>
-                        <td class="font-monospace">${item.room_rate}</td>
-                        <td class="font-monospace">${item.amount}</td>
-                        <td class="fw-medium ${statusStyles}">${item.status}</td>
-                    </tr>`;
-                });
-
-                tbody.innerHTML = newHtml;
-                
-                // Update the "Last Updated" text
-                const now = new Date();
-                lastUpdateEl.innerText = "Last checked: " + now.toLocaleTimeString();
-            })
-            .catch(error => {
-                console.error('Dashboard Sync Error:', error);
-                document.getElementById('last-update').innerText = "Connection lost. Retrying...";
-            });
+    function appendRows(items) {
+        const tbody = document.getElementById('dashboard-table-body');
+        if (document.getElementById('loading-row')) tbody.innerHTML = '';
+        items.forEach(item => {
+            const dueCls = (item.color === 'red' || item.color === 'black') ? 'text-danger fw-bold' : '';
+            const statusCls = item.status === 'Paid' ? 'text-success' : 'text-secondary';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="ps-4 fw-medium">
+                    <span class="indicator indicator-${item.color}" title="${item.status}"></span>
+                    ${item.name}
+                </td>
+                <td>
+                    <span class="badge bg-black fw-medium">RM. #: ${item.room_no}</span>
+                </td>
+                <td class="text-secondary">${item.prev_payment}</td>
+                <td class="${dueCls}">${item.due_date}</td>
+                <td class="font-monospace">${item.room_rate}</td>
+                <td class="font-monospace">${item.amount}</td>
+                <td class="fw-medium ${statusCls}">${item.status}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        const now = new Date();
+        document.getElementById('last-update').innerText = "Last checked: " + now.toLocaleTimeString();
     }
 
-    // Initialize the auto-refresh every 3 seconds (3000ms)
-    setInterval(refreshDashboard, 3000);
+    function loadMoreDashboard() {
+        if (!dashHasMore || dashLoading) return;
+        dashLoading = true;
+        
+        // Show loading state in button if visible
+        const btn = document.querySelector('#load-more-container button');
+        if(btn) btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...';
+
+        fetch(`{% url 'dashboard_api' %}?offset=${dashOffset}&limit=${dashLimit}&sort=latest_payment`)
+            .then(r => r.json())
+            .then(data => {
+                appendRows(data.payment_data);
+                dashHasMore = data.has_more;
+                dashOffset = data.next_offset || dashOffset;
+
+                // Update Load More button visibility
+                const loadMoreContainer = document.getElementById('load-more-container');
+                if (dashHasMore) {
+                    loadMoreContainer.style.display = 'block';
+                    if(btn) btn.innerHTML = '<i class="fas fa-chevron-down me-1"></i> Load More Customers';
+                } else {
+                    loadMoreContainer.style.display = 'none';
+                }
+
+                // Check for auto-fill with a slight delay to allow rendering
+                setTimeout(() => {
+                    if (dashHasMore && scrollContainer.scrollHeight <= scrollContainer.clientHeight) {
+                        loadMoreDashboard();
+                    }
+                }, 100);
+            })
+            .catch(() => {
+                if(btn) btn.innerHTML = '<i class="fas fa-redo me-1"></i> Retry Loading';
+            })
+            .finally(() => { dashLoading = false; });
+    }
+
+    const scrollContainer = document.getElementById('dashboard-scroll-container');
+    const sentinel = document.getElementById('dashboard-sentinel');
+
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+            loadMoreDashboard();
+        }
+    }, { root: scrollContainer, threshold: 0.1 });
+
+    observer.observe(sentinel);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if(dashOffset === 0) loadMoreDashboard();
+    });
 </script>
 {% endblock %}

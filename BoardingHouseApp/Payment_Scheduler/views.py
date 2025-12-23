@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from django.utils import timezone
 from django.http import JsonResponse
 from django.db.models import Q, Count, F, Sum
+from django.db.models import Max
 from django.db.models import Prefetch
 from dateutil.relativedelta import relativedelta
 from django.db.models.functions import Coalesce
@@ -352,7 +353,7 @@ def user_edit(request, pk):
 @login_required
 @admin_required
 def customer_view(request):
-    customers = Customer.objects.all()
+    customers = Customer.objects.annotate(last_paid=Max('payments__date_paid')).order_by('-date_entry', '-last_paid')[:12]
     return render(request, 'Payment_Scheduler/customer.html', {'customers': customers})
 
 @login_required
@@ -513,10 +514,18 @@ def get_customer_balance(request, customer_id):
 
 @login_required
 def dashboard_api(request):
-    """Returns live dashboard data as JSON for background refreshing."""
-    customers = Customer.objects.all().select_related('room').prefetch_related(
+    limit = int(request.GET.get('limit', 12))
+    offset = int(request.GET.get('offset', 0))
+    sort = request.GET.get('sort', 'latest_payment')
+    base_qs = Customer.objects.all().annotate(last_paid=Max('payments__date_paid')).select_related('room').prefetch_related(
         Prefetch('payments', queryset=Payment.objects.filter(is_paid=True).only('amount_received', 'due_date', 'date_paid', 'remarks'))
     )
+    if sort == 'latest_entry':
+        base_qs = base_qs.order_by('-date_entry', '-last_paid')
+    else:
+        base_qs = base_qs.order_by('-last_paid', '-date_entry')
+    total = base_qs.count()
+    customers = base_qs[offset:offset + limit]
     today = timezone.now().date()
     data = []
     
@@ -566,7 +575,40 @@ def dashboard_api(request):
             'status': status,
             'color': color
         })
-    return JsonResponse({'payment_data': data})
+    has_more = (offset + limit) < total
+    next_offset = offset + limit if has_more else None
+    return JsonResponse({'payment_data': data, 'has_more': has_more, 'next_offset': next_offset, 'total': total})
+
+@login_required
+@admin_required
+def customers_api(request):
+    limit = int(request.GET.get('limit', 12))
+    offset = int(request.GET.get('offset', 0))
+    sort = request.GET.get('sort', 'latest_entry')
+    qs = Customer.objects.all().annotate(last_paid=Max('payments__date_paid')).select_related('room')
+    if sort == 'latest_payment':
+        qs = qs.order_by('-last_paid', '-date_entry')
+    else:
+        qs = qs.order_by('-date_entry', '-last_paid')
+    total = qs.count()
+    items = []
+    for c in qs[offset:offset + limit]:
+        items.append({
+            'id': c.pk,
+            'customer_id': c.customer_id,
+            'name': c.name,
+            'address': c.address or "",
+            'contact_number': c.contact_number or "",
+            'parents_name': c.parents_name or "",
+            'parents_contact_number': c.parents_contact_number or "",
+            'status': c.status or "",
+            'room': c.room.room_number if c.room else (c.room_no or "-"),
+            'date_entry': c.date_entry.strftime('%b %d, %Y') if c.date_entry else "-",
+            'due_date': c.due_date.strftime('%b %d, %Y') if c.due_date else "-",
+        })
+    has_more = (offset + limit) < total
+    next_offset = offset + limit if has_more else None
+    return JsonResponse({'customers': items, 'has_more': has_more, 'next_offset': next_offset, 'total': total})
 
 @login_required
 @admin_required
@@ -664,6 +706,9 @@ def report_view(request):
 
         rows.append({
             'name': c.name,
+            'contact_number': c.contact_number,
+            'parents_name': c.parents_name,
+            'parents_contact_number': c.parents_contact_number,
             'room_no': c.room.room_number if c.room else (c.room_no or "-"),
             'date_entry': c.date_entry,
             'due_date': c.due_date,

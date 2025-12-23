@@ -39,14 +39,14 @@ class RoomForm(forms.ModelForm):
 class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
-        fields = ['name', 'address', 'age', 'gender', 'status', 'customer_type', 'room', 'due_date', 'date_entry']
+        fields = ['name', 'address', 'contact_number', 'parents_name', 'parents_contact_number', 'status', 'room', 'due_date', 'date_entry']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Full Name'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Address'}),
-            'age': forms.NumberInput(attrs={'class': 'form-control'}),
-            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'contact_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Contact Number'}),
+            'parents_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Parent\'s Name'}),
+            'parents_contact_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Parent\'s Contact Number'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
-            'customer_type': forms.Select(attrs={'class': 'form-select'}),
             'room': forms.HiddenInput(),
             'due_date': forms.DateInput(attrs={
                 'class': 'form-control',
