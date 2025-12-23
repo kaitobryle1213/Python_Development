@@ -48,7 +48,7 @@ def logout_view(request):
 
 @login_required
 def dashboard_view(request):
-    today = timezone.now().date()
+    today = timezone.localdate()
     # Calculate stats
     total_customers = Customer.objects.count()
     active_customers = Customer.objects.filter(status='Active').count()
@@ -69,18 +69,39 @@ def dashboard_view(request):
         last_payment = customer.payments.filter(is_paid=True).order_by('-date_paid').first()
         is_paid_today = last_payment and last_payment.date_paid == today
 
+        effective_due = customer.due_date
+        
+        # Calculate if the current cycle is fully paid
+        cycle_paid = 0
+        if effective_due:
+            # We need to manually sum payments for the due date because prefetch isn't used here optimally (or we can use filter)
+            cycle_paid = customer.payments.filter(due_date=effective_due, is_paid=True).aggregate(Sum('amount_received'))['amount_received__sum'] or 0
+            
+        price = customer.room.price if customer.room else 0
+        is_fully_paid = price > 0 and cycle_paid >= price
+
         if is_paid_today:
             color = 'green'
             status_text = "Paid"
-        elif customer.due_date:
-            days_until_due = (customer.due_date - today).days
+        elif is_fully_paid:
+             # If fully paid but not today, show upcoming status for next month
+             next_due = effective_due + relativedelta(months=1)
+             days_until_due = (next_due - today).days
+             if days_until_due <= 3: 
+                color = 'yellow'
+                status_text = "Due Soon"
+             else:
+                color = 'white'
+                status_text = "Upcoming"
+        elif effective_due:
+            days_until_due = (effective_due - today).days
             if days_until_due < 0:
                 color = 'black'
                 status_text = "Overdue"
             elif days_until_due == 0:
                 color = 'red'
                 status_text = "Due Today"
-            elif days_until_due <= 5: 
+            elif days_until_due <= 3: 
                 color = 'yellow'
                 status_text = "Due Soon"
             else:
@@ -391,7 +412,7 @@ def customer_edit(request, pk):
                 vacated_room = instance.room
                 
                 if not instance.date_left:
-                    instance.date_left = timezone.now().date()
+                    instance.date_left = timezone.localdate()
                 
                 # 1. Remove the customer from the room
                 instance.room = None 
@@ -492,7 +513,7 @@ def get_customer_balance(request, customer_id):
     if customer.due_date:
         due_date_str = customer.due_date.strftime('%Y-%m-%d')
     else:
-        due_date_str = timezone.now().date().strftime('%Y-%m-%d')
+        due_date_str = timezone.localdate().strftime('%Y-%m-%d')
 
     cycle_paid = Payment.objects.filter(
         customer=customer,
@@ -526,16 +547,11 @@ def dashboard_api(request):
         base_qs = base_qs.order_by('-last_paid', '-date_entry')
     total = base_qs.count()
     customers = base_qs[offset:offset + limit]
-    today = timezone.now().date()
+    today = timezone.localdate()
     data = []
     
     for customer in customers:
-        effective_due = None
-        if customer.due_date:
-            if customer.due_date < today:
-                effective_due = customer.due_date + relativedelta(months=1)
-            else:
-                effective_due = customer.due_date
+        effective_due = customer.due_date
 
         paid_payments = list(customer.payments.all())
         last_payment_date = None
@@ -549,8 +565,14 @@ def dashboard_api(request):
         price = customer.room.price if customer.room else 0
         balance_amount = max(price - cycle_paid, 0)
 
-        if is_paid_today and cycle_paid >= price and price > 0:
+        if is_paid_today:
             color, status = 'green', "Paid"
+        elif price > 0 and cycle_paid >= price:
+             # Fully paid but not today -> Show upcoming for next month
+             next_due = effective_due + relativedelta(months=1)
+             days = (next_due - today).days
+             if days <= 3: color, status = 'yellow', "Due Soon"
+             else: color, status = 'white', "Upcoming"
         elif effective_due:
             days = (effective_due - today).days
             if days < 0: color, status = 'black', "Overdue"
@@ -562,8 +584,15 @@ def dashboard_api(request):
 
         if price > 0 and cycle_paid > 0 and cycle_paid < price:
             status = f"Partially Paid • Balance: ₱{balance_amount}"
+        elif is_paid_today:
+             # Override status text to "Paid" if paid today, regardless of partial logic (though partial logic usually implies not fully paid)
+             # But if it is fully paid today, status is "Paid".
+             # If partially paid today, status is "Partially Paid".
+             if cycle_paid >= price:
+                status = "Paid"
         elif price > 0 and cycle_paid >= price:
-            status = "Paid"
+             # If fully paid (not today), keep the upcoming status set above
+             pass
 
         data.append({
             'name': customer.name,
@@ -629,13 +658,13 @@ def process_payment(request):
                 payment = Payment(
                     customer=customer,
                     amount=customer.room.price if customer.room else 0,
-                    due_date=customer.due_date or timezone.now().date()
+                    due_date=customer.due_date or timezone.localdate()
                 )
 
             # Record the previous payment date (what was seen on dashboard)
             # Only if we are marking it paid now (it was not paid before)
             # Update: User requested to save the current date_paid into previous_date as well
-            payment.date_paid = timezone.now().date()
+            payment.date_paid = timezone.localdate()
             payment.previous_date = payment.date_paid
             
             payment.amount_received = amount_received
@@ -644,7 +673,7 @@ def process_payment(request):
             payment.is_paid = True
             payment.save()
             
-            if customer.due_date and timezone.now().date() > customer.due_date:
+            if customer.due_date and timezone.localdate() > customer.due_date:
                 customer.due_date = customer.due_date + relativedelta(months=1)
                 customer.save(update_fields=['due_date'])
             
@@ -660,7 +689,7 @@ def process_payment(request):
 @login_required
 @admin_required
 def report_view(request):
-    today = timezone.now().date()
+    today = timezone.localdate()
     customers = Customer.objects.select_related('room').prefetch_related('payments').all()
 
     # Filters
@@ -677,46 +706,75 @@ def report_view(request):
     rows = []
     total_collected = 0
 
-    for c in customers:
-        # Advance due date only after it passes (keep cycles aligned)
-        if c.due_date and c.due_date < today:
-            c.due_date = c.due_date + relativedelta(months=1)
-            c.save(update_fields=['due_date'])
+    if date_from or date_to:
+        # Date Filter Active: Show payments in range
+        payments = Payment.objects.filter(is_paid=True).select_related('customer', 'customer__room')
+        
+        if date_from:
+            payments = payments.filter(date_paid__gte=date_from)
+        if date_to:
+            payments = payments.filter(date_paid__lte=date_to)
+            
+        # Apply customer/room filters to payments as well
+        if room_id:
+            payments = payments.filter(customer__room__id=room_id)
+        if customer_name:
+            payments = payments.filter(customer__name__icontains=customer_name)
+            
+        for p in payments:
+            c = p.customer
+            total_collected += (p.amount_received or 0)
+            
+            rows.append({
+                'name': c.name,
+                'contact_number': c.contact_number,
+                'parents_name': c.parents_name,
+                'parents_contact_number': c.parents_contact_number,
+                'room_no': c.room.room_number if c.room else (c.room_no or "-"),
+                'date_entry': c.date_entry,
+                'due_date': p.due_date, # Show the due date this payment was for
+                'paid_amount': p.amount_received or 0,
+                'date_amount_paid': p.date_paid,
+                'remarks': p.remarks or "",
+                'status': "Paid", # It's a paid record
+            })
+            
+    else:
+        # No Date Filter: Show Status of all customers (Default View)
+        for c in customers:
+            # Advance due date only after it passes (keep cycles aligned)
+            if c.due_date and c.due_date < today:
+                c.due_date = c.due_date + relativedelta(months=1)
+                c.save(update_fields=['due_date'])
 
-        price = c.room.price if c.room else 0
-        cycle_qs = Payment.objects.filter(customer=c, due_date=c.due_date, is_paid=True)
-        cycle_sum = cycle_qs.aggregate(Sum('amount_received'))['amount_received__sum'] or 0
-        last_paid = cycle_qs.order_by('-date_paid').first()
+            price = c.room.price if c.room else 0
+            cycle_qs = Payment.objects.filter(customer=c, due_date=c.due_date, is_paid=True)
+            cycle_sum = cycle_qs.aggregate(Sum('amount_received'))['amount_received__sum'] or 0
+            last_paid = cycle_qs.order_by('-date_paid').first()
 
-        # Optional date filters apply to the last payment date for inclusion
-        if date_from and last_paid and str(last_paid.date_paid) < date_from:
-            continue
-        if date_to and last_paid and str(last_paid.date_paid) > date_to:
-            continue
+            balance = max(price - cycle_sum, 0)
+            if price > 0 and cycle_sum >= price:
+                status = "Paid"
+            elif cycle_sum > 0:
+                status = f"Partially Paid • Balance: ₱{balance}"
+            else:
+                status = "Unpaid"
 
-        balance = max(price - cycle_sum, 0)
-        if price > 0 and cycle_sum >= price:
-            status = "Paid"
-        elif cycle_sum > 0:
-            status = f"Partially Paid • Balance: ₱{balance}"
-        else:
-            status = "Unpaid"
+            total_collected += cycle_sum
 
-        total_collected += cycle_sum
-
-        rows.append({
-            'name': c.name,
-            'contact_number': c.contact_number,
-            'parents_name': c.parents_name,
-            'parents_contact_number': c.parents_contact_number,
-            'room_no': c.room.room_number if c.room else (c.room_no or "-"),
-            'date_entry': c.date_entry,
-            'due_date': c.due_date,
-            'paid_amount': cycle_sum,
-            'date_amount_paid': last_paid.date_paid if last_paid else None,
-            'remarks': last_paid.remarks if last_paid and last_paid.remarks else "",
-            'status': status,
-        })
+            rows.append({
+                'name': c.name,
+                'contact_number': c.contact_number,
+                'parents_name': c.parents_name,
+                'parents_contact_number': c.parents_contact_number,
+                'room_no': c.room.room_number if c.room else (c.room_no or "-"),
+                'date_entry': c.date_entry,
+                'due_date': c.due_date,
+                'paid_amount': cycle_sum,
+                'date_amount_paid': last_paid.date_paid if last_paid else None,
+                'remarks': last_paid.remarks if last_paid and last_paid.remarks else "",
+                'status': status,
+            })
 
     total_amount = "{:,.2f}".format(total_collected)
 

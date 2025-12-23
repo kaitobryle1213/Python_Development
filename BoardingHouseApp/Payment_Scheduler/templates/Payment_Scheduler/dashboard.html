@@ -69,32 +69,101 @@
     const dashLimit = 12;
     let dashHasMore = true;
     let dashLoading = false;
+    let dashLoadedCount = 0;
+
+    function renderRowContent(item) {
+        const dueCls = (item.color === 'red' || item.color === 'black') ? 'text-danger fw-bold' : '';
+        const statusCls = item.status === 'Paid' ? 'text-success' : 'text-secondary';
+        return `
+            <td class="ps-4 fw-medium">
+                <span class="indicator indicator-${item.color}" title="${item.status}"></span>
+                ${item.name}
+            </td>
+            <td>
+                <span class="badge bg-black fw-medium">RM. #: ${item.room_no}</span>
+            </td>
+            <td class="text-secondary">${item.prev_payment}</td>
+            <td class="${dueCls}">${item.due_date}</td>
+            <td class="font-monospace">${item.room_rate}</td>
+            <td class="font-monospace">${item.amount}</td>
+            <td class="fw-medium ${statusCls}">${item.status}</td>
+        `;
+    }
+
+    function renderRow(item) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = renderRowContent(item);
+        return tr;
+    }
+
+    function updateTime() {
+        const now = new Date();
+        document.getElementById('last-update').innerText = "Last checked: " + now.toLocaleTimeString();
+    }
 
     function appendRows(items) {
         const tbody = document.getElementById('dashboard-table-body');
         if (document.getElementById('loading-row')) tbody.innerHTML = '';
         items.forEach(item => {
-            const dueCls = (item.color === 'red' || item.color === 'black') ? 'text-danger fw-bold' : '';
-            const statusCls = item.status === 'Paid' ? 'text-success' : 'text-secondary';
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="ps-4 fw-medium">
-                    <span class="indicator indicator-${item.color}" title="${item.status}"></span>
-                    ${item.name}
-                </td>
-                <td>
-                    <span class="badge bg-black fw-medium">RM. #: ${item.room_no}</span>
-                </td>
-                <td class="text-secondary">${item.prev_payment}</td>
-                <td class="${dueCls}">${item.due_date}</td>
-                <td class="font-monospace">${item.room_rate}</td>
-                <td class="font-monospace">${item.amount}</td>
-                <td class="fw-medium ${statusCls}">${item.status}</td>
-            `;
-            tbody.appendChild(tr);
+            tbody.appendChild(renderRow(item));
         });
-        const now = new Date();
-        document.getElementById('last-update').innerText = "Last checked: " + now.toLocaleTimeString();
+        dashLoadedCount += items.length;
+        updateTime();
+    }
+
+    function refreshDashboard() {
+        if (dashLoading) return; // Don't refresh if loading more
+
+        // Fetch all currently loaded items (or one page if nothing loaded yet)
+        const currentCount = Math.max(dashLoadedCount, dashLimit);
+        
+        fetch(`{% url 'dashboard_api' %}?offset=0&limit=${currentCount}&sort=latest_payment`)
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('dashboard-table-body');
+                const rows = tbody.rows;
+                const newItems = data.payment_data;
+                
+                if (newItems.length === 0) {
+                     tbody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-secondary">No records found.</td></tr>';
+                     dashLoadedCount = 0;
+                } else {
+                    // Update existing rows or append new ones
+                    for (let i = 0; i < newItems.length; i++) {
+                        if (i < rows.length) {
+                            // Update existing row
+                            rows[i].innerHTML = renderRowContent(newItems[i]);
+                        } else {
+                            // Append new row
+                            tbody.appendChild(renderRow(newItems[i]));
+                        }
+                    }
+                    
+                    // Remove extra rows if any (e.g. if items were deleted)
+                    while (rows.length > newItems.length) {
+                        tbody.deleteRow(rows.length - 1);
+                    }
+                    
+                    dashLoadedCount = newItems.length;
+                }
+                
+                // Update state
+                dashHasMore = data.has_more;
+                dashOffset = data.next_offset || dashOffset; 
+
+                // Update Load More button visibility
+                const loadMoreContainer = document.getElementById('load-more-container');
+                const btn = document.querySelector('#load-more-container button');
+                if (dashHasMore) {
+                    loadMoreContainer.style.display = 'block';
+                    if(btn) btn.innerHTML = '<i class="fas fa-chevron-down me-1"></i> Load More Customers';
+                } else {
+                    loadMoreContainer.style.display = 'none';
+                }
+                
+                updateTime();
+            })
+            .catch(err => console.error("Auto-refresh failed", err));
     }
 
     function loadMoreDashboard() {
@@ -144,6 +213,9 @@
     }, { root: scrollContainer, threshold: 0.1 });
 
     observer.observe(sentinel);
+
+    // Auto-refresh every 5 seconds
+    setInterval(refreshDashboard, 5000);
 
     document.addEventListener('DOMContentLoaded', () => {
         if(dashOffset === 0) loadMoreDashboard();
