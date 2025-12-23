@@ -385,6 +385,7 @@
                     </li>
                 </ul>
             </li>
+            {% if request.user.is_staff or request.user.is_superuser %}
             <li>
                 <a href="#userMgmtSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
                     <i class="fas fa-users-cog"></i> <span>User Management</span>
@@ -402,6 +403,7 @@
                     </li>
                 </ul>
             </li>
+            {% endif %}
             <li>
                 <a href="{% url 'app_logout' %}">
                     <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
@@ -490,8 +492,6 @@
     const sidebarLinks = document.querySelectorAll('#sidebar ul li a');
     
     sidebarLinks.forEach(link => {
-        // Check if the link's href matches the current path
-        // We use getAttribute('href') to get the raw value, but checking pathname is safer for full URLs
         try {
             const linkPath = new URL(link.href, window.location.origin).pathname;
             if (linkPath === currentPath) {
@@ -499,12 +499,10 @@
                 link.style.backgroundColor = '#f8f9fa';
                 link.style.color = '#000';
                 
-                // If it's inside a submenu, expand the submenu
                 const parentUl = link.closest('ul.collapse');
                 if (parentUl) {
                     parentUl.classList.add('show');
                     
-                    // Find the toggle button for this submenu
                     const toggleId = parentUl.id;
                     const toggleBtn = document.querySelector(`a[href="#${toggleId}"]`);
                     if (toggleBtn) {
@@ -514,7 +512,25 @@
                 }
             }
         } catch (e) {
-            // Ignore invalid URLs
+        }
+    });
+
+    const submenuMappings = [
+        { id: 'propertySubmenu', prefixes: ['/properties/', '/property/', '/add-property/'] },
+        { id: 'userMgmtSubmenu', prefixes: ['/user-management/'] }
+    ];
+
+    submenuMappings.forEach(mapping => {
+        if (mapping.prefixes.some(prefix => currentPath.startsWith(prefix))) {
+            const submenu = document.getElementById(mapping.id);
+            if (submenu && !submenu.classList.contains('show')) {
+                submenu.classList.add('show');
+            }
+            const toggleBtn = document.querySelector(`a[href="#${mapping.id}"]`);
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-expanded', 'true');
+                toggleBtn.classList.remove('collapsed');
+            }
         }
     });
 

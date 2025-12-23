@@ -7,18 +7,28 @@ loc_barangay
 --------Done---------
 
 **Owner Information
-oi_fullname
-oi_bank
-oi_custody_title
+
+rdrealty_owner_information
+
+property_id - integer
+oi_fullname - varchar(80)
+oi_bankname - varchar(50)
+oi_custody_title - varchar(60)
 
 **Financial Information
-fi_encumbrance
-fi_mortgage
-fi_borrower
+
+rdrealty_financial_information
+property_id - integer
+fi_encumbrance - varchar(250)
+fi_mortgage - varchar(150)
+fi_borrower - varchar(80)
 
 **Additional Information
-ai_remarks
-ai_supp_docs
+
+rdrealty_addl_information
+property_id - integer
+ai_remarks - varchar(250)
+ai_supp_docs - blob()
 
 
 -----------------------------------

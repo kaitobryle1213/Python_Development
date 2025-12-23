@@ -18,7 +18,7 @@ from django.conf import settings
 from django.utils import timezone
 import zipfile
 
-from .models import Property, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument
+from .models import Property, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument, UserProfile
 from .forms import PropertyCreateForm
 
 
@@ -148,6 +148,11 @@ class PropertyUpdateView(UpdateView):
     template_name = 'add_property/property_update.html'
     success_url = reverse_lazy('property_list')
     
+    def dispatch(self, request, *args, **kwargs):
+        if not is_admin(request.user):
+            return redirect('property_list')
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Try to get existing local info
@@ -299,15 +304,11 @@ class PropertyListView(ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         
-        # Search filter
         q = self.request.GET.get('q')
         if q:
-            # Helper: Find choice keys from display values
-            # e.g. User types "Resid" -> matches "RES"
             class_matches = [k for k, v in Property.CLASSIFICATION_CHOICES if q.lower() in v.lower()]
             status_matches = [k for k, v in Property.STATUS_CHOICES if q.lower() in v.lower()]
             
-            # Base text search query
             query = Q(title_no__icontains=q) | \
                     Q(lot_no__icontains=q) | \
                     Q(title_description__icontains=q) | \
@@ -317,17 +318,23 @@ class PropertyListView(ListView):
                     Q(localinformation__loc_province__icontains=q) | \
                     Q(localinformation__loc_city__icontains=q) | \
                     Q(localinformation__loc_barangay__icontains=q) | \
-                    Q(localinformation__loc_specific__icontains=q)
+                    Q(localinformation__loc_specific__icontains=q) | \
+                    Q(ownerinformation__oi_fullname__icontains=q) | \
+                    Q(ownerinformation__oi_bankname__icontains=q) | \
+                    Q(ownerinformation__oi_custody_title__icontains=q) | \
+                    Q(financialinformation__fi_encumbrance__icontains=q) | \
+                    Q(financialinformation__fi_mortgage__icontains=q) | \
+                    Q(financialinformation__fi_borrower__icontains=q) | \
+                    Q(additionalinformation__ai_remarks__icontains=q) | \
+                    Q(supportingdocument__file__icontains=q)
             
-            # Add classification matches (both code and display value)
             if class_matches:
                 query |= Q(title_classification__in=class_matches)
-            query |= Q(title_classification__icontains=q) # Allows searching "RES"
+            query |= Q(title_classification__icontains=q)
             
-            # Add status matches (both code and display value)
             if status_matches:
                 query |= Q(title_status__in=status_matches)
-            query |= Q(title_status__icontains=q) # Allows searching "ACT"
+            query |= Q(title_status__icontains=q)
             
             queryset = queryset.filter(query).distinct()
             
@@ -378,20 +385,45 @@ def global_search(request):
     results = []
     
     if query:
-        # Search Properties
         properties = Property.objects.filter(
             Q(title_no__icontains=query) | 
             Q(lot_no__icontains=query) |
             Q(title_classification__icontains=query) |
             Q(title_status__icontains=query) |
-            Q(title_description__icontains=query)
-        )[:5] # Limit to 5 results
+            Q(title_description__icontains=query) |
+            Q(property_id__icontains=query) |
+            Q(lot_area__icontains=query) |
+            Q(localinformation__loc_province__icontains=query) |
+            Q(localinformation__loc_city__icontains=query) |
+            Q(localinformation__loc_barangay__icontains=query) |
+            Q(localinformation__loc_specific__icontains=query) |
+            Q(ownerinformation__oi_fullname__icontains=query) |
+            Q(ownerinformation__oi_bankname__icontains=query) |
+            Q(ownerinformation__oi_custody_title__icontains=query) |
+            Q(financialinformation__fi_encumbrance__icontains=query) |
+            Q(financialinformation__fi_mortgage__icontains=query) |
+            Q(financialinformation__fi_borrower__icontains=query) |
+            Q(additionalinformation__ai_remarks__icontains=query) |
+            Q(supportingdocument__file__icontains=query)
+        ).distinct()[:5]
         
         for prop in properties:
+            owner = prop.ownerinformation_set.first()
+            owner_name = owner.oi_fullname if owner and owner.oi_fullname else ""
+            loc = prop.localinformation_set.first()
+            loc_parts = []
+            if loc and loc.loc_barangay:
+                loc_parts.append(loc.loc_barangay)
+            if loc and loc.loc_city:
+                loc_parts.append(loc.loc_city)
+            if loc and loc.loc_province:
+                loc_parts.append(loc.loc_province)
+            loc_text = ", ".join(loc_parts) if loc_parts else ""
+
             results.append({
                 'category': 'Property',
                 'title': prop.title_no,
-                'description': f"{prop.lot_no} - {prop.get_title_classification_display()}",
+                'description': f"{owner_name or 'No owner'} | Lot {prop.lot_no} | {loc_text or prop.get_title_classification_display()}",
                 'url': str(reverse_lazy('property_detail', kwargs={'pk': prop.pk}))
             })
 
@@ -471,21 +503,25 @@ def is_admin(user):
 
 @login_required
 def user_list(request):
-    users = User.objects.all().order_by('username')
+    users = User.objects.all().select_related('profile').order_by('username')
     return render(request, 'user_list.html', {'users': users, 'can_manage': is_admin(request.user)})
 
 @login_required
 def user_create(request):
+    if not is_admin(request.user):
+        return redirect('dashboard')
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
+        full_name = request.POST.get('full_name', '').strip()
         password1 = request.POST.get('password1', '')
         password2 = request.POST.get('password2', '')
         role = request.POST.get('role', 'USER')
-        if not username or not password1 or password1 != password2:
+        if not username or not full_name or not password1 or password1 != password2:
             return render(request, 'user_form.html', {'error_message': 'Invalid data or passwords do not match.', 'mode': 'create'})
         if User.objects.filter(username=username).exists():
             return render(request, 'user_form.html', {'error_message': 'Username already exists.', 'mode': 'create'})
         u = User.objects.create_user(username=username, password=password1)
+        UserProfile.objects.create(user=u, full_name=full_name)
         if role == 'ADMIN' and is_admin(request.user):
             u.is_staff = True
         else:
@@ -497,25 +533,30 @@ def user_create(request):
 @login_required
 def user_update(request, user_id):
     target = User.objects.get(id=user_id)
+    profile, _ = UserProfile.objects.get_or_create(user=target, defaults={'full_name': target.username})
     if not is_admin(request.user):
-        return render(request, 'user_form.html', {'error_message': 'Insufficient permissions.', 'mode': 'update', 'target': target})
+        return render(request, 'user_form.html', {'error_message': 'Insufficient permissions.', 'mode': 'update', 'target': target, 'profile': profile})
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
+        full_name = request.POST.get('full_name', '').strip()
         role = request.POST.get('role', 'USER')
         status = request.POST.get('status', 'ACT')
         if username:
             target.username = username
+        if full_name:
+            profile.full_name = full_name
         target.is_staff = (role == 'ADMIN')
         target.is_active = (status == 'ACT')
         password1 = request.POST.get('password1', '')
         password2 = request.POST.get('password2', '')
         if password1:
             if password1 != password2:
-                return render(request, 'user_form.html', {'error_message': 'Passwords do not match.', 'mode': 'update', 'target': target})
+                return render(request, 'user_form.html', {'error_message': 'Passwords do not match.', 'mode': 'update', 'target': target, 'profile': profile})
             target.set_password(password1)
         target.save()
+        profile.save()
         return redirect('user_list')
-    return render(request, 'user_form.html', {'mode': 'update', 'target': target})
+    return render(request, 'user_form.html', {'mode': 'update', 'target': target, 'profile': profile})
 
 @login_required
 @user_passes_test(is_admin)

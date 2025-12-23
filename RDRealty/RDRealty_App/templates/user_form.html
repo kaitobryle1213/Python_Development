@@ -48,14 +48,18 @@
                         <input type="text" name="username" class="form-control" value="{{ target.username|default:'' }}" required>
                     </div>
                     <div class="col-md-6 mb-3">
+                        <label class="form-label">Fullname</label>
+                        <input type="text" name="full_name" class="form-control" value="{{ profile.full_name|default:'' }}" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
                         <label class="form-label">Role</label>
                         <select name="role" class="form-select">
                             <option value="USER" {% if not target.is_staff %}selected{% endif %}>User</option>
                             <option value="ADMIN" {% if target.is_staff %}selected{% endif %}>Admin</option>
                         </select>
                     </div>
-                </div>
-                <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Password</label>
                         <input type="password" name="password1" class="form-control" {% if mode == 'create' %}required{% endif %}>

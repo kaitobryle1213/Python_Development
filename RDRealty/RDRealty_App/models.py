@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.db.models import Max
+from django.conf import settings
 import os
 
 # --- 1. PROPERTY MODEL ---
@@ -179,3 +180,14 @@ class SupportingDocument(models.Model):
     
     class Meta:
         db_table = 'rdrealty_supporting_documents'
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='profile'
+    )
+    full_name = models.CharField(max_length=255)
+    date_created = models.DateTimeField(auto_now_add=True)
+    date_updated = models.DateTimeField(auto_now=True)

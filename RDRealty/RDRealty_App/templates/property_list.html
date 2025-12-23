@@ -20,30 +20,30 @@
         z-index: 10;
     }
 
-    /* 3. Dynamic Border Colors Based on Status (Persistent Border) */
-    .status-active { border-color: #0E7A2D !important; }
-    .status-active:hover { box-shadow: 0 10px 30px rgba(14, 122, 45, 0.2) !important; }
+    /* 3. Dynamic Border Colors Based on Status (Hover Only) */
+    .status-active { border-color: transparent; }
+    .status-active:hover { border-color: #0E7A2D !important; box-shadow: 0 10px 30px rgba(14, 122, 45, 0.2) !important; }
     
-    .status-collateral { border-color: #F57F17 !important; }
-    .status-collateral:hover { box-shadow: 0 10px 30px rgba(245, 127, 23, 0.2) !important; }
+    .status-collateral { border-color: transparent; }
+    .status-collateral:hover { border-color: #F57F17 !important; box-shadow: 0 10px 30px rgba(245, 127, 23, 0.2) !important; }
     
-    .status-sold { border-color: #0A48D9 !important; }
-    .status-sold:hover { box-shadow: 0 10px 30px rgba(10, 72, 217, 0.2) !important; }
+    .status-sold { border-color: transparent; }
+    .status-sold:hover { border-color: #0A48D9 !important; box-shadow: 0 10px 30px rgba(10, 72, 217, 0.2) !important; }
     
-    .status-under-dev { border-color: #065F73 !important; }
-    .status-under-dev:hover { box-shadow: 0 10px 30px rgba(6, 95, 115, 0.2) !important; }
+    .status-under-dev { border-color: transparent; }
+    .status-under-dev:hover { border-color: #065F73 !important; box-shadow: 0 10px 30px rgba(6, 95, 115, 0.2) !important; }
     
-    .status-foreclosed { border-color: #C62828 !important; }
-    .status-foreclosed:hover { box-shadow: 0 10px 30px rgba(198, 40, 40, 0.2) !important; }
+    .status-foreclosed { border-color: transparent; }
+    .status-foreclosed:hover { border-color: #C62828 !important; box-shadow: 0 10px 30px rgba(198, 40, 40, 0.2) !important; }
     
-    .status-disposed { border-color: #455A64 !important; }
-    .status-disposed:hover { box-shadow: 0 10px 30px rgba(69, 90, 100, 0.2) !important; }
+    .status-disposed { border-color: transparent; }
+    .status-disposed:hover { border-color: #455A64 !important; box-shadow: 0 10px 30px rgba(69, 90, 100, 0.2) !important; }
     
-    .status-pending { border-color: #0A48D9 !important; }
-    .status-pending:hover { box-shadow: 0 10px 30px rgba(10, 72, 217, 0.2) !important; }
+    .status-pending { border-color: transparent; }
+    .status-pending:hover { border-color: #0A48D9 !important; box-shadow: 0 10px 30px rgba(10, 72, 217, 0.2) !important; }
     
-    .status-inactive { border-color: #616161 !important; }
-    .status-inactive:hover { box-shadow: 0 10px 30px rgba(97, 97, 97, 0.2) !important; }
+    .status-inactive { border-color: transparent; }
+    .status-inactive:hover { border-color: #616161 !important; box-shadow: 0 10px 30px rgba(97, 97, 97, 0.2) !important; }
 
     /* 4. Utilities */
     .interactive-element { position: relative; z-index: 20; }
@@ -75,14 +75,24 @@
             <select name="classification" class="form-select text-muted" onchange="this.form.submit()">
                 <option value="">Classification</option>
                 <option value="RES" {% if current_classification == 'RES' %}selected{% endif %}>Residential</option>
+                <option value="COM" {% if current_classification == 'COM' %}selected{% endif %}>Commercial</option>
                 <option value="IND" {% if current_classification == 'IND' %}selected{% endif %}>Industrial</option>
+                <option value="AGR" {% if current_classification == 'AGR' %}selected{% endif %}>Agricultural</option>
+                <option value="MIX" {% if current_classification == 'MIX' %}selected{% endif %}>Mixed Use</option>
+                <option value="INS" {% if current_classification == 'INS' %}selected{% endif %}>Institutional</option>
             </select>
         </div>
         <div class="col-md-3">
             <select name="status" class="form-select text-muted" onchange="this.form.submit()">
                 <option value="">Status</option>
                 <option value="ACT" {% if current_status == 'ACT' %}selected{% endif %}>Active</option>
-                <option value="SLD" {% if current_status == 'SLD' %}selected{% endif %}>Sold</option>
+                <option value="COL" {% if current_status == 'COL' %}selected{% endif %}>Collateral</option>
+                <option value="SOLD" {% if current_status == 'SOLD' %}selected{% endif %}>Sold</option>
+                <option value="UND" {% if current_status == 'UND' %}selected{% endif %}>Under Development</option>
+                <option value="FORC" {% if current_status == 'FORC' %}selected{% endif %}>Foreclosed</option>
+                <option value="DISP" {% if current_status == 'DISP' %}selected{% endif %}>Disposed</option>
+                <option value="PENT" {% if current_status == 'PENT' %}selected{% endif %}>Pending Transfer</option>
+                <option value="INT" {% if current_status == 'INT' %}selected{% endif %}>Inactive</option>
             </select>
         </div>
     </form>
@@ -114,7 +124,11 @@
                     <div class="mb-2">
                         <div class="d-flex align-items-center mb-2 text-muted">
                             <i class="far fa-user me-2 text-center" style="width: 20px;"></i>
-                            <span class="small">RD Realty Development Corporation</span>
+                            <span class="small">
+                                {% with owner=property.ownerinformation_set.all|first %}
+                                    {{ owner.oi_fullname|default:"RD Realty Development Corporation" }}
+                                {% endwith %}
+                            </span>
                         </div>
                         <div class="d-flex align-items-start mb-2 text-muted">
                             <i class="fas fa-align-left me-2 mt-1 text-center" style="width: 20px;"></i>
@@ -135,9 +149,11 @@
                             <a href="{% url 'property_detail' pk=property.pk %}" class="btn btn-light btn-sm rounded border me-1">
                                 <i class="far fa-eye"></i>
                             </a>
+                            {% if request.user.is_staff or request.user.is_superuser %}
                             <a href="{% url 'property_update' pk=property.pk %}" class="btn btn-light btn-sm rounded border">
                                 <i class="far fa-edit"></i>
                             </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

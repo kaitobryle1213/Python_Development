@@ -29,8 +29,10 @@
                 <thead>
                     <tr>
                         <th>Username</th>
+                        <th>Fullname</th>
                         <th>Role</th>
                         <th>Status</th>
+                        <th>Date Created</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -38,6 +40,13 @@
                     {% for u in users %}
                     <tr>
                         <td>{{ u.username }}</td>
+                        <td>
+                            {% if u.profile %}
+                            {{ u.profile.full_name }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
                         <td>
                             {% if u.is_staff %}
                             <span class="badge bg-dark">ADMIN</span>
@@ -50,6 +59,13 @@
                             <span class="badge bg-success">Active</span>
                             {% else %}
                             <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.profile %}
+                            {{ u.profile.date_created|date:"Y-m-d H:i" }}
+                            {% else %}
+                            {{ u.date_joined|date:"Y-m-d H:i" }}
                             {% endif %}
                         </td>
                         <td class="text-end">

@@ -1,4 +1,5 @@
 from django import template
+from django.core.exceptions import ObjectDoesNotExist
 
 register = template.Library()
 
@@ -57,3 +58,16 @@ def get_status_border(status_code):
         'INACTIVE': 'status-inactive',
     }
     return borders.get(status_code, 'status-inactive')
+
+@register.simple_tag
+def user_full_name(user):
+    try:
+        profile = user.profile
+        if profile.full_name:
+            return profile.full_name
+    except ObjectDoesNotExist:
+        pass
+    full_name = user.get_full_name()
+    if full_name:
+        return full_name
+    return user.username
