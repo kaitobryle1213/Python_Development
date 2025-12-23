@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from django.utils import timezone
 from django.http import JsonResponse
 from django.db.models import Q, Count, F, Sum
+from django.db.models import Prefetch
 from dateutil.relativedelta import relativedelta
 from django.db.models.functions import Coalesce
 from django.db.models import Value
@@ -513,30 +514,36 @@ def get_customer_balance(request, customer_id):
 @login_required
 def dashboard_api(request):
     """Returns live dashboard data as JSON for background refreshing."""
-    customers = Customer.objects.all().select_related('room').prefetch_related('payments')
+    customers = Customer.objects.all().select_related('room').prefetch_related(
+        Prefetch('payments', queryset=Payment.objects.filter(is_paid=True).only('amount_received', 'due_date', 'date_paid', 'remarks'))
+    )
     today = timezone.now().date()
     data = []
     
     for customer in customers:
-        if customer.due_date and customer.due_date < today:
-            customer.due_date = customer.due_date + relativedelta(months=1)
-            customer.save(update_fields=['due_date'])
+        effective_due = None
+        if customer.due_date:
+            if customer.due_date < today:
+                effective_due = customer.due_date + relativedelta(months=1)
+            else:
+                effective_due = customer.due_date
 
-        last_payment = customer.payments.filter(is_paid=True).order_by('-date_paid').first()
-        is_paid_today = last_payment and last_payment.date_paid == today
+        paid_payments = list(customer.payments.all())
+        last_payment_date = None
+        if paid_payments:
+            last_payment_date = max((p.date_paid for p in paid_payments if p.date_paid), default=None)
+        is_paid_today = last_payment_date == today
 
-        cycle_paid = Payment.objects.filter(
-            customer=customer,
-            due_date=customer.due_date,
-            is_paid=True
-        ).aggregate(Sum('amount_received'))['amount_received__sum'] or 0
+        cycle_paid = 0
+        if effective_due:
+            cycle_paid = sum((p.amount_received or 0) for p in paid_payments if p.due_date == effective_due)
         price = customer.room.price if customer.room else 0
         balance_amount = max(price - cycle_paid, 0)
 
         if is_paid_today and cycle_paid >= price and price > 0:
             color, status = 'green', "Paid"
-        elif customer.due_date:
-            days = (customer.due_date - today).days
+        elif effective_due:
+            days = (effective_due - today).days
             if days < 0: color, status = 'black', "Overdue"
             elif days == 0: color, status = 'red', "Due Today"
             elif days <= 3: color, status = 'yellow', "Due Soon"
@@ -552,8 +559,8 @@ def dashboard_api(request):
         data.append({
             'name': customer.name,
             'room_no': customer.room.room_number if customer.room else (customer.room_no or "-"),
-            'prev_payment': last_payment.date_paid.strftime('%b %d, %Y') if last_payment else "-",
-            'due_date': customer.due_date.strftime('%b %d, %Y') if customer.due_date else "N/A",
+            'prev_payment': last_payment_date.strftime('%b %d, %Y') if last_payment_date else "-",
+            'due_date': effective_due.strftime('%b %d, %Y') if effective_due else "N/A",
             'room_rate': f"₱{price}" if customer.room else "-",
             'amount': f"₱{cycle_paid}" if cycle_paid else "-",
             'status': status,

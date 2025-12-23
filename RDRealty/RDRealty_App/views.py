@@ -1,12 +1,21 @@
-from django.views.generic import CreateView, ListView, DetailView, TemplateView
+from django.views.generic import CreateView, ListView, DetailView, TemplateView, UpdateView
 from django.urls import reverse_lazy
-# Import aggregation functions (Removed Sum as TitleMovement and PropertyTax are gone)
+from django.http import JsonResponse
+from django.db.models import Q
 from django.db.models import Count 
 from django.db.models.functions import TruncMonth 
 from datetime import date 
+from django.contrib.auth import authenticate, login as auth_login
+from django.contrib.auth import logout as auth_logout
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.models import User
+from django.shortcuts import render, redirect
+import json
+import os
+from pathlib import Path
+from urllib.request import urlopen
 
-# IMPORTANT: Only import the existing Property model
-from .models import Property 
+from .models import Property, LocalInformation, OwnerInformation, FinancialInformation
 from .forms import PropertyCreateForm
 
 
@@ -64,6 +73,118 @@ class PropertyCreateView(CreateView):
     form_class = PropertyCreateForm
     template_name = 'add_property/property_create.html'
     success_url = reverse_lazy('property_list')
+    
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        loc_specific = self.request.POST.get('loc_specific', '')
+        loc_province = self.request.POST.get('loc_province', '')
+        loc_city = self.request.POST.get('loc_city', '')
+        loc_barangay = self.request.POST.get('loc_barangay', '')
+        LocalInformation.objects.create(
+            property_id=self.object.property_id,
+            loc_specific=loc_specific,
+            loc_province=loc_province,
+            loc_city=loc_city,
+            loc_barangay=loc_barangay
+        )
+
+        oi_fullname = self.request.POST.get('oi_fullname', '')
+        oi_bankname = self.request.POST.get('oi_bankname', '')
+        oi_custody_title = self.request.POST.get('oi_custody_title', '')
+        OwnerInformation.objects.create(
+            property_id=self.object.property_id,
+            oi_fullname=oi_fullname,
+            oi_bankname=oi_bankname,
+            oi_custody_title=oi_custody_title
+        )
+
+        fi_encumbrance = self.request.POST.get('fi_encumbrance', '')
+        fi_mortgage = self.request.POST.get('fi_mortgage', '')
+        fi_borrower = self.request.POST.get('fi_borrower', '')
+        FinancialInformation.objects.create(
+            property_id=self.object.property_id,
+            fi_encumbrance=fi_encumbrance,
+            fi_mortgage=fi_mortgage,
+            fi_borrower=fi_borrower
+        )
+        return response
+
+# --- 1.5 PROPERTY UPDATE VIEW ---
+class PropertyUpdateView(UpdateView):
+    model = Property
+    form_class = PropertyCreateForm
+    template_name = 'add_property/property_update.html'
+    success_url = reverse_lazy('property_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Try to get existing local info
+        try:
+            local_info = LocalInformation.objects.get(property_id=self.object.property_id)
+            context['local_info'] = local_info
+        except LocalInformation.DoesNotExist:
+            context['local_info'] = None
+
+        # Try to get existing owner info
+        try:
+            owner_info = OwnerInformation.objects.get(property_id=self.object.property_id)
+            context['owner_info'] = owner_info
+        except OwnerInformation.DoesNotExist:
+            context['owner_info'] = None
+
+        # Try to get existing financial info
+        try:
+            financial_info = FinancialInformation.objects.get(property_id=self.object.property_id)
+            context['financial_info'] = financial_info
+        except FinancialInformation.DoesNotExist:
+            context['financial_info'] = None
+
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        loc_specific = self.request.POST.get('loc_specific', '')
+        loc_province = self.request.POST.get('loc_province', '')
+        loc_city = self.request.POST.get('loc_city', '')
+        loc_barangay = self.request.POST.get('loc_barangay', '')
+        
+        # Update or create
+        LocalInformation.objects.update_or_create(
+            property_id=self.object.property_id,
+            defaults={
+                'loc_specific': loc_specific,
+                'loc_province': loc_province,
+                'loc_city': loc_city,
+                'loc_barangay': loc_barangay
+            }
+        )
+
+        oi_fullname = self.request.POST.get('oi_fullname', '')
+        oi_bankname = self.request.POST.get('oi_bankname', '')
+        oi_custody_title = self.request.POST.get('oi_custody_title', '')
+
+        OwnerInformation.objects.update_or_create(
+            property_id=self.object.property_id,
+            defaults={
+                'oi_fullname': oi_fullname,
+                'oi_bankname': oi_bankname,
+                'oi_custody_title': oi_custody_title
+            }
+        )
+
+        fi_encumbrance = self.request.POST.get('fi_encumbrance', '')
+        fi_mortgage = self.request.POST.get('fi_mortgage', '')
+        fi_borrower = self.request.POST.get('fi_borrower', '')
+
+        FinancialInformation.objects.update_or_create(
+            property_id=self.object.property_id,
+            defaults={
+                'fi_encumbrance': fi_encumbrance,
+                'fi_mortgage': fi_mortgage,
+                'fi_borrower': fi_borrower
+            }
+        )
+        return response
 
 # --- 2. PROPERTY LIST VIEW (KEPT) ---
 class PropertyListView(ListView):
@@ -71,6 +192,62 @@ class PropertyListView(ListView):
     template_name = 'property_list.html'
     context_object_name = 'properties'
     ordering = ['title_no']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Search filter
+        q = self.request.GET.get('q')
+        if q:
+            # Helper: Find choice keys from display values
+            # e.g. User types "Resid" -> matches "RES"
+            class_matches = [k for k, v in Property.CLASSIFICATION_CHOICES if q.lower() in v.lower()]
+            status_matches = [k for k, v in Property.STATUS_CHOICES if q.lower() in v.lower()]
+            
+            # Base text search query
+            query = Q(title_no__icontains=q) | \
+                    Q(lot_no__icontains=q) | \
+                    Q(title_description__icontains=q) | \
+                    Q(lot_area__icontains=q) | \
+                    Q(property_id__icontains=q) | \
+                    Q(date_added__icontains=q) | \
+                    Q(localinformation__loc_province__icontains=q) | \
+                    Q(localinformation__loc_city__icontains=q) | \
+                    Q(localinformation__loc_barangay__icontains=q) | \
+                    Q(localinformation__loc_specific__icontains=q)
+            
+            # Add classification matches (both code and display value)
+            if class_matches:
+                query |= Q(title_classification__in=class_matches)
+            query |= Q(title_classification__icontains=q) # Allows searching "RES"
+            
+            # Add status matches (both code and display value)
+            if status_matches:
+                query |= Q(title_status__in=status_matches)
+            query |= Q(title_status__icontains=q) # Allows searching "ACT"
+            
+            queryset = queryset.filter(query).distinct()
+            
+        # Classification filter (Dropdown)
+        classification = self.request.GET.get('classification')
+        if classification and classification != 'Classification':
+            queryset = queryset.filter(title_classification=classification)
+            
+        # Status filter (Dropdown)
+        status = self.request.GET.get('status')
+        if status and status != 'Status':
+            queryset = queryset.filter(title_status=status)
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Pass current filter values to context to maintain state in UI
+        context['current_q'] = self.request.GET.get('q', '')
+        context['current_classification'] = self.request.GET.get('classification', 'Classification')
+        context['current_status'] = self.request.GET.get('status', 'Status')
+        context['total_properties_count'] = Property.objects.count()
+        return context
 
 # --- 3. PROPERTY DETAIL VIEW (UPDATED) ---
 class PropertyDetailView(DetailView):
@@ -80,7 +257,164 @@ class PropertyDetailView(DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Removed lines referencing the related managers for the deleted models
-        context['movements'] = [] # Set to empty list placeholder
-        context['tax_records'] = [] # Set to empty list placeholder
+        # Fetch related LocalInformation
+        context['local_info'] = self.object.localinformation_set.first()
+        # Fetch related OwnerInformation
+        context['owner_info'] = self.object.ownerinformation_set.first()
+        # Fetch related FinancialInformation
+        context['financial_info'] = self.object.financialinformation_set.first()
         return context
+
+# --- 4. GLOBAL SEARCH API ---
+def global_search(request):
+    query = request.GET.get('q', '')
+    results = []
+    
+    if query:
+        # Search Properties
+        properties = Property.objects.filter(
+            Q(title_no__icontains=query) | 
+            Q(lot_no__icontains=query) |
+            Q(title_classification__icontains=query) |
+            Q(title_status__icontains=query) |
+            Q(title_description__icontains=query)
+        )[:5] # Limit to 5 results
+        
+        for prop in properties:
+            results.append({
+                'category': 'Property',
+                'title': prop.title_no,
+                'description': f"{prop.lot_no} - {prop.get_title_classification_display()}",
+                'url': str(reverse_lazy('property_detail', kwargs={'pk': prop.pk}))
+            })
+
+        # Search User Management
+        users = User.objects.filter(
+            Q(username__icontains=query) |
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(email__icontains=query)
+        )[:5]
+
+        for user in users:
+            role = "Admin" if user.is_staff else "User"
+            results.append({
+                'category': 'User Management',
+                'title': user.username,
+                'description': f"{role} - {user.email}",
+                # Use update URL if user is admin, else maybe list? Using update for now as it's the "detail" view
+                'url': str(reverse_lazy('user_update', kwargs={'user_id': user.id}))
+            })
+            
+    return JsonResponse({'results': results})
+
+# --- 5. AUTH: LOGIN VIEW ---
+def login_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            auth_login(request, user)
+            next_url = request.POST.get('next') or request.GET.get('next')
+            if next_url:
+                return redirect(next_url)
+            return redirect('dashboard')
+        return render(request, 'registration/login.html', {'form': {}, 'error_message': "Invalid username or password."})
+    return render(request, 'registration/login.html', {'form': {}})
+
+def logout_view(request):
+    auth_logout(request)
+    return redirect('login')
+
+# --- 7. PH LOCATIONS API (Proxy) ---
+def get_provinces(request):
+    try:
+        url = 'https://psgc.gitlab.io/api/provinces/'
+        with urlopen(url) as response:
+            data = json.loads(response.read().decode('utf-8'))
+        # Sort by name
+        data.sort(key=lambda x: x['name'])
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def get_cities(request, province_code):
+    try:
+        url = f'https://psgc.gitlab.io/api/provinces/{province_code}/cities-municipalities/'
+        with urlopen(url) as response:
+            data = json.loads(response.read().decode('utf-8'))
+        data.sort(key=lambda x: x['name'])
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def get_barangays(request, city_code):
+    try:
+        url = f'https://psgc.gitlab.io/api/cities-municipalities/{city_code}/barangays/'
+        with urlopen(url) as response:
+            data = json.loads(response.read().decode('utf-8'))
+        data.sort(key=lambda x: x['name'])
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+# --- 6. USER MANAGEMENT (CRUD) ---
+def is_admin(user):
+    return user.is_staff or user.is_superuser
+
+@login_required
+def user_list(request):
+    users = User.objects.all().order_by('username')
+    return render(request, 'user_list.html', {'users': users, 'can_manage': is_admin(request.user)})
+
+@login_required
+def user_create(request):
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password1 = request.POST.get('password1', '')
+        password2 = request.POST.get('password2', '')
+        role = request.POST.get('role', 'USER')
+        if not username or not password1 or password1 != password2:
+            return render(request, 'user_form.html', {'error_message': 'Invalid data or passwords do not match.', 'mode': 'create'})
+        if User.objects.filter(username=username).exists():
+            return render(request, 'user_form.html', {'error_message': 'Username already exists.', 'mode': 'create'})
+        u = User.objects.create_user(username=username, password=password1)
+        if role == 'ADMIN' and is_admin(request.user):
+            u.is_staff = True
+        else:
+            u.is_staff = False
+        u.save()
+        return redirect('user_list')
+    return render(request, 'user_form.html', {'mode': 'create'})
+
+@login_required
+def user_update(request, user_id):
+    target = User.objects.get(id=user_id)
+    if not is_admin(request.user):
+        return render(request, 'user_form.html', {'error_message': 'Insufficient permissions.', 'mode': 'update', 'target': target})
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        role = request.POST.get('role', 'USER')
+        status = request.POST.get('status', 'ACT')
+        if username:
+            target.username = username
+        target.is_staff = (role == 'ADMIN')
+        target.is_active = (status == 'ACT')
+        password1 = request.POST.get('password1', '')
+        password2 = request.POST.get('password2', '')
+        if password1:
+            if password1 != password2:
+                return render(request, 'user_form.html', {'error_message': 'Passwords do not match.', 'mode': 'update', 'target': target})
+            target.set_password(password1)
+        target.save()
+        return redirect('user_list')
+    return render(request, 'user_form.html', {'mode': 'update', 'target': target})
+
+@login_required
+@user_passes_test(is_admin)
+def user_delete(request, user_id):
+    target = User.objects.get(id=user_id)
+    if request.method == 'POST':
+        target.delete()
+        return redirect('user_list')
+    return render(request, 'user_form.html', {'mode': 'delete', 'target': target})

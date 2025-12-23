@@ -1,58 +1,154 @@
 {% extends "base.html" %} 
 {% load static %}
+{% load humanize %}
+{% load property_tags %}
 
 {% block content %}
-<div class="container-fluid pt-4">
-    <h1><i class="fas fa-list-alt"></i> All Properties</h1>
-    <p class="text-muted">A list of all property records in the database.</p>
+<style>
+    /* 1. Base Card Styling */
+    .property-card-container {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        border: 2px solid transparent; /* Removed !important to allow overrides */
+        z-index: 1;
+        border-radius: 12px;
+    }
+
+    /* 2. Hover Zoom Effect */
+    .property-card-container:hover {
+        transform: scale(1.03) !important;
+        z-index: 10;
+    }
+
+    /* 3. Dynamic Border Colors Based on Status (Persistent Border) */
+    .status-active { border-color: #0E7A2D !important; }
+    .status-active:hover { box-shadow: 0 10px 30px rgba(14, 122, 45, 0.2) !important; }
     
-    <div class="d-flex justify-content-end mb-3">
-        <a href="{% url 'add_property' %}" class="btn btn-primary">
-            <i class="fas fa-plus-circle"></i> Add New Property
-        </a>
+    .status-collateral { border-color: #F57F17 !important; }
+    .status-collateral:hover { box-shadow: 0 10px 30px rgba(245, 127, 23, 0.2) !important; }
+    
+    .status-sold { border-color: #0A48D9 !important; }
+    .status-sold:hover { box-shadow: 0 10px 30px rgba(10, 72, 217, 0.2) !important; }
+    
+    .status-under-dev { border-color: #065F73 !important; }
+    .status-under-dev:hover { box-shadow: 0 10px 30px rgba(6, 95, 115, 0.2) !important; }
+    
+    .status-foreclosed { border-color: #C62828 !important; }
+    .status-foreclosed:hover { box-shadow: 0 10px 30px rgba(198, 40, 40, 0.2) !important; }
+    
+    .status-disposed { border-color: #455A64 !important; }
+    .status-disposed:hover { box-shadow: 0 10px 30px rgba(69, 90, 100, 0.2) !important; }
+    
+    .status-pending { border-color: #0A48D9 !important; }
+    .status-pending:hover { box-shadow: 0 10px 30px rgba(10, 72, 217, 0.2) !important; }
+    
+    .status-inactive { border-color: #616161 !important; }
+    .status-inactive:hover { box-shadow: 0 10px 30px rgba(97, 97, 97, 0.2) !important; }
+
+    /* 4. Utilities */
+    .interactive-element { position: relative; z-index: 20; }
+    .text-purple { color: #6f42c1; }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <h2 class="fw-bold mb-0">Properties</h2>
+            <p class="text-muted">Manage property titles and their information</p>
+        </div>
+        <div>
+            <a href="{% url 'add_property' %}" class="btn btn-success">
+                <i class="fas fa-plus me-1"></i> Add Property
+            </a>
+        </div>
     </div>
 
-    <div class="card shadow">
-        <div class="card-body">
-            
-            {% if properties %}
-            <div class="table-responsive">
-                <table class="table table-light table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th>Title No.</th>
-                            <th>Lot No.</th>
-                            <th>Area (sqm)</th>
-                            <th>Classification</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for property in properties %}
-                        <tr>
-                            <td>{{ property.title_no }}</td>
-                            <td>{{ property.lot_no }}</td>
-                            <td>{{ property.lot_area }}</td>
-                            <td>{{ property.get_title_classification_display }}</td>
-                            <td>{{ property.get_title_status_display }}</td>
-                            <td>
-                                <a href="{% url 'property_detail' pk=property.pk %}" class="btn btn-sm btn-info">View Details</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <form method="get" class="row mb-4">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search..." value="{{ current_q }}">
+                <button class="btn btn-outline-secondary" type="submit">Search</button>
             </div>
-            {% else %}
-            <div class="alert alert-warning text-dark" role="alert">
-                <h4 class="alert-heading">No Properties Found!</h4>
-                <p>The database is empty. You can start by adding the first property record.</p>
-                <a href="{% url 'add_property' %}" class="btn btn-warning">Add New Property Now</a>
-            </div>
-            {% endif %}
-
         </div>
+        <div class="col-md-3">
+            <select name="classification" class="form-select text-muted" onchange="this.form.submit()">
+                <option value="">Classification</option>
+                <option value="RES" {% if current_classification == 'RES' %}selected{% endif %}>Residential</option>
+                <option value="IND" {% if current_classification == 'IND' %}selected{% endif %}>Industrial</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="status" class="form-select text-muted" onchange="this.form.submit()">
+                <option value="">Status</option>
+                <option value="ACT" {% if current_status == 'ACT' %}selected{% endif %}>Active</option>
+                <option value="SLD" {% if current_status == 'SLD' %}selected{% endif %}>Sold</option>
+            </select>
+        </div>
+    </form>
+
+    <div class="row">
+        {% for property in properties %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 shadow-sm position-relative property-card-container {{ property.title_status|get_status_border }}">
+                
+                <a href="{% url 'property_detail' pk=property.pk %}" class="stretched-link"></a>
+
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title fw-bold mb-0">
+                            <i class="fas fa-hashtag text-muted me-1" style="font-size: 0.8em;"></i>{{ property.title_no }}
+                        </h5>
+                        
+                        <div class="interactive-element">
+                            <span class="badge bg-light text-dark border rounded-pill px-3">
+                                <i class="{{ property.title_classification|get_classification_icon }} me-1"></i> {{ property.get_title_classification_display }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <p class="text-muted small mb-3">
+                        <i class="fas fa-map-marker-alt me-1 text-danger"></i> Lot {{ property.lot_no }}
+                    </p>
+
+                    <div class="mb-2">
+                        <div class="d-flex align-items-center mb-2 text-muted">
+                            <i class="far fa-user me-2 text-center" style="width: 20px;"></i>
+                            <span class="small">RD Realty Development Corporation</span>
+                        </div>
+                        <div class="d-flex align-items-start mb-2 text-muted">
+                            <i class="fas fa-align-left me-2 mt-1 text-center" style="width: 20px;"></i>
+                            <span class="small">{{ property.title_description|truncatechars:50|default:"No description" }}</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2 text-muted">
+                            <i class="fas fa-ruler-combined me-2 text-center" style="width: 20px;"></i>
+                            <span class="small">{{ property.lot_area|intcomma }} sqm</span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                        <span class="status-badge {{ property.title_status|get_status_color }}">
+                            {{ property.get_title_status_display }}
+                        </span>
+
+                        <div class="interactive-element">
+                            <a href="{% url 'property_detail' pk=property.pk %}" class="btn btn-light btn-sm rounded border me-1">
+                                <i class="far fa-eye"></i>
+                            </a>
+                            <a href="{% url 'property_update' pk=property.pk %}" class="btn btn-light btn-sm rounded border">
+                                <i class="far fa-edit"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center text-muted py-5">
+            <i class="fas fa-folder-open fa-3x mb-3"></i>
+            <p>No properties found.</p>
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock content %}

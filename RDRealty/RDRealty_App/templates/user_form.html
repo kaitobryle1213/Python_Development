@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}User {{ mode|title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="d-flex align-items-center">
+    <a href="{% url 'dashboard' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-home me-2"></i> 
+        <span class="me-2">Dashboard</span>
+    </a>
+    <i class="fa-solid fa-chevron-right me-2 text-muted" style="font-size: 0.7rem;"></i>
+    <a href="{% url 'user_list' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-users-cog me-2 text-muted"></i>
+        <span class="me-2">User Management</span>
+    </a>
+    <i class="fa-solid fa-chevron-right me-2 text-muted" style="font-size: 0.7rem;"></i>
+    <span class="fw-bold">
+        {% if mode == 'create' %}Add User{% elif mode == 'update' %}Update User{% else %}Delete User{% endif %}
+    </span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold mb-0">
+            {% if mode == 'create' %}Add User{% elif mode == 'update' %}Update User{% else %}Delete User{% endif %}
+        </h2>
+        <a href="{% url 'user_list' %}" class="btn btn-secondary">Back</a>
+    </div>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            {% if error_message %}
+            <div class="alert alert-danger">{{ error_message }}</div>
+            {% endif %}
+            {% if mode == 'delete' %}
+            <p>Are you sure you want to delete user <strong>{{ target.username }}</strong>?</p>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Delete</button>
+                <a href="{% url 'user_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+            {% else %}
+            <form method="post">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username" class="form-control" value="{{ target.username|default:'' }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Role</label>
+                        <select name="role" class="form-select">
+                            <option value="USER" {% if not target.is_staff %}selected{% endif %}>User</option>
+                            <option value="ADMIN" {% if target.is_staff %}selected{% endif %}>Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="password1" class="form-control" {% if mode == 'create' %}required{% endif %}>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Confirm Password</label>
+                        <input type="password" name="password2" class="form-control" {% if mode == 'create' %}required{% endif %}>
+                    </div>
+                </div>
+                {% if mode == 'update' %}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="ACT" {% if target.is_active %}selected{% endif %}>Active</option>
+                            <option value="INA" {% if not target.is_active %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary">
+                    {% if mode == 'create' %}Create{% else %}Save{% endif %}
+                </button>
+                <a href="{% url 'user_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

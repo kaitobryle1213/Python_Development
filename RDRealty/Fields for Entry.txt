@@ -1,0 +1,30 @@
+**Location Information
+property_id
+loc_specific
+loc_province
+loc_city
+loc_barangay
+--------Done---------
+
+**Owner Information
+oi_fullname
+oi_bank
+oi_custody_title
+
+**Financial Information
+fi_encumbrance
+fi_mortgage
+fi_borrower
+
+**Additional Information
+ai_remarks
+ai_supp_docs
+
+
+-----------------------------------
+
+
+
+**Create Property
+property_id
+user_id

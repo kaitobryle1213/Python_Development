@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone # Import for default date setting
+from django.db.models import Max
 
 # --- 1. PROPERTY MODEL ---
 class Property(models.Model):
@@ -10,13 +11,19 @@ class Property(models.Model):
         ('COM', 'COMMERCIAL'),
         ('IND', 'INDUSTRIAL'),
         ('AGR', 'AGRICULTURAL'),
+        ('MIX', 'MIXED USE'),
+        ('INS', 'INSTITUTIONAL'),
     ]
 
     STATUS_CHOICES = [
         ('ACT', 'ACTIVE'),
-        ('PND', 'PENDING'),
+        ('COL', 'COLLATERAL'),
         ('SOLD', 'SOLD'),
-        ('ARC', 'ARCHIVED'),
+        ('UND', 'UNDER DEVELOPMENT'),
+        ('FORC', 'FORECLOSED'),
+        ('DISP', 'DISPOSED'),
+        ('PENT', 'PENDING TRANSFER'),
+        ('INT', 'INACTIVE'),
     ]
 
     # --- Fields ---
@@ -67,13 +74,72 @@ class Property(models.Model):
         default=timezone.now,
         verbose_name="Date Added"
     )
+    
+    property_id = models.PositiveIntegerField(
+        unique=True,
+        null=True,
+        blank=True
+    )
+    
+    user_id = models.PositiveIntegerField(
+        default=1
+    )
 
     # --- Model Metadata ---
     def __str__(self):
         return f"Property: {self.title_no} ({self.lot_no})"
+    
+    def save(self, *args, **kwargs):
+        if self.property_id is None:
+            last = Property.objects.aggregate(Max('property_id'))['property_id__max'] or 0
+            self.property_id = last + 1
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Property"
         verbose_name_plural = "Properties"
 
 # The TitleMovement and PropertyTax models have been removed.
+
+class LocalInformation(models.Model):
+    property = models.ForeignKey(
+        Property,
+        to_field='property_id',
+        db_column='property_id',
+        on_delete=models.CASCADE
+    )
+    loc_specific = models.TextField(blank=True, null=True)
+    loc_province = models.CharField(max_length=255, blank=True, null=True)
+    loc_city = models.CharField(max_length=255, blank=True, null=True)
+    loc_barangay = models.CharField(max_length=255, blank=True, null=True)
+    
+    class Meta:
+        db_table = 'rdrealty_local_information'
+
+class OwnerInformation(models.Model):
+    property = models.ForeignKey(
+        Property,
+        to_field='property_id',
+        db_column='property_id',
+        on_delete=models.CASCADE
+    )
+    oi_fullname = models.CharField(max_length=80, blank=True, null=True)
+    oi_bankname = models.CharField(max_length=50, blank=True, null=True)
+    oi_custody_title = models.CharField(max_length=60, blank=True, null=True)
+    
+    class Meta:
+        db_table = 'rdrealty_owner_information'
+
+class FinancialInformation(models.Model):
+    property = models.ForeignKey(
+        Property,
+        to_field='property_id',
+        db_column='property_id',
+        on_delete=models.CASCADE
+    )
+    fi_encumbrance = models.CharField(max_length=250, blank=True, null=True)
+    fi_mortgage = models.CharField(max_length=150, blank=True, null=True)
+    fi_borrower = models.CharField(max_length=80, blank=True, null=True)
+    
+    class Meta:
+        db_table = 'rdrealty_financial_information'

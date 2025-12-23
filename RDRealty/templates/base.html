@@ -8,55 +8,584 @@
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJ8K4u8Gv+5f45s3t3j0W7B/wWd1F/M4y8T9FjL/D/3+T9K/4Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        /* Light mode styling */
+        /* Global Font Settings */
+        html {
+            font-size: 0.9rem; /* Slightly smaller base size (approx 14.4px) */
+        }
+        
         body {
-            background-color: #f8f9fa; /* Light grey background */
-            color: #212529; /* Dark text color */
+            background-color: #f8f9fa;
+            color: #212529;
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased; /* Crisp text for WebKit/Blink */
+            -moz-osx-font-smoothing: grayscale; /* Crisp text for Firefox */
         }
-        /* Style the navigation bar */
-        .navbar-light {
-            background-color: #e9ecef !important; /* Very light background for navbar */
+
+        /* Adjust headings to be slightly smaller/crisper */
+        h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+            font-weight: 600;
+            letter-spacing: -0.02em; /* Tighter tracking for crisp look */
         }
-        /* Ensure containers have padding */
-        .container-fluid {
-            padding-top: 20px;
-            padding-bottom: 20px;
+
+        #wrapper {
+            display: flex;
+            width: 100%;
+            align-items: stretch;
+            min-height: 100vh;
         }
+
+        #sidebar {
+            min-width: 260px;
+            max-width: 260px;
+            background: #fff;
+            color: #333;
+            transition: all 0.3s;
+            position: relative;
+            border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #sidebar.minimized {
+            min-width: 80px;
+            max-width: 80px;
+        }
+
+        #sidebar .sidebar-header {
+            padding: 20px;
+            background: #fff;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+        }
+
+        #sidebar .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-left: 10px;
+            white-space: nowrap;
+        }
+        
+        #sidebar .logo-img {
+            width: 50px;
+            height: auto;
+        }
+
+        #sidebar.minimized .sidebar-header h3 {
+            display: none;
+        }
+        
+        #sidebar.minimized .sidebar-header {
+            justify-content: center;
+            padding: 20px 10px;
+        }
+        
+        #sidebar.minimized .logo-img {
+            width: 40px;
+        }
+
+        #sidebar ul.components {
+            padding: 20px 0;
+            flex-grow: 1;
+        }
+
+        #sidebar ul p {
+            color: #888;
+            padding: 10px 20px;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            margin-bottom: 0;
+            white-space: nowrap;
+        }
+
+        #sidebar.minimized ul p {
+            display: none;
+        }
+
+        #sidebar ul li a {
+            padding: 15px 20px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            color: #333;
+            text-decoration: none;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        #sidebar ul li a:hover {
+            background: #f8f9fa;
+            color: #000;
+        }
+
+        #sidebar ul li a i {
+            margin-right: 15px;
+            font-size: 1.2em;
+            width: 30px;
+            text-align: center;
+        }
+
+        #sidebar.minimized ul li a {
+            justify-content: center;
+            padding: 15px 0;
+        }
+
+        #sidebar.minimized ul li a i {
+            margin-right: 0;
+        }
+
+        #sidebar.minimized ul li a span {
+            display: none;
+        }
+        
+        #sidebar.minimized .dropdown-toggle::after {
+            display: none;
+        }
+
+        /* Sidebar Toggle Button - REMOVED, using Top Navbar Button */
+        
+        /* Sidebar Border Clickable Area */
+        #sidebar-border-toggle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 8px; /* Slightly wider than the 1px border for easier clicking */
+            height: 100%;
+            cursor: col-resize;
+            z-index: 100;
+            /* Optional: Add a hover effect to indicate it's interactive */
+            transition: background-color 0.2s;
+        }
+
+        #sidebar-border-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        /* Content Area */
+        #content {
+            width: 100%;
+            min-height: 100vh;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Top Navbar */
+        .top-navbar {
+            padding: 10px 20px;
+            background: #fff;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            width: 100%;
+        }
+
+        .search-bar {
+            max-width: 400px;
+            width: 100%;
+            position: relative;
+        }
+        
+        .search-bar input {
+            padding-left: 40px;
+            padding-right: 40px;
+            border-radius: 20px;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+        }
+        
+        .search-bar i.search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #aaa;
+        }
+        
+        .search-bar .shortcut-badge {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #aaa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 0 5px;
+            font-size: 0.8em;
+            background: #fff;
+        }
+
+        .main-content {
+            padding: 20px;
+            flex-grow: 1;
+        }
+        
+        /* Submenu */
+        #sidebar ul.collapse {
+            background-color: #fff;
+        }
+        
+        #sidebar ul.collapse li a {
+            padding-left: 65px;
+            font-size: 0.95em;
+        }
+        
+        #sidebar.minimized ul.collapse li a {
+            padding-left: 0;
+        }
+        
+        /* Modal Styles */
+        #searchModal .modal-dialog {
+            max-width: 600px;
+        }
+        
+        #searchModal .modal-content {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        #searchModal .modal-body {
+            padding: 0;
+        }
+        
+        #globalSearchInput {
+            border: none;
+            border-bottom: 1px solid #eee;
+            border-radius: 15px 15px 0 0;
+            padding: 20px;
+            font-size: 1.1em;
+        }
+        
+        #globalSearchInput:focus {
+            box-shadow: none;
+        }
+        
+        #searchResults {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .search-result-item {
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        
+        .search-result-item:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .search-result-icon {
+            margin-right: 15px;
+            color: #6c757d;
+        }
+        
+        .search-result-title {
+            font-weight: bold;
+            display: block;
+        }
+        
+        .search-result-meta {
+            font-size: 0.85em;
+            color: #888;
+        }
+        
+        .badge-type {
+            background-color: #212529;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            margin-left: 10px;
+        }
+
+        /* Custom Status Badge Styles */
+        .status-badge { 
+            display: inline-block; 
+            padding: 4px 10px; 
+            border-radius: 999px; 
+            font-weight: 600; 
+            text-transform: uppercase; 
+            background: #F3F4F6; 
+            color: #111827; 
+            white-space: nowrap; 
+            max-width: 100%; 
+            overflow: visible;
+            font-size: 0.75rem;
+        }
+        .status-badge:empty::before { 
+            content: "No Status"; 
+            color: #6B7280; 
+        }
+        .status--active { background: #E7F6EC; color: #0E7A2D; }
+        .status--sold { background: #E6EEFF; color: #0A48D9; }
+        .status--under-development { background: #E6FBFF; color: #065F73; }
+        .status--pending { background: #E6EEFF; color: #0A48D9; }
+        .status--collateral { background: #FFF8E1; color: #F57F17; }
+        .status--foreclosed { background: #FFEBEE; color: #C62828; }
+        .status--disposed { background: #ECEFF1; color: #455A64; }
+        .status--inactive { background: #F5F5F5; color: #616161; }
+
     </style>
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-light shadow-sm">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'dashboard' %}">
-                <i class="fas fa-building me-2"></i>RDRealty
-            </a>
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'property_list' %}">
-                            <i class="fas fa-list-alt me-1"></i>Property List
+<div id="wrapper">
+    <!-- Sidebar -->
+    <nav id="sidebar">
+        <!-- Invisible Clickable Border -->
+        <div id="sidebar-border-toggle" title="Click to toggle sidebar"></div>
+        
+        <div class="sidebar-header">
+            <img src="{% static 'images/RDCorp.png' %}" alt="RD Corp Logo" class="logo-img">
+            <h3>
+                RD Corporation<br>
+                <small style="font-size: 0.6em; color: #888; font-weight: normal;">Property Management</small>
+            </h3>
+        </div>
+
+        <ul class="list-unstyled components">
+            <p>Navigation</p>
+            <li>
+                <a href="{% url 'dashboard' %}">
+                    <i class="fas fa-chart-line"></i> <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="#propertySubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                    <i class="fas fa-building"></i> <span>Properties</span>
+                </a>
+                <ul class="collapse list-unstyled" id="propertySubmenu">
+                    <li>
+                        <a href="{% url 'property_list' %}">
+                             <span>All Properties</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'add_property' %}">
-                            <i class="fas fa-plus me-1"></i>Add Property
+                    <li>
+                        <a href="{% url 'add_property' %}">
+                             <span>Add Property</span>
                         </a>
                     </li>
                 </ul>
-            </div>
-        </div>
+            </li>
+            <li>
+                <a href="#userMgmtSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                    <i class="fas fa-users-cog"></i> <span>User Management</span>
+                </a>
+                <ul class="collapse list-unstyled" id="userMgmtSubmenu">
+                    <li>
+                        <a href="{% url 'user_list' %}">
+                            <span>Users</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'user_create' %}">
+                            <span>Add User</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            <li>
+                <a href="{% url 'app_logout' %}">
+                    <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
+                </a>
+            </li>
+        </ul>
     </nav>
 
-    <main>
-        {% block content %}
-        {% endblock content %}
-    </main>
+    <!-- Page Content -->
+    <div id="content">
+        <!-- Top Navbar -->
+        <div class="top-navbar">
+            <div class="d-flex align-items-center">
+                <button type="button" id="sidebarToggle" class="btn btn-link p-0 me-3 text-muted">
+                    <i class="fas fa-columns"></i>
+                </button>
+                <!-- Breadcrumbs logic could go here, for now just static or based on view -->
+                {% block breadcrumbs %}
+                <span class="fw-bold">Dashboard</span>
+                {% endblock %}
+            </div>
+            
+            <div class="search-bar d-none d-md-block" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#searchModal">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="form-control" placeholder="Search everything..." readonly style="background-color: #f8f9fa; cursor: pointer;">
+                <span class="shortcut-badge"></span>
+            </div>
+            
+            <div>
+                <i class="far fa-bell text-muted" style="cursor: pointer;"></i>
+            </div>
+        </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+        <div class="main-content">
+            {% block content %}
+            {% endblock content %}
+        </div>
+    </div>
+</div>
+
+<!-- Global Search Modal -->
+<div class="modal fade" id="searchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="d-flex align-items-center border-bottom px-3">
+                    <i class="fas fa-search text-muted me-2"></i>
+                    <input type="text" id="globalSearchInput" class="form-control border-0 shadow-none" placeholder="Search properties..." autocomplete="off">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div id="searchResults">
+                    <div class="text-center py-5 text-muted">
+                        Type to search...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebarBorderToggle = document.getElementById('sidebar-border-toggle');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('minimized');
+        }
+
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', toggleSidebar);
+        }
+        
+        if (sidebarBorderToggle) {
+            sidebarBorderToggle.addEventListener('click', toggleSidebar);
+        }
+
+    // 3. On City Change -> Fetch Barangays
+    // ... (This logic is for the create page, but base.html doesn't have it. I am editing base.html)
+
+    // Sidebar Submenu Persistence Logic
+    const currentPath = window.location.pathname;
+    const sidebarLinks = document.querySelectorAll('#sidebar ul li a');
+    
+    sidebarLinks.forEach(link => {
+        // Check if the link's href matches the current path
+        // We use getAttribute('href') to get the raw value, but checking pathname is safer for full URLs
+        try {
+            const linkPath = new URL(link.href, window.location.origin).pathname;
+            if (linkPath === currentPath) {
+                link.classList.add('active');
+                link.style.backgroundColor = '#f8f9fa';
+                link.style.color = '#000';
+                
+                // If it's inside a submenu, expand the submenu
+                const parentUl = link.closest('ul.collapse');
+                if (parentUl) {
+                    parentUl.classList.add('show');
+                    
+                    // Find the toggle button for this submenu
+                    const toggleId = parentUl.id;
+                    const toggleBtn = document.querySelector(`a[href="#${toggleId}"]`);
+                    if (toggleBtn) {
+                        toggleBtn.setAttribute('aria-expanded', 'true');
+                        toggleBtn.classList.remove('collapsed');
+                    }
+                }
+            }
+        } catch (e) {
+            // Ignore invalid URLs
+        }
+    });
+
+    // Search Modal Logic
+        const searchModal = new bootstrap.Modal(document.getElementById('searchModal'));
+        const searchInput = document.getElementById('globalSearchInput');
+        const searchResults = document.getElementById('searchResults');
+        let debounceTimer;
+
+        // Ctrl+K Shortcut
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                searchModal.show();
+            }
+        });
+
+        // Focus input on modal open
+        const searchModalEl = document.getElementById('searchModal');
+        searchModalEl.addEventListener('shown.bs.modal', function () {
+            searchInput.focus();
+        });
+
+        // Search functionality
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const query = this.value.trim();
+            
+            if (query.length === 0) {
+                searchResults.innerHTML = '<div class="text-center py-5 text-muted">Type to search...</div>';
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                fetch(`{% url 'global_search' %}?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.results.length > 0) {
+                            let html = '';
+                            data.results.forEach(item => {
+                                html += `
+                                    <a href="${item.url}" class="text-decoration-none text-dark">
+                                        <div class="search-result-item">
+                                            <div class="search-result-icon">
+                                                <i class="fas fa-building"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <span class="search-result-title">
+                                                    ${item.title} 
+                                                    <span class="badge-type">${item.category}</span>
+                                                </span>
+                                                <span class="search-result-meta">${item.description}</span>
+                                            </div>
+                                            <i class="fas fa-chevron-right text-muted"></i>
+                                        </div>
+                                    </a>
+                                `;
+                            });
+                            searchResults.innerHTML = html;
+                        } else {
+                            searchResults.innerHTML = '<div class="text-center py-4 text-muted">No results found.</div>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        searchResults.innerHTML = '<div class="text-center py-4 text-danger">An error occurred.</div>';
+                    });
+            }, 300);
+        });
+    });
+</script>
 
 </body>
 </html>

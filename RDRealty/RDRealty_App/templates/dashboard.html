@@ -2,52 +2,66 @@
 {% load static %}
 {% load humanize %} 
 
+{% block breadcrumbs %}
+<i class="fa-solid fa-house me-2 text-dark"></i> 
+<span class="fw-bold text-dark">Dashboard</span>
+{% endblock %}
+
 {% block content %}
+<style>
+    /* We target the class specifically */
+    .custom-hover-card {
+        transition: all 0.2s ease-in-out !important;
+        /* We use a transparent border to reserve space so the card doesn't jump */
+        border: 2px solid transparent !important;
+        cursor: pointer;
+        position: relative;
+    }
+
+    /* The Hover State */
+    .custom-hover-card:hover {
+        transform: scale(1.01) !important; /* Zoom effect */
+        border-color: #007bff !important; /* Blue border */
+        box-shadow: 0 10px 20px rgba(0, 123, 255, 0.2) !important; /* Blue glow */
+        z-index: 999; /* Ensures the card stays on top of everything else while zooming */
+    }
+</style>
+
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Dashboard</h1> 
-        <p class="text-muted mb-0">Hi! Here is an overview of your property management system.</p>
+        <h1 class="fw-bold">Dashboard</h1> 
+        <p class="text-muted mb-0">Hi! Welcome Back User!</p>
     </div>
     
     <div class="row mb-4">
-        <div class="col-lg-4 col-md-6 mb-3">
-            <div class="card shadow-sm h-100 border-0">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card shadow-sm h-100 border-0 position-relative custom-hover-card"> 
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <h5 class="card-title text-uppercase text-muted small">Total Properties</h5>
-                        <i class="fas fa-building fa-2x text-secondary"></i>
+                        <i class="fa-solid fa-building fa-2x text-secondary"></i>
                     </div>
-                    <div class="display-4 font-weight-bold">{{ total_properties|default:0 }}</div>
+                    
+                    <div class="display-4 fw-bold">
+                        {{ total_properties|default:0 }}
+                    </div>
+                    
                     <p class="card-text text-muted">
                         {{ total_properties|default:0 }} Active<br> 
-                        <span class="text-success"><i class="fas fa-arrow-up"></i> **{{ current_month_added|default:0 }}** Added from this month</span>
+                        <span class="text-success">
+                            <i class="fa-solid fa-arrow-up"></i> {{ current_month_added|default:0 }} Added from this month
+                        </span>
                     </p>
+
+                    <a href="{% url 'property_list' %}" class="stretched-link"></a>
                 </div>
             </div>
         </div>
-        
-        </div> 
+    </div> 
     
     <div class="row">
-        
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card shadow-sm h-100 border-0">
-                <div class="card-header border-0 pb-0 bg-light">
-                    <h5 class="card-title mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
-                </div>
-                <div class="card-body">
-                    <a href="{% url 'add_property' %}" class="btn btn-secondary btn-block text-start w-100 mb-3">
-                        <h6 class="mb-0"><i class="fas fa-plus-square me-2"></i> Add Property</h6>
-                        <small class="text-muted">Register a new property in the system</small>
-                    </a>
-                    
-                    </div>
-            </div>
-        </div>
-        
         <div class="col-lg-8 col-md-6 mb-4">
             </div>
     </div>
-    
 </div>
 {% endblock content %}

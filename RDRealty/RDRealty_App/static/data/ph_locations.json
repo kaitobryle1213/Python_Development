@@ -1,0 +1,52 @@
+{
+  "provinces": [
+    {
+      "code": "NCR",
+      "name": "Metro Manila",
+      "cities": [
+        {
+          "code": "NCR-QC",
+          "name": "Quezon City",
+          "barangays": ["Bagumbayan", "Batasan Hills", "Commonwealth", "Holy Spirit", "Matandang Balara"]
+        },
+        {
+          "code": "NCR-MNL",
+          "name": "Manila",
+          "barangays": ["Tondo", "Binondo", "Quiapo", "Sampaloc", "Malate"]
+        },
+        {
+          "code": "NCR-MKT",
+          "name": "Makati",
+          "barangays": ["Bel-Air", "Urdaneta", "San Lorenzo", "Bangkal", "Pio del Pilar"]
+        }
+      ]
+    },
+    {
+      "code": "CEB",
+      "name": "Cebu",
+      "cities": [
+        {
+          "code": "CEB-CC",
+          "name": "Cebu City",
+          "barangays": ["Lahug", "Guadalupe", "Banilad", "Mabolo", "Capitol Site"]
+        },
+        {
+          "code": "CEB-LP",
+          "name": "Lapu-Lapu City",
+          "barangays": ["Basak", "Pajac", "Pusok", "Marigondon", "Gun-ob"]
+        }
+      ]
+    },
+    {
+      "code": "DAV",
+      "name": "Davao del Sur",
+      "cities": [
+        {
+          "code": "DAV-DC",
+          "name": "Davao City",
+          "barangays": ["Buhangin", "Talomo", "Agdao", "Bago Aplaya", "Matina"]
+        }
+      ]
+    }
+  ]
+}

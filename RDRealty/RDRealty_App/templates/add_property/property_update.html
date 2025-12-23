@@ -25,15 +25,15 @@
 
 <li class="breadcrumb-item active text-muted d-flex align-items-center" aria-current="page">
     <i class="fa-solid fa-chevron-right mx-2 text-muted" style="font-size: 0.7rem;"></i>
-    <span class="fw-bold"><i class="fas fa-plus me-2"></i>Add Property</span>
+    <span class="fw-bold"><i class="fas fa-edit me-2"></i>Edit Property</span>
 </li>
 {% endblock breadcrumbs %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="mb-4">
-        <h1 class="fw-bold"><i class="fas fa-plus-circle me-2"></i>Create Property</h1>
-        <p class="text-muted">Add a new property to the system</p>
+        <h1 class="fw-bold"><i class="fas fa-edit me-2"></i>Edit Property</h1>
+        <p class="text-muted">Update property information</p>
     </div>
     
     <form method="post">
@@ -58,7 +58,7 @@
                         <small class="form-text text-muted">{{ form.title_no.help_text }}</small>
                     </div>
                     <div class="col-md-6">
-                        <label for="{{ form.lot_no.id_for_label }}" class="form-label fw-semibold">Lot Number</label>
+                        <label for="{{ form.lot_no.id_for_label }}" class="form-label fw-semibold">📍 Lot Number</label>
                         {{ form.lot_no }}
                         <small class="form-text text-muted">{{ form.lot_no.help_text }}</small>
                     </div>
@@ -107,7 +107,7 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label fw-semibold"><i class="fas fa-map-pin me-1"></i>Specific Location</label>
-                    <textarea name="loc_specific" class="form-control" rows="3" placeholder="Detailed address or location description..."></textarea>
+                    <textarea name="loc_specific" class="form-control" rows="3" placeholder="Detailed address or location description...">{{ local_info.loc_specific|default:'' }}</textarea>
                     <small class="form-text text-muted">Detailed address or location description</small>
                 </div>
                 <div class="row">
@@ -116,18 +116,21 @@
                         <select name="loc_province" id="provinceSelect" class="form-select">
                             <option value="" selected>Select province...</option>
                         </select>
+                        <input type="hidden" id="savedProvince" value="{{ local_info.loc_province|default:'' }}">
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label fw-semibold"><i class="fas fa-city me-1"></i>City/Municipality</label>
                         <select name="loc_city" id="citySelect" class="form-select" disabled>
                             <option value="" selected>Select city...</option>
                         </select>
+                        <input type="hidden" id="savedCity" value="{{ local_info.loc_city|default:'' }}">
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label fw-semibold"><i class="fas fa-flag me-1"></i>Barangay</label>
                         <select name="loc_barangay" id="barangaySelect" class="form-select" disabled>
                             <option value="" selected>Select barangay...</option>
                         </select>
+                        <input type="hidden" id="savedBarangay" value="{{ local_info.loc_barangay|default:'' }}">
                     </div>
                 </div>
             </div>
@@ -141,17 +144,17 @@
                 <div class="row">
                     <div class="col-md-4 mb-3">
                         <label class="form-label fw-semibold">Registered Owner</label>
-                        <input type="text" name="oi_fullname" class="form-control" placeholder="Full name of the registered owner">
+                        <input type="text" name="oi_fullname" class="form-control" placeholder="Full name of the registered owner" value="{{ owner_info.oi_fullname|default:'' }}">
                         <small class="form-text text-muted">Legal owner as registered in the title</small>
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label fw-semibold">Bank</label>
-                        <input type="text" name="oi_bankname" class="form-control" placeholder="Bank name (if applicable)">
+                        <input type="text" name="oi_bankname" class="form-control" placeholder="Bank name (if applicable)" value="{{ owner_info.oi_bankname|default:'' }}">
                         <small class="form-text text-muted">Bank holding the title (if applicable)</small>
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label fw-semibold">Custody of Title</label>
-                        <input type="text" name="oi_custody_title" class="form-control" placeholder="Who currently holds the title">
+                        <input type="text" name="oi_custody_title" class="form-control" placeholder="Who currently holds the title" value="{{ owner_info.oi_custody_title|default:'' }}">
                         <small class="form-text text-muted">Current custodian of the physical title</small>
                     </div>
                 </div>
@@ -166,26 +169,26 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Encumbrance</label>
-                        <textarea name="fi_encumbrance" class="form-control" rows="3" placeholder="Details of any encumbrances (liens, mortgages, etc.)"></textarea>
+                        <textarea name="fi_encumbrance" class="form-control" rows="3" placeholder="Details of any encumbrances (liens, mortgages, etc.)">{{ financial_info.fi_encumbrance|default:'' }}</textarea>
                         <small class="form-text text-muted">Any liens, mortgages, or other encumbrances</small>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Mortgage Details</label>
-                        <textarea name="fi_mortgage" class="form-control" rows="3" placeholder="Mortgage information and details"></textarea>
+                        <textarea name="fi_mortgage" class="form-control" rows="3" placeholder="Mortgage information and details">{{ financial_info.fi_mortgage|default:'' }}</textarea>
                         <small class="form-text text-muted">Detailed mortgage information</small>
                     </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Borrower/Mortgagor</label>
-                    <input type="text" name="fi_borrower" class="form-control" placeholder="Name of borrower or mortgagor">
+                    <input type="text" name="fi_borrower" class="form-control" placeholder="Name of borrower or mortgagor" value="{{ financial_info.fi_borrower|default:'' }}">
                     <small class="form-text text-muted">Person or entity who borrowed against the property</small>
                 </div>
             </div>
         </div>
 
         <div class="mb-5">
-            <button type="submit" class="btn btn-success px-4 shadow-sm">
-                <i class="fas fa-save me-1"></i> Create Property
+            <button type="submit" class="btn btn-primary px-4 shadow-sm">
+                <i class="fas fa-save me-1"></i> Update Property
             </button>
             <a href="{% url 'property_list' %}" class="btn btn-light px-4 border">Cancel</a>
         </div>
@@ -197,14 +200,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const provinceSelect = document.getElementById('provinceSelect');
     const citySelect = document.getElementById('citySelect');
     const barangaySelect = document.getElementById('barangaySelect');
+    
+    const savedProvince = document.getElementById('savedProvince').value;
+    const savedCity = document.getElementById('savedCity').value;
+    const savedBarangay = document.getElementById('savedBarangay').value;
 
     function resetSelect(select, placeholder, disabled=true) {
         select.innerHTML = `<option value="" selected>${placeholder}</option>`;
         select.disabled = disabled;
     }
 
-    resetSelect(citySelect, 'Select city...', true);
-    resetSelect(barangaySelect, 'Select barangay...', true);
+    // Initial Load
     provinceSelect.innerHTML = `<option value="" selected>Loading provinces...</option>`;
     provinceSelect.disabled = true;
 
@@ -212,85 +218,94 @@ document.addEventListener('DOMContentLoaded', function () {
     fetch("{% url 'get_provinces' %}")
         .then(r => r.json())
         .then(data => {
-            provinceSelect.innerHTML = `<option value="" selected>Select province...</option>`;
+            provinceSelect.innerHTML = `<option value="">Select province...</option>`;
             if (data.error) {
                 console.error(data.error);
                 return;
             }
+            let selectedCode = null;
             data.forEach(p => {
                 const opt = document.createElement('option');
-                opt.value = p.name; // Save name
+                opt.value = p.name;
                 opt.textContent = p.name;
-                opt.dataset.code = p.code; // Use code for next fetch
+                opt.dataset.code = p.code;
+                if (p.name === savedProvince) {
+                    opt.selected = true;
+                    selectedCode = p.code;
+                }
                 provinceSelect.appendChild(opt);
             });
             provinceSelect.disabled = false;
+            
+            // If we have a saved province, trigger city load
+            if (selectedCode) {
+                loadCities(selectedCode, savedCity, savedBarangay);
+            }
         })
         .catch(err => {
             console.error(err);
             provinceSelect.innerHTML = `<option value="">Error loading provinces</option>`;
         });
 
-    // 2. On Province Change -> Fetch Cities
-    provinceSelect.addEventListener('change', function () {
-        const code = this.selectedOptions[0]?.dataset?.code;
-        resetSelect(citySelect, 'Select city...', true);
-        resetSelect(barangaySelect, 'Select barangay...', true);
-        
-        if (!code) return;
-
+    function loadCities(provinceCode, selectedCityName = null, selectedBarangayName = null) {
         citySelect.innerHTML = `<option value="" selected>Loading cities...</option>`;
+        citySelect.disabled = true;
         
-        fetch(`{% url 'get_provinces' %}../cities/${code}/`)
+        fetch(`{% url 'get_provinces' %}../cities/${provinceCode}/`)
             .then(r => r.json())
             .then(data => {
                 resetSelect(citySelect, 'Select city...', false);
-                if (data.error) {
-                    console.error(data.error);
-                    return;
-                }
+                let selectedCode = null;
                 data.forEach(c => {
                     const opt = document.createElement('option');
                     opt.value = c.name;
                     opt.textContent = c.name;
                     opt.dataset.code = c.code;
+                    if (c.name === selectedCityName) {
+                        opt.selected = true;
+                        selectedCode = c.code;
+                    }
                     citySelect.appendChild(opt);
                 });
-            })
-            .catch(err => {
-                console.error(err);
-                resetSelect(citySelect, 'Error loading cities', true);
+                
+                if (selectedCode && selectedBarangayName) {
+                    loadBarangays(selectedCode, selectedBarangayName);
+                }
             });
-    });
+    }
 
-    // 3. On City Change -> Fetch Barangays
-    citySelect.addEventListener('change', function () {
-        const code = this.selectedOptions[0]?.dataset?.code;
-        resetSelect(barangaySelect, 'Select barangay...', true);
-        
-        if (!code) return;
-
+    function loadBarangays(cityCode, selectedBarangayName = null) {
         barangaySelect.innerHTML = `<option value="" selected>Loading barangays...</option>`;
+        barangaySelect.disabled = true;
 
-        fetch(`{% url 'get_provinces' %}../barangays/${code}/`)
+        fetch(`{% url 'get_provinces' %}../barangays/${cityCode}/`)
             .then(r => r.json())
             .then(data => {
                 resetSelect(barangaySelect, 'Select barangay...', false);
-                if (data.error) {
-                    console.error(data.error);
-                    return;
-                }
                 data.forEach(b => {
                     const opt = document.createElement('option');
                     opt.value = b.name;
                     opt.textContent = b.name;
+                    if (b.name === selectedBarangayName) {
+                        opt.selected = true;
+                    }
                     barangaySelect.appendChild(opt);
                 });
-            })
-            .catch(err => {
-                console.error(err);
-                resetSelect(barangaySelect, 'Error loading barangays', true);
             });
+    }
+
+    // Event Listeners for User Interaction
+    provinceSelect.addEventListener('change', function () {
+        const code = this.selectedOptions[0]?.dataset?.code;
+        resetSelect(citySelect, 'Select city...', true);
+        resetSelect(barangaySelect, 'Select barangay...', true);
+        if (code) loadCities(code);
+    });
+
+    citySelect.addEventListener('change', function () {
+        const code = this.selectedOptions[0]?.dataset?.code;
+        resetSelect(barangaySelect, 'Select barangay...', true);
+        if (code) loadBarangays(code);
     });
 });
 </script>
