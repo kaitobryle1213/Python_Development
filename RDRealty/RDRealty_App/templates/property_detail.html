@@ -11,6 +11,48 @@
         content: "" !important;
         padding: 0 !important;
     }
+    
+    /* Custom Tab Styles */
+    .nav-tabs {
+        border-bottom: 2px solid #e2e8f0;
+        gap: 20px;
+    }
+    
+    .nav-tabs .nav-link {
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: #64748b;
+        font-weight: 500;
+        padding: 10px 5px;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        color: #0f172a;
+        border-color: #cbd5e1;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: #0f172a;
+        background: none;
+        border-bottom: 2px solid #0f172a;
+        font-weight: 600;
+    }
+    
+    .nav-tabs .nav-link .badge {
+        font-weight: 500;
+        font-size: 0.75em;
+    }
+    
+    .document-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .document-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    }
 </style>
 
 <li class="breadcrumb-item d-flex align-items-center">
@@ -34,10 +76,16 @@
 
 {% block content %}
 <div class="container-fluid pt-4">
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="fw-bold"><i class="fas fa-building me-2"></i>Property Detail: {{ property.title_no }}</h1>
-            <p class="text-muted">View property information and details</p>
+            <h1 class="fw-bold"><i class="fas fa-building me-2"></i>{{ property.title_no }}</h1>
+            <p class="text-muted mb-0">
+                <span class="me-3"><i class="fas fa-map-marker-alt me-1"></i>Lot {{ property.lot_no }}</span>
+                <span class="badge bg-light text-dark border rounded-pill">
+                    {{ property.get_title_classification_display }}
+                </span>
+            </p>
         </div>
         <div>
             <a href="{% url 'property_update' pk=property.pk %}" class="btn btn-warning shadow-sm">
@@ -49,180 +97,263 @@
         </div>
     </div>
 
-    <div class="card mb-4 shadow-sm border-0">
-        <div class="card-header bg-white py-3">
-            <h3 class="h5 mb-0 text-dark fw-bold">Basic Information</h3>
-        </div>
-        <div class="card-body">
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold text-muted"><i class="fas fa-hashtag me-1"></i>Title Number</label>
-                    <p class="fw-bold">{{ property.title_no }}</p>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold text-muted"><i class="fas fa-map-marker-alt me-1"></i>Lot Number</label>
-                    <p class="fw-bold">{{ property.lot_no }}</p>
-                </div>
-            </div>
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs mb-4" id="propertyTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
+                <i class="far fa-file-alt me-2"></i>Overview
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab" aria-controls="documents" aria-selected="false">
+                <i class="far fa-folder-open me-2"></i>Documents
+                <span class="badge bg-secondary ms-2 rounded-pill bg-opacity-25 text-dark">{{ supporting_docs|length }}</span>
+            </button>
+        </li>
+    </ul>
 
-            <div class="row mb-3">
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold text-muted"><i class="fas fa-ruler-combined me-1"></i>Lot Area (sqm)</label>
-                    <p class="fw-bold">{{ property.lot_area|intcomma }}</p>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold text-muted"><i class="fas fa-tag me-1"></i>Classification</label>
-                    <p>
-                        <span class="badge bg-light text-dark border rounded-pill px-3">
-                            <i class="{{ property.title_classification|get_classification_icon }} me-1"></i> {{ property.get_title_classification_display }}
-                        </span>
-                    </p>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold text-muted"><i class="fas fa-info-circle me-1"></i>Status</label>
-                    <p>
-                        <span class="status-badge {{ property.title_status|get_status_color }}">
-                            {{ property.get_title_status_display }}
-                        </span>
-                    </p>
-                </div>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label fw-semibold text-muted"><i class="fas fa-align-left me-1"></i>Description</label>
-                <div class="p-3">
-                    {{ property.title_description|default:"No description provided."|linebreaksbr }}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card mb-4 shadow-sm border-0">
-        <div class="card-header bg-white py-3 border-bottom-0">
-            <h3 class="h5 mb-0 text-dark fw-bold"><i class="fas fa-location-dot me-2"></i>Location Information</h3>
-        </div>
-        <div class="card-body pt-0">
-            {% if local_info %}
-            <div class="mb-4">
-                <div class="text-muted small mb-1">Specific Location</div>
-                <div class="fw-normal">{{ local_info.loc_specific|default:"-" }}</div>
-            </div>
+    <!-- Tabs Content -->
+    <div class="tab-content" id="propertyTabsContent">
+        
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
             <div class="row">
-                <div class="col-md-4 mb-3">
-                    <div class="text-muted small mb-1">Barangay</div>
-                    <div class="fw-bold">{{ local_info.loc_barangay|default:"-" }}</div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <div class="text-muted small mb-1">City</div>
-                    <div class="fw-bold">{{ local_info.loc_city|default:"-" }}</div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <div class="text-muted small mb-1">Province</div>
-                    <div class="fw-bold">{{ local_info.loc_province|default:"-" }}</div>
-                </div>
-            </div>
-            {% else %}
-            <div class="text-center py-4 text-muted">
-                <i class="fas fa-map-marked-alt fa-3x mb-3"></i>
-                <p>No location information available.</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
+                <div class="col-lg-8">
+                    <!-- Basic Information -->
+                    <div class="card mb-4 shadow-sm border-0">
+                        <div class="card-header bg-white py-3">
+                            <h3 class="h5 mb-0 text-dark fw-bold">Basic Information</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Title Number</label>
+                                    <p class="fw-bold fs-5">{{ property.title_no }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Lot Number</label>
+                                    <p class="fw-bold fs-5">{{ property.lot_no }}</p>
+                                </div>
+                            </div>
 
-    <div class="card mb-4 shadow-sm border-0">
-        <div class="card-header bg-white py-3 border-bottom-0">
-            <h3 class="h5 mb-0 text-dark fw-bold"><i class="far fa-user me-2"></i>Owner Information</h3>
-        </div>
-        <div class="card-body pt-0">
-            {% if owner_info %}
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <div class="text-muted small mb-1">Registered Owner</div>
-                    <div class="fw-bold">{{ owner_info.oi_fullname|default:"-" }}</div>
-                </div>
-                <div class="col-md-6">
-                    <div class="text-muted small mb-1">Bank</div>
-                    <div class="fw-bold">{{ owner_info.oi_bankname|default:"-" }}</div>
-                </div>
-            </div>
-            <div class="mb-3">
-                <div class="text-muted small mb-1">Custody of Title</div>
-                <div class="fw-bold">{{ owner_info.oi_custody_title|default:"-" }}</div>
-            </div>
-            {% else %}
-            <div class="text-center py-4 text-muted">
-                <i class="far fa-user fa-3x mb-3"></i>
-                <p>No owner information available.</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    <div class="card mb-4 shadow-sm border-0">
-        <div class="card-header bg-white py-3 border-bottom-0">
-            <h3 class="h5 mb-0 text-dark fw-bold"><i class="far fa-file-alt me-2"></i>Financial Information</h3>
-        </div>
-        <div class="card-body pt-0">
-            {% if financial_info %}
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <div class="text-muted small mb-1">Encumbrance</div>
-                    <div class="fw-bold">{{ financial_info.fi_encumbrance|default:"-" }}</div>
-                </div>
-                <div class="col-md-6">
-                    <div class="text-muted small mb-1">Mortgage Details</div>
-                    <div class="fw-bold">{{ financial_info.fi_mortgage|default:"-" }}</div>
-                </div>
-            </div>
-            <div class="mb-3">
-                <div class="text-muted small mb-1">Borrower/Mortgagor</div>
-                <div class="fw-bold">{{ financial_info.fi_borrower|default:"-" }}</div>
-            </div>
-            {% else %}
-            <div class="text-center py-4 text-muted">
-                <i class="far fa-file-alt fa-3x mb-3"></i>
-                <p>No financial information available.</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Lot Area (sqm)</label>
+                                    <p class="fw-bold">{{ property.lot_area|intcomma }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Classification</label>
+                                    <p>
+                                        <span class="badge bg-light text-dark border rounded-pill px-3">
+                                            <i class="{{ property.title_classification|get_classification_icon }} me-1"></i> {{ property.get_title_classification_display }}
+                                        </span>
+                                    </p>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Status</label>
+                                    <p>
+                                        <span class="status-badge {{ property.title_status|get_status_color }}">
+                                            {{ property.get_title_status_display }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-muted small text-uppercase">Description</label>
+                                <div class="p-3 bg-light rounded border-0">
+                                    {{ property.title_description|default:"No description provided."|linebreaksbr }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-    <div class="card mb-4 shadow-sm border-0">
-        <div class="card-header bg-white py-3 border-bottom-0">
-            <h3 class="h5 mb-0 text-dark fw-bold"><i class="fas fa-info-circle me-2"></i>Additional Information</h3>
-        </div>
-        <div class="card-body pt-0">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <div class="text-muted small mb-1">Remarks</div>
-                    <div class="p-3">
-                        {{ additional_info.ai_remarks|default:"No remarks provided."|linebreaksbr }}
+                    <!-- Financial & Remarks -->
+                    <div class="card mb-4 shadow-sm border-0">
+                        <div class="card-header bg-white py-3">
+                            <h3 class="h5 mb-0 text-dark fw-bold">Financial & Additional Info</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="text-muted small text-uppercase mb-1">Encumbrance</div>
+                                    <div class="fw-bold">{{ financial_info.fi_encumbrance|default:"-" }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="text-muted small text-uppercase mb-1">Mortgage Details</div>
+                                    <div class="fw-bold">{{ financial_info.fi_mortgage|default:"-" }}</div>
+                                </div>
+                            </div>
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="text-muted small text-uppercase mb-1">Borrower/Mortgagor</div>
+                                    <div class="fw-bold">{{ financial_info.fi_borrower|default:"-" }}</div>
+                                </div>
+                            </div>
+                            <div class="border-top pt-3">
+                                <div class="text-muted small text-uppercase mb-2">Remarks</div>
+                                <div class="p-3 bg-light rounded">
+                                    {{ additional_info.ai_remarks|default:"No remarks provided."|linebreaksbr }}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <div class="text-muted small mb-1"><i class="fas fa-paperclip me-1"></i>Supporting Documents</div>
-                    {% if supporting_docs %}
-                    <ul class="list-group list-group-flush shadow-sm rounded">
+
+                <div class="col-lg-4">
+                    <!-- Location Info -->
+                    <div class="card mb-4 shadow-sm border-0">
+                        <div class="card-header bg-white py-3">
+                            <h3 class="h5 mb-0 text-dark fw-bold"><i class="fas fa-location-dot me-2 text-muted"></i>Location</h3>
+                        </div>
+                        <div class="card-body">
+                            {% if local_info %}
+                            <div class="mb-3">
+                                <div class="text-muted small text-uppercase mb-1">Specific Location</div>
+                                <div class="fw-medium">{{ local_info.loc_specific|default:"-" }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted small text-uppercase mb-1">Barangay</div>
+                                <div class="fw-medium">{{ local_info.loc_barangay|default:"-" }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted small text-uppercase mb-1">City</div>
+                                <div class="fw-medium">{{ local_info.loc_city|default:"-" }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted small text-uppercase mb-1">Province</div>
+                                <div class="fw-medium">{{ local_info.loc_province|default:"-" }}</div>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4 text-muted">
+                                <p class="mb-0">No location info.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Owner Info -->
+                    <div class="card mb-4 shadow-sm border-0">
+                        <div class="card-header bg-white py-3">
+                            <h3 class="h5 mb-0 text-dark fw-bold"><i class="far fa-user me-2 text-muted"></i>Owner</h3>
+                        </div>
+                        <div class="card-body">
+                            {% if owner_info %}
+                            <div class="mb-3">
+                                <div class="text-muted small text-uppercase mb-1">Registered Owner</div>
+                                <div class="fw-bold">{{ owner_info.oi_fullname|default:"-" }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted small text-uppercase mb-1">Bank</div>
+                                <div class="fw-medium">{{ owner_info.oi_bankname|default:"-" }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted small text-uppercase mb-1">Custody of Title</div>
+                                <div class="fw-medium">{{ owner_info.oi_custody_title|default:"-" }}</div>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4 text-muted">
+                                <p class="mb-0">No owner info.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Documents Tab -->
+        <div class="tab-pane fade" id="documents" role="tabpanel" aria-labelledby="documents-tab">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="h5 mb-0 text-dark fw-bold">Document Library</h3>
+                        <p class="text-muted small mb-0">View and manage attached documents</p>
+                    </div>
+                    <a href="{% url 'property_update' pk=property.pk %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i> Upload Document
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- Search & Filter (Visual) -->
+                    <div class="row mb-4 g-2">
+                        <div class="col-md-8">
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                <input type="text" class="form-control border-start-0 bg-light" placeholder="Search by file name..." id="docSearch">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select bg-light">
+                                <option>All Types</option>
+                                <option>PDF</option>
+                                <option>Images</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Documents Grid -->
+                    <div class="row g-3" id="docList">
                         {% for doc in supporting_docs %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <a href="{{ doc.file.url }}" target="_blank" class="text-decoration-none text-truncate" style="max-width: 80%;">
-                                <i class="fas fa-file-pdf text-danger me-2"></i>{{ doc.file.name }}
-                            </a>
-                            <a href="{{ doc.file.url }}" download class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-download"></i>
-                            </a>
-                        </li>
+                        <div class="col-md-4 col-lg-3 doc-item">
+                            <div class="card h-100 border document-card">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-start mb-3">
+                                        <div class="bg-light rounded p-3 me-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                            <i class="fas fa-file-alt text-primary fa-lg"></i>
+                                        </div>
+                                        <div class="overflow-hidden">
+                                            <h6 class="text-truncate mb-1 fw-bold" title="{{ doc.file.name }}">{{ doc.file.name }}</h6>
+                                            <small class="text-muted d-block">{{ doc.uploaded_at|date:"M d, Y" }}</small>
+                                            <span class="badge bg-light text-secondary border mt-1">FILE</span>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2 mt-auto">
+                                        <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-secondary flex-grow-1">
+                                            <i class="far fa-eye me-1"></i>View
+                                        </a>
+                                        <a href="{{ doc.file.url }}" download class="btn btn-sm btn-outline-primary flex-grow-1">
+                                            <i class="fas fa-download me-1"></i>Download
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center py-5">
+                            <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                                <i class="far fa-folder-open fa-2x text-muted"></i>
+                            </div>
+                            <h5 class="text-muted">No documents found</h5>
+                            <p class="text-muted small">Upload documents via the Edit Property page.</p>
+                        </div>
                         {% endfor %}
-                    </ul>
-                    {% else %}
-                    <div class="p-3 border border-dashed rounded text-center text-muted">
-                        <i class="fas fa-folder-open fa-2x mb-2"></i>
-                        <p class="mb-0 small">No documents attached.</p>
                     </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    // Simple Client-side Search for Documents
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('docSearch');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function() {
+                const value = this.value.toLowerCase();
+                const items = document.querySelectorAll('.doc-item');
+                
+                items.forEach(function(item) {
+                    const text = item.textContent.toLowerCase();
+                    if (text.indexOf(value) > -1) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+</script>
 {% endblock content %}
