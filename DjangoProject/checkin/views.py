@@ -1,30 +1,47 @@
-# checkin/views.py
-
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import CheckIn, Company 
 from django.views.decorators.http import require_http_methods
 from decimal import Decimal, InvalidOperation
-from .forms import CompanyForm # Ensure this Form is defined
-from django.http import HttpResponse
+from .forms import CompanyForm, CustomUserCreationForm, UserEditForm # Ensure this Form is defined
+from django.http import HttpResponse, HttpResponseForbidden
 from .filters import CheckInFilter
 import csv
 from datetime import datetime
 from django.urls import reverse # Required for redirects if not using name directly
+from django.core.paginator import Paginator
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.models import User
+from django import forms
 
 # Define the exact format string matching the JavaScript output: 'Dec 03, 2025 15:50'
 CLIENT_DATETIME_FORMAT = '%b %d, %Y %H:%M'
 
+def is_admin(user):
+    return user.is_authenticated and user.is_staff
 
+@login_required
 @require_http_methods(["GET", "POST"])
 def checkin_view(request):
     """Handles the display and submission of the CheckIn form."""
     error_message = None
     companies = Company.objects.all()
+    
+    # Auto-fill data from logged-in user
+    user = request.user
+    # Get Employee ID from profile (safely handle missing profile)
+    try:
+        user_employee_id = user.userprofile.employee_id
+    except Exception: # Catch RelatedObjectDoesNotExist or other errors
+        user_employee_id = ''
+        
+    user_full_name = user.get_full_name()
 
     if request.method == 'POST':
         # 1. Retrieve data
-        name = request.POST.get('employee_name')
-        id_num = request.POST.get('employee_id')
+        # NOTE: employee_name and employee_id are now disabled in the form, so we use the user data directly.
+        name = user_full_name
+        id_num = user_employee_id
+        
         lat_str = request.POST.get('location_lat')
         lon_str = request.POST.get('location_lon')
         selfie = request.FILES.get('selfie_photo')
@@ -35,8 +52,9 @@ def checkin_view(request):
         client_timestamp_str = request.POST.get('client_timestamp')
 
         # 2. Validation (Updated to include current_location_id and client_timestamp_str)
+        # Check name/id_num availability in case user profile is incomplete
         if not all([name, id_num, lat_str, lon_str, selfie, company_id, current_location_id, client_timestamp_str]):
-            error_message = 'Submission failed: All fields, including the timestamp, are required.'
+            error_message = 'Submission failed: Missing required fields. Please ensure your profile has a Full Name and Employee ID.'
         else:
             try:
                 # Retrieve the Company objects
@@ -68,7 +86,8 @@ def checkin_view(request):
                         location_lat=lat,
                         location_lon=lon,
                         selfie_photo=selfie,
-                        timestamp=client_dt  # CRITICAL CHANGE: Use the parsed client time
+                        timestamp=client_dt,  # CRITICAL CHANGE: Use the parsed client time
+                        user=request.user # Associate with the logged-in user
                     )
                     return redirect('checkin_success', pk=new_checkin.pk)
 
@@ -84,7 +103,9 @@ def checkin_view(request):
     # Final Render
     context = {
         'companies': companies,
-        'error_message': error_message
+        'error_message': error_message,
+        'auto_employee_id': user_employee_id,
+        'auto_employee_name': user_full_name
     }
     return render(request, 'checkin/checkin_form.html', context)
 
@@ -102,9 +123,11 @@ def checkin_success_view(request, pk):
 
 
 # ----------------------------------------------------------------------
-# EXISTING VIEW: COMPANY MANAGEMENT (No changes needed here)
+# EXISTING VIEW: COMPANY MANAGEMENT (Restricted to Admin)
 # ----------------------------------------------------------------------
 
+@login_required
+@user_passes_test(is_admin)
 def company_list_view(request):
     """Handles company creation and displays existing companies."""
     form = CompanyForm()
@@ -126,6 +149,8 @@ def company_list_view(request):
 # ⭐ NEW VIEW: COMPANY EDIT/UPDATE
 # ----------------------------------------------------------------------
 
+@login_required
+@user_passes_test(is_admin)
 @require_http_methods(["GET", "POST"])
 def company_edit_view(request, pk):
     """Handles editing an existing Company object."""
@@ -155,6 +180,8 @@ def company_edit_view(request, pk):
 # ⭐ NEW VIEW: COMPANY DELETE
 # ----------------------------------------------------------------------
 
+@login_required
+@user_passes_test(is_admin)
 @require_http_methods(["GET", "POST"])
 def company_delete_view(request, pk):
     """Handles the deletion of a Company object."""
@@ -175,34 +202,56 @@ def company_delete_view(request, pk):
 
 
 # ----------------------------------------------------------------------
-# EXISTING VIEW: REPORT & FILTERING (No changes needed here)
+# EXISTING VIEW: REPORT & FILTERING (Updated for Access Control)
 # ----------------------------------------------------------------------
 
+@login_required
 def checkin_report_view(request):
     """
     Displays the CheckIn records and allows filtering.
     """
     # Instantiate the filter using the request GET parameters
-    filter = CheckInFilter(request.GET, queryset=CheckIn.objects.all().order_by('-timestamp'))
+    # Optimized query with select_related
+    queryset = CheckIn.objects.select_related('company', 'current_location').all().order_by('-timestamp')
+    
+    # Restrict data for non-admin users
+    if not request.user.is_staff:
+        queryset = queryset.filter(user=request.user)
+
+    filter = CheckInFilter(request.GET, queryset=queryset)
+    
+    # Pagination
+    paginator = Paginator(filter.qs, 20) # Show 20 records per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
 
     context = {
         'filter': filter,
-        'records': filter.qs  # The filtered queryset results
+        'records': page_obj,  # The filtered queryset results (paginated)
+        'is_paginated': True,
+        'page_obj': page_obj
     }
     return render(request, 'checkin/checkin_report.html', context)
 
 
 # ----------------------------------------------------------------------
-# EXISTING VIEW: EXPORT TO CSV (EXCEL) (No changes needed here)
+# EXISTING VIEW: EXPORT TO CSV (EXCEL) (Updated for Access Control)
 # ----------------------------------------------------------------------
 
+@login_required
 def export_checkin_csv(request):
     """
     Exports filtered data to a CSV file (compatible with Excel).
     """
 
     # Use the same filter logic to ensure exported data matches the report view's filters
-    filter = CheckInFilter(request.GET, queryset=CheckIn.objects.all().order_by('-timestamp'))
+    queryset = CheckIn.objects.select_related('company', 'current_location').all().order_by('-timestamp')
+    
+    # Restrict data for non-admin users
+    if not request.user.is_staff:
+        queryset = queryset.filter(user=request.user)
+
+    filter = CheckInFilter(request.GET, queryset=queryset)
     records = filter.qs
 
     # HTTP Response setup for CSV file download
@@ -237,3 +286,61 @@ def export_checkin_csv(request):
         ])
 
     return response
+
+# ----------------------------------------------------------------------
+# ⭐ NEW VIEWS: USER MANAGEMENT
+# ----------------------------------------------------------------------
+
+
+
+@login_required
+@user_passes_test(is_admin)
+def user_list_view(request):
+    users = User.objects.all().order_by('username')
+    return render(request, 'checkin/user_list.html', {'users': users})
+
+@login_required
+@user_passes_test(is_admin)
+def user_create_view(request):
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('user_list')
+    else:
+        form = CustomUserCreationForm()
+    return render(request, 'checkin/user_form.html', {'form': form, 'title': 'Create User'})
+
+@login_required
+def user_edit_view(request, pk):
+    user_obj = get_object_or_404(User, pk=pk)
+    
+    # Permission Check:
+    # 1. Admin can edit anyone.
+    # 2. Standard user can ONLY edit themselves.
+    if not request.user.is_staff and request.user.pk != user_obj.pk:
+         return HttpResponseForbidden("You are not allowed to edit this user.")
+
+    if request.method == 'POST':
+        form = UserEditForm(request.POST, instance=user_obj, request_user=request.user)
+        if form.is_valid():
+            form.save()
+            if request.user.is_staff:
+                return redirect('user_list')
+            else:
+                return redirect('checkin_form')
+    else:
+        # Initialize is_staff from the user object
+        initial_data = {'is_staff': user_obj.is_staff}
+        form = UserEditForm(instance=user_obj, initial=initial_data, request_user=request.user)
+        
+    return render(request, 'checkin/user_form.html', {'form': form, 'title': 'Edit User'})
+
+@login_required
+@user_passes_test(is_admin)
+def user_delete_view(request, pk):
+    user_obj = get_object_or_404(User, pk=pk)
+    if request.method == 'POST':
+        user_obj.delete()
+        return redirect('user_list')
+    return render(request, 'checkin/user_confirm_delete.html', {'user_obj': user_obj})

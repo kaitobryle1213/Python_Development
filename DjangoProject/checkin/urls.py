@@ -20,4 +20,10 @@ urlpatterns = [
     # Report & Export
     path('report/', views.checkin_report_view, name='checkin_report'),    # Report display
     path('report/export/csv/', views.export_checkin_csv, name='export_checkin_csv'),    # Export action
+
+    # User Management (Admin Only)
+    path('users/', views.user_list_view, name='user_list'),
+    path('users/add/', views.user_create_view, name='user_add'),
+    path('users/edit/<int:pk>/', views.user_edit_view, name='user_edit'),
+    path('users/delete/<int:pk>/', views.user_delete_view, name='user_delete'),
 ]

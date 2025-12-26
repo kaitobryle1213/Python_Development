@@ -1,0 +1,56 @@
+{% extends "checkin/base.html" %}
+
+{% block title %}Login - RD Corp PLS{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-soft">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-0 text-center">
+                <h3 class="mb-1">Welcome Back</h3>
+                <p class="text-muted">Sign in to your account</p>
+            </div>
+            <div class="card-body p-4">
+                {% if form.errors %}
+                    <div class="alert alert-danger" role="alert">
+                        Your username and password didn't match. Please try again.
+                    </div>
+                {% endif %}
+
+                {% if next %}
+                    {% if user.is_authenticated %}
+                        <div class="alert alert-warning" role="alert">
+                            Your account doesn't have access to this page. To proceed,
+                            please login with an account that has access.
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info" role="alert">
+                            Please login to see this page.
+                        </div>
+                    {% endif %}
+                {% endif %}
+
+                <form method="post" action="{% url 'login' %}">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
+                        <input type="text" name="username" class="form-control form-control-lg" autofocus autocapitalize="none" autocomplete="username" maxlength="150" required id="{{ form.username.id_for_label }}">
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="{{ form.password.id_for_label }}" class="form-label">Password</label>
+                        <input type="password" name="password" class="form-control form-control-lg" autocomplete="current-password" required id="{{ form.password.id_for_label }}">
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
+                    </div>
+                    
+                    <input type="hidden" name="next" value="{{ next }}">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

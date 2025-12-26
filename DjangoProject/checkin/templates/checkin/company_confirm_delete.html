@@ -1,0 +1,27 @@
+{% extends "checkin/base.html" %}
+
+{% block title %}Confirm Delete - RD Corp PLS{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-soft border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Confirm Deletion</h4>
+            </div>
+            <div class="card-body p-4 text-center">
+                <p class="lead mb-4">Are you sure you want to delete company <strong>{{ company.name }}</strong>?</p>
+                <p class="text-muted mb-4">This will also delete all associated check-in records. This action cannot be undone.</p>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-block">
+                        <a href="{% url 'company_list' %}" class="btn btn-light btn-lg px-4 me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-danger btn-lg px-4">Delete Company</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

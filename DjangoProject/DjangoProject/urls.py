@@ -7,6 +7,8 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # Authentication URLs (login, logout, password change, etc.)
+    path('accounts/', include('django.contrib.auth.urls')),
     # Map the root URL to your checkin app
     path('', include('checkin.urls')), 
 ]

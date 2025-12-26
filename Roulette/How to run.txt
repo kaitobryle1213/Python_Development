@@ -1,3 +1,0 @@
-Open Terminal
-cd C:\Users\RDCorp\PycharmProjects\PythonProject\Roulette
-streamlit run app.py

@@ -1,2 +1,0 @@
-[2025-12-03 08:08:33] IP: 120.72.18.41 | Location: Country: Philippines, Region: Soccsksargen, City: General Santos | Coords: Lat: 6.1123, Lon: 125.1713 | ISP: DC Tech Micro Services Inc.
-[2025-12-03 08:11:04] IP: 120.72.18.41 | Location: Country: Philippines, Region: Soccsksargen, City: General Santos | Coords: Lat: 6.1123, Lon: 125.1713 | ISP: DC Tech Micro Services Inc. | Map URL: https://www.google.com/maps/search/?api=1&query=6.1123,125.1713

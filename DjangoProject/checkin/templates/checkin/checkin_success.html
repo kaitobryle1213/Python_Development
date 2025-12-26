@@ -1,25 +1,31 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Success!</title>
-    <style>
-        body { font-family: sans-serif; padding: 50px; text-align: center; }
-        .success-box {
-            max-width: 400px; margin: 0 auto; padding: 30px;
-            border: 2px solid #10b981; border-radius: 10px;
-            background-color: #f0fff4;
-        }
-        h1 { color: #10b981; }
-        a { color: #4f46e5; text-decoration: none; font-weight: bold; }
-        a:hover { text-decoration: underline; }
-    </style>
-</head>
-<body>
-    <div class="success-box">
-        <h1>✅ Success!</h1>
-        <p>Your PLS record has been successfully saved to the database.</p>
-        <p>Thank you.</p>
-        <p><a href="{% url 'checkin_form' %}">Click here to submit another record.</a></p>
+{% extends 'checkin/base.html' %}
+
+{% block title %}Success - RD Corp PLS{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
+    <div class="card shadow-lg border-0 text-center p-5" style="max-width: 500px;">
+        <div class="mb-4">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success bg-opacity-10 p-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" class="bi bi-check-lg text-success" viewBox="0 0 16 16">
+                    <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z"/>
+                </svg>
+            </div>
+        </div>
+        
+        <h2 class="mb-3 fw-bold text-dark">Submission Successful!</h2>
+        <p class="text-secondary mb-4">
+            Your Personnel Location Slip (PLS) record has been securely saved to the database.
+        </p>
+
+        <div class="d-grid gap-2">
+            <a href="{% url 'checkin_form' %}" class="btn btn-primary btn-lg shadow-sm">
+                Submit Another Record
+            </a>
+            <a href="{% url 'checkin_report' %}" class="btn btn-link text-decoration-none text-secondary">
+                View Reports
+            </a>
+        </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}
