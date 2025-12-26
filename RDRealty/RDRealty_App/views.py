@@ -522,35 +522,58 @@ def logout_view(request):
     auth_logout(request)
     return redirect('login')
 
-# --- 7. PH LOCATIONS API (Proxy) ---
+# --- 7. PH LOCATIONS API (Local JSON) ---
+LOCATIONS_DATA = None
+
+def load_locations_data():
+    global LOCATIONS_DATA
+    if LOCATIONS_DATA is None:
+        try:
+            file_path = os.path.join(settings.BASE_DIR, 'RDRealty_App', 'static', 'data', 'ph_location.json')
+            with open(file_path, 'r', encoding='utf-8') as f:
+                LOCATIONS_DATA = json.load(f)
+        except Exception as e:
+            print(f"Error loading locations data: {e}")
+            LOCATIONS_DATA = {"provinces": []}
+    return LOCATIONS_DATA
+
 def get_provinces(request):
     try:
-        url = 'https://psgc.gitlab.io/api/provinces/'
-        with urlopen(url) as response:
-            data = json.loads(response.read().decode('utf-8'))
-        # Sort by name
-        data.sort(key=lambda x: x['name'])
-        return JsonResponse(data, safe=False)
+        data = load_locations_data()
+        # Return provinces without nested cities to keep payload small
+        provinces = [{k: v for k, v in p.items() if k != 'cities'} for p in data.get('provinces', [])]
+        return JsonResponse(provinces, safe=False)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
 def get_cities(request, province_code):
     try:
-        url = f'https://psgc.gitlab.io/api/provinces/{province_code}/cities-municipalities/'
-        with urlopen(url) as response:
-            data = json.loads(response.read().decode('utf-8'))
-        data.sort(key=lambda x: x['name'])
-        return JsonResponse(data, safe=False)
+        data = load_locations_data()
+        # Find the province
+        province = next((p for p in data.get('provinces', []) if p['code'] == province_code), None)
+        
+        if province:
+            # Return cities without nested barangays
+            cities = [{k: v for k, v in c.items() if k != 'barangays'} for c in province.get('cities', [])]
+            return JsonResponse(cities, safe=False)
+        else:
+            return JsonResponse([], safe=False)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
 def get_barangays(request, city_code):
     try:
-        url = f'https://psgc.gitlab.io/api/cities-municipalities/{city_code}/barangays/'
-        with urlopen(url) as response:
-            data = json.loads(response.read().decode('utf-8'))
-        data.sort(key=lambda x: x['name'])
-        return JsonResponse(data, safe=False)
+        data = load_locations_data()
+        # We need to find the city. Iterate provinces then cities.
+        # This might be slightly slow but acceptable for in-memory data.
+        # Optimization: could build a map, but let's keep it simple first.
+        
+        for p in data.get('provinces', []):
+            for c in p.get('cities', []):
+                if c['code'] == city_code:
+                    return JsonResponse(c.get('barangays', []), safe=False)
+        
+        return JsonResponse([], safe=False)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 # --- 6. USER MANAGEMENT (CRUD) ---
