@@ -37,21 +37,18 @@ class DashboardView(TemplateView):
         context['total_properties'] = Property.objects.count()
         
         # -----------------------------------------------------------------
-        # --- 2. MONTHLY ADDITIONS LOGIC (KEPT) ---
+        # --- 2. MONTHLY ADDITIONS LOGIC (UPDATED) ---
+        # Using filter instead of TruncMonth to avoid DB timezone issues
         # -----------------------------------------------------------------
-        monthly_data = Property.objects.annotate(
-            month_year=TruncMonth('date_added')
-        ).values('month_year').annotate(
-            count=Count('id')
-        ).order_by('-month_year')
+        current_date = timezone.localdate()
+        current_year = current_date.year
+        current_month = current_date.month
 
-        current_month = date.today().replace(day=1)
-        current_month_count = 0
-        
-        for item in monthly_data:
-            if item['month_year'].date() == current_month:
-                current_month_count = item['count']
-                break
+        # Filter properties added in the current month and year
+        current_month_count = Property.objects.filter(
+            date_added__year=current_year,
+            date_added__month=current_month
+        ).count()
         
         context['current_month_added'] = current_month_count
         
@@ -440,21 +437,29 @@ def global_search(request):
             })
 
         # Search User Management
-        users = User.objects.filter(
+        # Include Profile full_name in search
+        users = User.objects.select_related('profile').filter(
             Q(username__icontains=query) |
             Q(first_name__icontains=query) |
             Q(last_name__icontains=query) |
-            Q(email__icontains=query)
+            Q(email__icontains=query) |
+            Q(profile__full_name__icontains=query)
         )[:5]
 
         for user in users:
             role = "Admin" if user.is_staff else "User"
+            status = "Active" if user.is_active else "Inactive"
+            # Try to get full name from profile, fallback to first/last or username
+            full_name = user.username
+            if hasattr(user, 'profile') and user.profile.full_name:
+                full_name = user.profile.full_name
+            
             results.append({
                 'category': 'User Management',
-                'title': user.username,
-                'description': f"{role} - {user.email}",
+                'title': full_name, # Show Fullname as main title as requested
+                'description': f"{user.username} | {role} | {status}",
                 # Use update URL if user is admin, else maybe list? Using update for now as it's the "detail" view
-                'url': str(reverse_lazy('user_update', kwargs={'user_id': user.id}))
+                'url': str(reverse_lazy('user_view', kwargs={'user_id': user.id}))
             })
             
     return JsonResponse({'results': results})

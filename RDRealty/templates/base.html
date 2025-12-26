@@ -930,16 +930,36 @@
         const notificationDot = document.getElementById('notificationDot');
         const markAllAsReadBtn = document.getElementById('markAllAsRead');
         const clearNotificationsBtn = document.getElementById('clearNotifications');
-        const STORAGE_KEY_READ = 'rd_notif_last_read';
-        const STORAGE_KEY_CLEARED = 'rd_notif_cleared_up_to';
+        
+        // User-specific storage keys
+        const currentUserId = "{{ request.user.id|default:'' }}";
+        const STORAGE_KEY_READ = currentUserId ? `rd_notif_read_${currentUserId}` : 'rd_notif_read_anon';
+        const STORAGE_KEY_CLEARED = currentUserId ? `rd_notif_cleared_${currentUserId}` : 'rd_notif_cleared_anon';
+        
         let latestNotificationId = null;
+
+        // Legacy cleanup (optional, to keep storage clean from old global keys)
+        // localStorage.removeItem('rd_notif_last_read');
+        // localStorage.removeItem('rd_notif_cleared_up_to');
 
         function renderNotifications(data) {
             const items = data.notifications || [];
             const lastReadRaw = localStorage.getItem(STORAGE_KEY_READ);
-            const clearedRaw = localStorage.getItem(STORAGE_KEY_CLEARED);
+            // Get the list of individually cleared notification IDs
+            const clearedListRaw = localStorage.getItem(STORAGE_KEY_CLEARED); 
+            // We'll now use STORAGE_KEY_CLEARED to store a JSON array of cleared IDs, not just a "cleared up to" number
+            let clearedIds = [];
+            try {
+                clearedIds = JSON.parse(clearedListRaw);
+                if (!Array.isArray(clearedIds)) {
+                    // Migration from old logic (single number) to new logic (array)
+                    clearedIds = []; 
+                }
+            } catch (e) {
+                clearedIds = [];
+            }
+
             const lastRead = lastReadRaw ? parseInt(lastReadRaw, 10) : 0;
-            const clearedUpTo = clearedRaw ? parseInt(clearedRaw, 10) : 0;
 
             if (items.length === 0) {
                 notificationList.innerHTML = '<div class="notification-empty">No recent notifications.</div>';
@@ -947,9 +967,9 @@
                 return;
             }
 
+            // Filter out items that are in the clearedIds list
             const visibleItems = items.filter(item => {
-                const idNum = typeof item.id === 'number' ? item.id : parseInt(item.id, 10);
-                return !isNaN(idNum) && idNum > clearedUpTo;
+                return !clearedIds.includes(item.id);
             });
 
             if (visibleItems.length === 0) {
@@ -973,44 +993,96 @@
                 const unreadClass = isUnread ? 'notification-item-unread' : '';
                 html += `
                     <div class="notification-item ${unreadClass}" data-url="${item.url || ''}" data-id="${item.id}">
-                        <div class="notification-item-inner">
+                        <div class="notification-item-inner align-items-start">
                             <div class="notification-icon ${iconClass}">
                                 <i class="fas ${iconFa}"></i>
                             </div>
                             <div class="flex-grow-1">
-                                <div class="notification-item-message">${item.message}</div>
+                                <div class="notification-item-message pe-3">${item.message}</div>
                                 <div class="notification-item-meta">
                                     ${categoryLabel ? `<span class="notification-badge">${categoryLabel}</span>` : ''}
                                     <span class="notification-item-time">${item.created_at}</span>
                                 </div>
                             </div>
+                            <button class="btn btn-link p-0 text-muted clear-single-notification" data-id="${item.id}" title="Clear this notification" style="font-size: 0.8rem;">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
                     </div>
                 `;
             });
             notificationList.innerHTML = html;
 
+            // Attach event listeners for clicking the notification (navigation)
             const clickableItems = notificationList.querySelectorAll('.notification-item');
             clickableItems.forEach(el => {
                 const url = el.getAttribute('data-url');
                 const idAttr = el.getAttribute('data-id');
                 const idNum = idAttr ? parseInt(idAttr, 10) : NaN;
+                
+                el.addEventListener('click', function (e) {
+                    // If the close button was clicked, do nothing here (handled by other listener)
+                    if (e.target.closest('.clear-single-notification')) return;
+
+                    e.stopPropagation();
+                    if (!isNaN(idNum)) {
+                        const currentLastReadRaw = localStorage.getItem(STORAGE_KEY_READ);
+                        const currentLastRead = currentLastReadRaw ? parseInt(currentLastReadRaw, 10) : 0;
+                        const newLastRead = idNum > currentLastRead ? idNum : currentLastRead;
+                        localStorage.setItem(STORAGE_KEY_READ, newLastRead.toString());
+                    }
+                    if (url) {
+                        window.location.href = url;
+                    }
+                });
+                
                 if (url) {
                     el.style.cursor = 'pointer';
-                    el.addEventListener('click', function (e) {
-                        e.stopPropagation();
-                        if (!isNaN(idNum)) {
-                            const currentLastReadRaw = localStorage.getItem(STORAGE_KEY_READ);
-                            const currentLastRead = currentLastReadRaw ? parseInt(currentLastReadRaw, 10) : 0;
-                            const newLastRead = idNum > currentLastRead ? idNum : currentLastRead;
-                            localStorage.setItem(STORAGE_KEY_READ, newLastRead.toString());
-                        }
-                        window.location.href = url;
-                    });
                 }
             });
 
-            latestNotificationId = visibleItems[0].id;
+            // Attach event listeners for the "Clear" (X) buttons
+            const clearButtons = notificationList.querySelectorAll('.clear-single-notification');
+            clearButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Prevent triggering the item click
+                    e.preventDefault();
+                    
+                    const notifId = parseInt(this.getAttribute('data-id'), 10);
+                    if (!isNaN(notifId)) {
+                        // Add to cleared list
+                        let currentCleared = [];
+                        try {
+                            currentCleared = JSON.parse(localStorage.getItem(STORAGE_KEY_CLEARED) || '[]');
+                            if (!Array.isArray(currentCleared)) currentCleared = [];
+                        } catch(err) { currentCleared = []; }
+                        
+                        if (!currentCleared.includes(notifId)) {
+                            currentCleared.push(notifId);
+                            localStorage.setItem(STORAGE_KEY_CLEARED, JSON.stringify(currentCleared));
+                        }
+                        
+                        // Simple DOM removal for responsiveness
+                        const itemRow = this.closest('.notification-item');
+                        if (itemRow) {
+                            itemRow.remove();
+                        }
+                        
+                        // Check if list is empty now
+                        if (notificationList.querySelectorAll('.notification-item').length === 0) {
+                            notificationList.innerHTML = '<div class="notification-empty">No recent notifications.</div>';
+                            notificationDot.classList.add('d-none');
+                        }
+                        
+                        const remainingUnread = notificationList.querySelectorAll('.notification-item-unread');
+                        if (remainingUnread.length === 0) {
+                            notificationDot.classList.add('d-none');
+                        }
+                    }
+                });
+            });
+
+            latestNotificationId = visibleItems.length > 0 ? visibleItems[0].id : null;
 
             if (hasUnread) {
                 notificationDot.classList.remove('d-none');
@@ -1023,61 +1095,10 @@
             }
         }
 
-    // Clear notifications (mark all as cleared locally) on login/session start
-    // We can't detect "login" event easily here without backend help, but we can clear
-    // the localStorage keys if the user just logged in. 
-    // However, the prompt says "When the user login. automatically clear the notification."
-    // A simpler way is to handle this in the backend login view by setting a session flag,
-    // or we can rely on the fact that if 'rd_notif_last_id' is missing, it's a new session.
-    // BUT the prompt says "retain the logic when record changes".
-    // So if I log in, I should see NO notifications.
-    // If a record changes while I am logged in, I see it.
-    // If I log out and log back in, I see NO notifications (even if I didn't clear them).
-    
-    // To achieve "clear on login":
-    // We can't easily do it purely in JS on base.html because base.html loads on every page.
-    // We need to know if this is the *first* load after login.
-    // Let's use a cookie or a flag passed from the backend.
-    
-    // Actually, the prompt implies that the state of "cleared" should be reset or managed such that
-    // existing notifications are hidden upon new login.
-    // Since we are using localStorage which persists across sessions, we should probably
-    // clear the localStorage keys on LOGOUT.
-    // And also, maybe we should track the user ID in localStorage to detect user switches.
-
-    const currentUserId = "{{ request.user.id|default:'' }}";
-    const storedUserId = localStorage.getItem('rd_user_id');
-
-    if (currentUserId && currentUserId !== storedUserId) {
-        // User changed or new login on this browser
-        localStorage.setItem('rd_user_id', currentUserId);
-        // Clear local notification state so we start fresh (empty list)
-        // But wait, if we just clear the keys, the API will return 15 items and they will ALL show up as new.
-        // We want them to NOT show up.
-        // So we need to set 'cleared_up_to' to the latest ID available from the server.
-        // We can't know the latest ID until we fetch.
-        // So let's set a flag to "clear all on next fetch".
-        sessionStorage.setItem('rd_clear_on_load', 'true');
-    }
-
-    // ... existing code ...
-
         function fetchNotifications() {
             fetch(notificationsUrl)
                 .then(r => r.json())
                 .then(data => {
-                    // Check if we need to auto-clear (e.g. fresh login)
-                    if (sessionStorage.getItem('rd_clear_on_load') === 'true') {
-                        const items = data.notifications || [];
-                        if (items.length > 0) {
-                            const maxId = Math.max(...items.map(i => typeof i.id === 'number' ? i.id : parseInt(i.id, 10)));
-                            if (!isNaN(maxId)) {
-                                localStorage.setItem(STORAGE_KEY_CLEARED, maxId.toString());
-                                localStorage.setItem(STORAGE_KEY_READ, maxId.toString());
-                            }
-                        }
-                        sessionStorage.removeItem('rd_clear_on_load');
-                    }
                     renderNotifications(data);
                 })
                 .catch(() => {
@@ -1122,17 +1143,49 @@
             if (clearNotificationsBtn) {
                 clearNotificationsBtn.addEventListener('click', function (e) {
                     e.stopPropagation();
-                    notificationList.innerHTML = '<div class="notification-empty">You have cleared all notifications.</div>';
-                    notificationDot.classList.add('d-none');
-                    if (latestNotificationId) {
-                        const latestIdNum = typeof latestNotificationId === 'number'
-                            ? latestNotificationId
-                            : parseInt(latestNotificationId, 10);
-                        if (!isNaN(latestIdNum)) {
-                            localStorage.setItem(STORAGE_KEY_READ, latestIdNum.toString());
-                            localStorage.setItem(STORAGE_KEY_CLEARED, latestIdNum.toString());
+                    
+                    // 1. Get all current visible notification IDs
+                    const items = notificationList.querySelectorAll('.notification-item');
+                    let newClearedIds = [];
+                    items.forEach(el => {
+                        const idAttr = el.getAttribute('data-id');
+                        const idNum = idAttr ? parseInt(idAttr, 10) : NaN;
+                        if (!isNaN(idNum)) {
+                            newClearedIds.push(idNum);
+                        }
+                    });
+
+                    if (newClearedIds.length > 0) {
+                        // 2. Add to existing cleared list in localStorage
+                        let currentCleared = [];
+                        try {
+                            currentCleared = JSON.parse(localStorage.getItem(STORAGE_KEY_CLEARED) || '[]');
+                            if (!Array.isArray(currentCleared)) currentCleared = [];
+                        } catch(err) { currentCleared = []; }
+
+                        // Merge unique IDs
+                        newClearedIds.forEach(id => {
+                            if (!currentCleared.includes(id)) {
+                                currentCleared.push(id);
+                            }
+                        });
+
+                        localStorage.setItem(STORAGE_KEY_CLEARED, JSON.stringify(currentCleared));
+                        
+                        // 3. Mark all as read as well (optional but good UX)
+                        if (latestNotificationId) {
+                            const latestIdNum = typeof latestNotificationId === 'number'
+                                ? latestNotificationId
+                                : parseInt(latestNotificationId, 10);
+                            if (!isNaN(latestIdNum)) {
+                                localStorage.setItem(STORAGE_KEY_READ, latestIdNum.toString());
+                            }
                         }
                     }
+
+                    // 4. Update UI
+                    notificationList.innerHTML = '<div class="notification-empty">You have cleared all notifications.</div>';
+                    notificationDot.classList.add('d-none');
                 });
             }
 
