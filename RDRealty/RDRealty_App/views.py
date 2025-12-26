@@ -9,7 +9,7 @@ from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 import json
 import os
 from pathlib import Path
@@ -310,9 +310,11 @@ class PropertyListView(ListView):
     template_name = 'property_list.html'
     context_object_name = 'properties'
     ordering = ['title_no']
+    paginate_by = 20  # Add pagination
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # Optimize: Prefetch related data to avoid N+1 queries
+        queryset = Property.objects.prefetch_related('ownerinformation_set').all()
         
         q = self.request.GET.get('q')
         if q:
@@ -395,7 +397,7 @@ def global_search(request):
     results = []
     
     if query:
-        properties = Property.objects.filter(
+        properties = Property.objects.prefetch_related('ownerinformation_set', 'localinformation_set').filter(
             Q(title_no__icontains=query) | 
             Q(lot_no__icontains=query) |
             Q(title_classification__icontains=query) |
@@ -635,3 +637,35 @@ def user_view(request, user_id):
     target = User.objects.get(id=user_id)
     profile = getattr(target, 'profile', None)
     return render(request, 'user_view.html', {'target': target, 'profile': profile})
+
+@login_required
+def upload_document(request, pk):
+    if request.method == 'POST':
+        property_obj = get_object_or_404(Property, pk=pk)
+        file = request.FILES.get('document')
+        
+        if not file:
+            return JsonResponse({'error': 'No file uploaded.'}, status=400)
+            
+        # Validate file size (10MB)
+        MAX_SIZE_MB = 10
+        if file.size > MAX_SIZE_MB * 1024 * 1024:
+            return JsonResponse({'error': f'File size exceeds {MAX_SIZE_MB}MB limit.'}, status=400)
+            
+        # Validate file type (image)
+        if not file.content_type.startswith('image/'):
+            return JsonResponse({'error': 'Only image files are allowed.'}, status=400)
+            
+        SupportingDocument.objects.create(
+            property_id=property_obj.property_id,
+            file=file
+        )
+        
+        Notification.objects.create(
+            category='PROPERTY',
+            message=f"New document uploaded for Property: {property_obj.title_no}"
+        )
+        
+        return JsonResponse({'success': True, 'message': 'Document uploaded successfully.'})
+        
+    return JsonResponse({'error': 'Invalid request method.'}, status=405)

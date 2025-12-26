@@ -270,9 +270,9 @@
                         <h3 class="h5 mb-0 text-dark fw-bold">Document Library</h3>
                         <p class="text-muted small mb-0">View and manage attached documents</p>
                     </div>
-                    <a href="{% url 'property_update' pk=property.pk %}" class="btn btn-primary btn-sm">
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
                         <i class="fas fa-plus me-1"></i> Upload Document
-                    </a>
+                    </button>
                 </div>
                 <div class="card-body">
                     <!-- Search & Filter (Visual) -->
@@ -335,9 +335,35 @@
     </div>
 </div>
 
+<div class="modal fade" id="uploadDocumentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadDocumentForm" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="documentFile" class="form-label">Select Image File</label>
+                        <input class="form-control" type="file" id="documentFile" name="document" accept="image/*" required>
+                        <div class="form-text">Only image files (jpg, png, etc.) are allowed. Max size: 10MB.</div>
+                    </div>
+                    <div class="alert alert-danger d-none" id="uploadError"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="uploadBtn">Upload</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    // Simple Client-side Search for Documents
     document.addEventListener('DOMContentLoaded', function() {
+        // Simple Client-side Search for Documents
         const searchInput = document.getElementById('docSearch');
         if (searchInput) {
             searchInput.addEventListener('keyup', function() {
@@ -351,6 +377,71 @@
                     } else {
                         item.style.display = 'none';
                     }
+                });
+            });
+        }
+        
+        // Upload Logic
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('documentFile');
+        const uploadError = document.getElementById('uploadError');
+        
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', function() {
+                const file = fileInput.files[0];
+                if (!file) {
+                    uploadError.textContent = 'Please select a file.';
+                    uploadError.classList.remove('d-none');
+                    return;
+                }
+                
+                // Client-side validation
+                if (file.size > 10 * 1024 * 1024) { // 10MB
+                    uploadError.textContent = 'File size exceeds 10MB limit.';
+                    uploadError.classList.remove('d-none');
+                    return;
+                }
+                
+                if (!file.type.startsWith('image/')) {
+                    uploadError.textContent = 'Only image files are allowed.';
+                    uploadError.classList.remove('d-none');
+                    return;
+                }
+                
+                uploadError.classList.add('d-none');
+                
+                const formData = new FormData();
+                formData.append('document', file);
+                formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                
+                // Disable button
+                uploadBtn.disabled = true;
+                uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Uploading...';
+                
+                fetch("{% url 'upload_document' property.pk %}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload(); // Reload page to show new document
+                    } else {
+                        uploadError.textContent = data.error || 'Upload failed.';
+                        uploadError.classList.remove('d-none');
+                        uploadBtn.disabled = false;
+                        uploadBtn.innerHTML = 'Upload';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    uploadError.textContent = 'An error occurred during upload.';
+                    uploadError.classList.remove('d-none');
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = 'Upload';
                 });
             });
         }

@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     DashboardView, PropertyCreateView, PropertyListView, PropertyDetailView, PropertyUpdateView,
     global_search, notifications_api, login_view, logout_view, user_list, user_create, user_update, user_delete, user_view,
-    get_provinces, get_cities, get_barangays
+    get_provinces, get_cities, get_barangays, upload_document
 )
 
 urlpatterns = [
@@ -22,6 +22,9 @@ urlpatterns = [
 
     # 3. Property Detail View
     path('property/<int:pk>/', PropertyDetailView.as_view(), name='property_detail'),
+    
+    # 3.5 Upload Document View
+    path('property/<int:pk>/upload-document/', upload_document, name='upload_document'),
     
     # 4. Property List View: This is now moved to a new path to free up the root ('')
     path('properties/', PropertyListView.as_view(), name='property_list'), 

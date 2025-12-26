@@ -55,6 +55,7 @@ class Property(models.Model):
         choices=CLASSIFICATION_CHOICES,
         default='RES',
         verbose_name="Classification",
+        db_index=True,
     )
 
     title_status = models.CharField(
@@ -62,6 +63,7 @@ class Property(models.Model):
         choices=STATUS_CHOICES,
         default='ACT',
         verbose_name="Status",
+        db_index=True,
     )
 
     title_description = models.TextField(
@@ -74,7 +76,8 @@ class Property(models.Model):
     # NEW FIELD: For monthly property count metric
     date_added = models.DateTimeField(
         default=timezone.now,
-        verbose_name="Date Added"
+        verbose_name="Date Added",
+        db_index=True,
     )
     
     property_id = models.PositiveIntegerField(
@@ -111,12 +114,15 @@ class LocalInformation(models.Model):
         on_delete=models.CASCADE
     )
     loc_specific = models.TextField(blank=True, null=True)
-    loc_province = models.CharField(max_length=255, blank=True, null=True)
-    loc_city = models.CharField(max_length=255, blank=True, null=True)
-    loc_barangay = models.CharField(max_length=255, blank=True, null=True)
+    loc_province = models.CharField(max_length=255, blank=True, null=True, db_index=True)
+    loc_city = models.CharField(max_length=255, blank=True, null=True, db_index=True)
+    loc_barangay = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     
     class Meta:
         db_table = 'rdrealty_local_information'
+        indexes = [
+            models.Index(fields=['loc_province', 'loc_city', 'loc_barangay']),
+        ]
 
 class OwnerInformation(models.Model):
     property = models.ForeignKey(
@@ -125,7 +131,7 @@ class OwnerInformation(models.Model):
         db_column='property_id',
         on_delete=models.CASCADE
     )
-    oi_fullname = models.CharField(max_length=80, blank=True, null=True)
+    oi_fullname = models.CharField(max_length=80, blank=True, null=True, db_index=True)
     oi_bankname = models.CharField(max_length=50, blank=True, null=True)
     oi_custody_title = models.CharField(max_length=60, blank=True, null=True)
     
