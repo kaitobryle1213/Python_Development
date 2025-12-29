@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.db.models import Q
 from django.db.models import Count 
 from django.db.models.functions import TruncMonth 
-from datetime import date 
+from datetime import date, datetime, time
 from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -18,7 +18,7 @@ from django.conf import settings
 from django.utils import timezone
 import zipfile
 
-from .models import Property, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument, UserProfile, Notification
+from .models import Property, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument, UserProfile, Notification, PropertyTax
 from .forms import PropertyCreateForm
 
 
@@ -38,16 +38,27 @@ class DashboardView(TemplateView):
         
         # -----------------------------------------------------------------
         # --- 2. MONTHLY ADDITIONS LOGIC (UPDATED) ---
-        # Using filter instead of TruncMonth to avoid DB timezone issues
+        # Using filter with date range for better reliability with timezones
         # -----------------------------------------------------------------
         current_date = timezone.localdate()
-        current_year = current_date.year
-        current_month = current_date.month
+        
+        # Calculate start of current month
+        start_date = current_date.replace(day=1)
+        
+        # Calculate start of next month
+        if start_date.month == 12:
+            next_month_date = date(start_date.year + 1, 1, 1)
+        else:
+            next_month_date = date(start_date.year, start_date.month + 1, 1)
+            
+        # Convert to aware datetimes for database query
+        start_dt = timezone.make_aware(datetime.combine(start_date, time.min))
+        end_dt = timezone.make_aware(datetime.combine(next_month_date, time.min))
 
-        # Filter properties added in the current month and year
+        # Filter properties added in the current month range
         current_month_count = Property.objects.filter(
-            date_added__year=current_year,
-            date_added__month=current_month
+            date_added__gte=start_dt,
+            date_added__lt=end_dt
         ).count()
         
         context['current_month_added'] = current_month_count
@@ -386,7 +397,62 @@ class PropertyDetailView(DetailView):
         context['additional_info'] = self.object.additionalinformation_set.first()
         # Fetch related SupportingDocuments
         context['supporting_docs'] = self.object.supportingdocument_set.all()
+        # Fetch related Tax Records
+        context['tax_records'] = self.object.propertytax_set.all().order_by('-tax_year', '-tax_due_date')
         return context
+
+# --- 3.5 ADD PROPERTY TAX API ---
+@login_required
+def add_property_tax(request, pk):
+    if request.method == 'POST':
+        try:
+            property_obj = get_object_or_404(Property, pk=pk)
+            data = json.loads(request.body)
+            
+            tax_record = PropertyTax.objects.create(
+                property=property_obj,
+                tax_year=data.get('tax_year'),
+                tax_quarter=data.get('tax_quarter'),
+                tax_amount=data.get('tax_amount'),
+                tax_due_date=data.get('tax_due_date'),
+                tax_from=data.get('tax_from'),
+                tax_to=data.get('tax_to'),
+                tax_status=data.get('tax_status'),
+                tax_remarks=data.get('tax_remarks')
+            )
+            
+            Notification.objects.create(
+                category='TAX',
+                message=f"New Tax Record added for Property: {property_obj.title_no}"
+            )
+
+            return JsonResponse({'success': True, 'message': 'Tax record added successfully!'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=400)
+    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
+
+@login_required
+def update_property_tax(request, pk):
+    if request.method == 'POST':
+        try:
+            tax_record = get_object_or_404(PropertyTax, pk=pk)
+            data = json.loads(request.body)
+            
+            tax_record.tax_year = data.get('tax_year')
+            tax_record.tax_quarter = data.get('tax_quarter')
+            tax_record.tax_amount = data.get('tax_amount')
+            tax_record.tax_due_date = data.get('tax_due_date')
+            tax_record.tax_from = data.get('tax_from')
+            tax_record.tax_to = data.get('tax_to')
+            tax_record.tax_status = data.get('tax_status')
+            tax_record.tax_remarks = data.get('tax_remarks')
+            
+            tax_record.save()
+            
+            return JsonResponse({'success': True, 'message': 'Tax record updated successfully!'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=400)
+    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
 
 # --- 4. GLOBAL SEARCH API ---
 def global_search(request):
@@ -461,6 +527,26 @@ def global_search(request):
                 # Use update URL if user is admin, else maybe list? Using update for now as it's the "detail" view
                 'url': str(reverse_lazy('user_view', kwargs={'user_id': user.id}))
             })
+
+        # Tax Record Search
+        taxes = PropertyTax.objects.select_related('property').filter(
+            Q(id__icontains=query) |
+            Q(tax_year__icontains=query) |
+            Q(tax_quarter__icontains=query) |
+            Q(tax_amount__icontains=query) |
+            Q(tax_due_date__icontains=query) |
+            Q(tax_status__icontains=query) |
+            Q(property__title_no__icontains=query) |
+            Q(property__lot_no__icontains=query)
+        )[:5]
+
+        for tax in taxes:
+            results.append({
+                'category': 'Tax Record',
+                'title': f"Receipt {tax.id}",
+                'description': f"{tax.property.title_no} | Lot {tax.property.lot_no} | {tax.tax_year} | {tax.tax_status}",
+                'url': str(reverse_lazy('property_detail', kwargs={'pk': tax.property.pk}))
+            })
             
     return JsonResponse({'results': results})
 
@@ -472,7 +558,7 @@ def notifications_api(request):
     )
 
     if not (request.user.is_staff or request.user.is_superuser):
-        notifications_qs = notifications_qs.filter(category='PROPERTY')
+        notifications_qs = notifications_qs.filter(category__in=['PROPERTY', 'TAX'])
 
     notifications = notifications_qs.order_by('-created_at')[:15]
     data = []
@@ -493,6 +579,13 @@ def notifications_api(request):
                     user = User.objects.filter(username=username).first()
                     if user:
                         url = str(reverse_lazy('user_view', kwargs={'user_id': user.id}))
+        elif n.category == 'TAX':
+            if 'Property:' in n.message:
+                title_no = n.message.split('Property:', 1)[1].strip()
+                if title_no:
+                    prop = Property.objects.filter(title_no=title_no).first()
+                    if prop:
+                        url = str(reverse_lazy('property_detail', kwargs={'pk': prop.pk}))
 
         data.append({
             'id': n.id,

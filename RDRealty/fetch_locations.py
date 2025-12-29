@@ -29,7 +29,7 @@ def main():
     print(f"Fetched {len(barangays)} barangays")
 
     # 2. Build Hierarchy
-    # Create dictionaries for quick lookup
+    # Create dictionaries for quick lookups
     # Province Code -> Province Object
     province_map = {p['code']: p for p in provinces}
     for p in provinces:

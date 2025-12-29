@@ -164,6 +164,38 @@ class AdditionalInformation(models.Model):
     class Meta:
         db_table = 'rdrealty_additional_information'
 
+
+class PropertyTax(models.Model):
+    property = models.ForeignKey(
+        Property,
+        to_field='property_id',
+        db_column='property_id',
+        on_delete=models.CASCADE
+    )
+    tax_year = models.IntegerField(verbose_name="Tax Year")
+    tax_quarter = models.CharField(max_length=20, verbose_name="Quarter")
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Amount")
+    tax_due_date = models.DateField(verbose_name="Due Date")
+    tax_from = models.DateField(verbose_name="Period From")
+    tax_to = models.DateField(verbose_name="Period To")
+    
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Due', 'Due'),
+        ('Overdue', 'Overdue'),
+        ('Paid', 'Paid'),
+        ('Partially Paid', 'Partially Paid'),
+        ('Contested', 'Contested'),
+        ('Exempted', 'Exempted'),
+        ('Waived', 'Waived'),
+    ]
+    tax_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending', verbose_name="Status")
+    tax_remarks = models.CharField(max_length=200, blank=True, null=True, verbose_name="Remarks")
+
+    class Meta:
+        db_table = 'rdrealty_tax_record'
+
+
 def supporting_document_upload_to(instance, filename):
     base, ext = os.path.splitext(filename)
     prop_id = getattr(instance, "property_id", None)
@@ -203,6 +235,7 @@ class Notification(models.Model):
     CATEGORY_CHOICES = [
         ('PROPERTY', 'Property'),
         ('USER', 'User'),
+        ('TAX', 'Tax Record'),
     ]
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     message = models.CharField(max_length=255)

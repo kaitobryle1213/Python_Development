@@ -257,8 +257,23 @@
             padding: 15px 0;
             justify-content: center;
             display: flex;
+            overflow: visible; /* Allow dropdown to overflow */
         }
         
+        #sidebar.minimized .sidebar-footer .dropup {
+            position: static; /* Reset positioning context so dropdown can be relative to sidebar or body */
+        }
+        
+        #sidebar.minimized .sidebar-footer .dropdown-menu {
+            position: fixed !important; /* Fix it to the viewport */
+            bottom: 20px !important;
+            left: 80px !important; /* Width of minimized sidebar + margin */
+            top: auto !important;
+            transform: none !important;
+            margin: 0;
+            z-index: 1050;
+        }
+
         #sidebar.minimized .sidebar-footer .avatar {
             margin-right: 0 !important;
         }
@@ -553,6 +568,11 @@
             color: #16a34a;
         }
 
+        .notification-icon.tax {
+            background-color: #fffbeb;
+            color: #b45309;
+        }
+
         .notification-item-message {
             font-weight: 500;
             color: #111827;
@@ -689,7 +709,7 @@
             <div class="dropup">
                 <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
                     <div class="avatar me-2">
-                         <span class="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px; font-size: 0.9rem;">
+                         <span class="rounded-circle bg-warning text-white d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px; font-size: 0.9rem;">
                             {{ request.user.username|make_list|first|upper }}
                          </span>
                     </div>
@@ -787,9 +807,18 @@
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebarToggle');
         const sidebarBorderToggle = document.getElementById('sidebar-border-toggle');
+        const SIDEBAR_STATE_KEY = 'rd_sidebar_minimized';
+
+        // 1. Restore Sidebar State
+        const isMinimized = localStorage.getItem(SIDEBAR_STATE_KEY) === 'true';
+        if (isMinimized) {
+            sidebar.classList.add('minimized');
+        }
 
         function toggleSidebar() {
             sidebar.classList.toggle('minimized');
+            const currentState = sidebar.classList.contains('minimized');
+            localStorage.setItem(SIDEBAR_STATE_KEY, currentState);
         }
 
         if (sidebarToggle) {
@@ -987,9 +1016,18 @@
                     hasUnread = true;
                 }
                 const categoryLabel = (item.category || '').toUpperCase();
-                const isUserCategory = categoryLabel === 'USER';
-                const iconClass = isUserCategory ? 'user' : 'property';
-                const iconFa = isUserCategory ? 'fa-user-cog' : 'fa-building';
+                
+                let iconClass = 'property';
+                let iconFa = 'fa-building';
+                
+                if (categoryLabel === 'USER') {
+                    iconClass = 'user';
+                    iconFa = 'fa-user-cog';
+                } else if (categoryLabel === 'TAX') {
+                    iconClass = 'tax';
+                    iconFa = 'fa-file-invoice-dollar';
+                }
+                
                 const unreadClass = isUnread ? 'notification-item-unread' : '';
                 html += `
                     <div class="notification-item ${unreadClass}" data-url="${item.url || ''}" data-id="${item.id}">

@@ -105,6 +105,11 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="property-tax-tab" data-bs-toggle="tab" data-bs-target="#property-tax" type="button" role="tab" aria-controls="property-tax" aria-selected="false">
+                <i class="fas fa-calculator me-2"></i>Real Property Tax ({{ tax_records|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab" aria-controls="documents" aria-selected="false">
                 <i class="far fa-folder-open me-2"></i>Documents
                 <span class="badge bg-secondary ms-2 rounded-pill bg-opacity-25 text-dark">{{ supporting_docs|length }}</span>
@@ -262,6 +267,114 @@
             </div>
         </div>
 
+        <!-- Real Property Tax Tab -->
+        <div class="tab-pane fade" id="property-tax" role="tabpanel" aria-labelledby="property-tax-tab">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h3 class="h5 mb-0 text-dark fw-bold">Property Tax Records</h3>
+                    <p class="text-muted small mb-0">Manage and track all property tax payments</p>
+                </div>
+                <div class="card-body">
+                    <!-- Filters -->
+                    <div class="row mb-4 align-items-end g-2">
+                        <div class="col-lg-5">
+                            <label class="form-label small fw-bold text-muted">Search</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                <input type="text" id="taxSearchInput" class="form-control border-start-0 ps-0" placeholder="Search Tax (Receipt #,Amount, Date, Status, etc)...">
+                            </div>
+                        </div>
+                        <div class="col-lg-2">
+                            <label class="form-label small fw-bold text-muted">Status</label>
+                            <select class="form-select" id="taxStatusFilter">
+                                <option value="All Status">All Status</option>
+                                <option value="Paid">Paid</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Overdue">Overdue</option>
+                            </select>
+                        </div>
+                         <div class="col-lg-2">
+                            <label class="form-label small fw-bold text-muted">Year</label>
+                            <select class="form-select" id="taxYearFilter">
+                                <option value="All Years">All Years</option>
+                            </select>
+                        </div>
+                        <div class="col-lg-3 d-flex gap-2">
+                             <button class="btn btn-warning w-100 d-flex align-items-center justify-content-center text-nowrap" data-bs-toggle="modal" data-bs-target="#addTaxModal"><i class="fas fa-plus me-2"></i> Add Tax</button>
+                        </div>
+                    </div>
+
+                    <!-- Table -->
+                     <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0 rounded-start">Receipt No</th> <!-- Assuming ID for now -->
+                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Title No</th>
+                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Lot No</th>
+                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Amount</th>
+                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Owner</th>
+                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Year</th>
+                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Due Date</th>
+                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Status</th>
+                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0 rounded-end text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="taxTableBody">
+                                {% for tax in tax_records %}
+                                <tr class="tax-row">
+                                    <td class="fw-bold text-muted searchable">{{ tax.id }}</td>
+                                    <td>{{ property.title_no }}</td>
+                                    <td>{{ property.lot_no }}</td>
+                                    <td class="fw-bold searchable">₱{{ tax.tax_amount|intcomma }}</td>
+                                    <td>{{ owner_info.oi_fullname|default:"-"|truncatechars:20 }}</td>
+                                    <td class="fw-bold searchable">{{ tax.tax_year }}</td>
+                                    <td class="text-danger fw-bold searchable">{{ tax.tax_due_date|date:"M d, Y" }}</td>
+                                    <td class="searchable">
+                                        <span class="badge rounded-pill 
+                                            {% if tax.tax_status == 'Paid' %}bg-success
+                                            {% elif tax.tax_status == 'Overdue' %}bg-danger
+                                            {% elif tax.tax_status == 'Pending' %}bg-warning text-dark
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ tax.tax_status }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-light border edit-tax-btn" 
+                                            data-id="{{ tax.id }}"
+                                            data-year="{{ tax.tax_year }}"
+                                            data-quarter="{{ tax.tax_quarter }}"
+                                            data-amount="{{ tax.tax_amount }}"
+                                            data-due-date="{{ tax.tax_due_date|date:'Y-m-d' }}"
+                                            data-from="{{ tax.tax_from|date:'Y-m-d' }}"
+                                            data-to="{{ tax.tax_to|date:'Y-m-d' }}"
+                                            data-status="{{ tax.tax_status }}"
+                                            data-remarks="{{ tax.tax_remarks|default:'' }}"
+                                        >
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-5 text-muted border-0">
+                                        <div class="mb-3">
+                                            <i class="fas fa-file-invoice-dollar fa-3x text-light-emphasis"></i>
+                                        </div>
+                                        <p class="mb-0 fw-medium">No property tax records found.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                     <div class="text-center mt-3 text-muted small">
+                        Showing {{ tax_records|length }} of {{ tax_records|length }} tax records
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Documents Tab -->
         <div class="tab-pane fade" id="documents" role="tabpanel" aria-labelledby="documents-tab">
             <div class="card shadow-sm border-0">
@@ -335,6 +448,89 @@
     </div>
 </div>
 
+<!-- Add Property Tax Modal -->
+<div class="modal fade" id="addTaxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="taxModalTitle">Add Real Property Tax Record</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addTaxForm">
+                    <input type="hidden" name="tax_id" id="tax_id">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Tax Year</label>
+                            <input type="number" class="form-control" name="tax_year" id="tax_year" placeholder="YYYY" required>
+                            <div class="form-text small">Year for which the tax is being assessed</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Quarter</label>
+                            <select class="form-select" name="tax_quarter">
+                                <option value="Annual">Annual</option>
+                                <option value="Q1">Q1</option>
+                                <option value="Q2">Q2</option>
+                                <option value="Q3">Q3</option>
+                                <option value="Q4">Q4</option>
+                            </select>
+                            <div class="form-text small">Leave as Annual for yearly tax assessment</div>
+                        </div>
+                         <div class="col-md-4">
+                            <label class="form-label fw-bold small">Tax Amount (₱)</label>
+                            <input type="number" step="0.01" class="form-control" name="tax_amount" required>
+                            <div class="form-text small">Total tax amount due for this period</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Due Date</label>
+                            <input type="date" class="form-control" name="tax_due_date" id="tax_due_date" required>
+                            <div class="form-text small">When the tax payment is due</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Period From</label>
+                            <input type="date" class="form-control" name="tax_from" id="tax_from" required>
+                            <div class="form-text small">Start of tax period</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Period To</label>
+                            <input type="date" class="form-control" name="tax_to" id="tax_to" required>
+                            <div class="form-text small">End of tax period</div>
+                        </div>
+                    </div>
+
+                     <div class="mb-3">
+                        <label class="form-label fw-bold small">Status</label>
+                        <select class="form-select w-auto" name="tax_status">
+                            <option value="Pending">Pending</option>
+                            <option value="Due">Due</option>
+                            <option value="Overdue">Overdue</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Partially Paid">Partially Paid</option>
+                            <option value="Contested">Contested</option>
+                            <option value="Exempted">Exempted</option>
+                            <option value="Waived">Waived</option>
+                        </select>
+                         <div class="form-text small">Current status of this tax record</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Notes (Optional)</label>
+                        <textarea class="form-control" name="tax_remarks" rows="3" placeholder="Enter any additional notes..."></textarea>
+                         <div class="form-text small">Any additional information about this tax record</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-dark" id="saveTaxBtn"><i class="fas fa-save me-1"></i> Create Tax Record</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="uploadDocumentModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -402,46 +598,255 @@
                     return;
                 }
                 
-                if (!file.type.startsWith('image/')) {
-                    uploadError.textContent = 'Only image files are allowed.';
-                    uploadError.classList.remove('d-none');
-                    return;
-                }
+                // If valid, submit the form
+                const formData = new FormData(document.getElementById('uploadDocumentForm'));
                 
-                uploadError.classList.add('d-none');
-                
-                const formData = new FormData();
-                formData.append('document', file);
-                formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-                
-                // Disable button
-                uploadBtn.disabled = true;
-                uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Uploading...';
-                
-                fetch("{% url 'upload_document' property.pk %}", {
+                fetch("{% url 'upload_document' pk=property.pk %}", {
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'X-CSRFToken': '{{ csrf_token }}'
                     }
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        location.reload(); // Reload page to show new document
+                        location.reload();
                     } else {
-                        uploadError.textContent = data.error || 'Upload failed.';
+                        uploadError.textContent = data.message || 'Upload failed.';
                         uploadError.classList.remove('d-none');
-                        uploadBtn.disabled = false;
-                        uploadBtn.innerHTML = 'Upload';
+                    }
+                })
+                .catch(error => {
+                    uploadError.textContent = 'An error occurred during upload.';
+                    uploadError.classList.remove('d-none');
+                });
+            });
+        }
+
+        // --- Tax Search Logic ---
+        const taxSearchInput = document.getElementById('taxSearchInput');
+        const taxStatusFilter = document.getElementById('taxStatusFilter');
+        const taxYearFilter = document.getElementById('taxYearFilter');
+
+        function filterTaxRows() {
+            const query = taxSearchInput ? taxSearchInput.value.toLowerCase().trim() : '';
+            const statusValue = taxStatusFilter ? taxStatusFilter.value : 'All Status';
+            const yearValue = taxYearFilter ? taxYearFilter.value : 'All Years';
+            
+            const rows = document.querySelectorAll('.tax-row');
+            
+            // Check if query is numeric (digits, potentially with decimals)
+            const isNumeric = /^\d+(\.\d+)?$/.test(query);
+
+            rows.forEach(function(row) {
+                // 1. Text Search Filter
+                let textMatch = false;
+                
+                // Only search within .searchable cells
+                let text = '';
+                row.querySelectorAll('.searchable').forEach(cell => {
+                    text += cell.textContent.toLowerCase() + ' ';
+                });
+                
+                // Remove commas for number matching
+                const textNoCommas = text.replace(/,/g, '');
+                
+                if (query === '') {
+                    textMatch = true;
+                } else if (isNumeric) {
+                    try {
+                        const regex = new RegExp('\\b' + query + '\\b');
+                        textMatch = regex.test(textNoCommas);
+                    } catch (e) {
+                        textMatch = textNoCommas.includes(query);
+                    }
+                } else {
+                    textMatch = text.includes(query) || textNoCommas.includes(query);
+                }
+
+                // 2. Status Filter
+                let statusMatch = true;
+                if (statusValue !== 'All Status') {
+                    // Find status cell content (assumed to be in the badge)
+                    // We can check data attributes on the Edit button for reliable data, 
+                    // or look for the text in the row
+                    const editBtn = row.querySelector('.edit-tax-btn');
+                    if (editBtn) {
+                        const rowStatus = editBtn.dataset.status;
+                        statusMatch = (rowStatus === statusValue);
+                    } else {
+                         // Fallback to text content
+                         statusMatch = row.textContent.includes(statusValue);
+                    }
+                }
+
+                // 3. Year Filter
+                let yearMatch = true;
+                if (yearValue !== 'All Years') {
+                    const editBtn = row.querySelector('.edit-tax-btn');
+                    if (editBtn) {
+                         const rowYear = editBtn.dataset.year;
+                         yearMatch = (rowYear === yearValue);
+                    } else {
+                         yearMatch = row.textContent.includes(yearValue);
+                    }
+                }
+
+                // Final Visibility
+                if (textMatch && statusMatch && yearMatch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        if (taxSearchInput) {
+            taxSearchInput.addEventListener('keyup', filterTaxRows);
+        }
+        if (taxStatusFilter) {
+            taxStatusFilter.addEventListener('change', filterTaxRows);
+        }
+        if (taxYearFilter) {
+            taxYearFilter.addEventListener('change', filterTaxRows);
+        }
+
+        // --- Populate Year Dropdown ---
+        function populateYearDropdown() {
+             if (!taxYearFilter) return;
+             
+             const years = new Set();
+             document.querySelectorAll('.edit-tax-btn').forEach(btn => {
+                 if (btn.dataset.year) {
+                     years.add(btn.dataset.year);
+                 }
+             });
+
+             // Sort years descending
+             const sortedYears = Array.from(years).sort().reverse();
+
+             sortedYears.forEach(year => {
+                 const option = document.createElement('option');
+                 option.value = year;
+                 option.textContent = year;
+                 taxYearFilter.appendChild(option);
+             });
+        }
+        populateYearDropdown();
+
+        
+        // --- Tax Modal Logic ---
+        const addTaxForm = document.getElementById('addTaxForm');
+        const taxModalTitle = document.getElementById('taxModalTitle');
+        const saveTaxBtn = document.getElementById('saveTaxBtn');
+        const taxIdInput = document.getElementById('tax_id');
+        
+        // Hidden trigger for Edit to avoid direct Bootstrap JS dependency if not globally exposed
+        let hiddenEditTrigger = document.getElementById('hiddenEditTrigger');
+        if (!hiddenEditTrigger) {
+            hiddenEditTrigger = document.createElement('button');
+            hiddenEditTrigger.id = 'hiddenEditTrigger';
+            hiddenEditTrigger.style.display = 'none';
+            hiddenEditTrigger.setAttribute('data-bs-toggle', 'modal');
+            hiddenEditTrigger.setAttribute('data-bs-target', '#addTaxModal');
+            document.body.appendChild(hiddenEditTrigger);
+        }
+        
+        // Handle "Add Tax" Button
+        const addTaxBtn = document.getElementById('addTaxBtn');
+        if (addTaxBtn) {
+            addTaxBtn.addEventListener('click', function() {
+                addTaxForm.reset();
+                taxIdInput.value = '';
+                taxModalTitle.textContent = 'Add Real Property Tax Record';
+                saveTaxBtn.innerHTML = '<i class="fas fa-save me-1"></i> Create Tax Record';
+                saveTaxBtn.classList.remove('btn-warning');
+                saveTaxBtn.classList.add('btn-warning'); 
+
+                // Set default values for Add
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+
+                if(document.getElementById('tax_year')) document.getElementById('tax_year').value = year;
+                if(document.getElementById('tax_due_date')) document.getElementById('tax_due_date').value = dateStr;
+                if(document.getElementById('tax_from')) document.getElementById('tax_from').value = dateStr;
+                if(document.getElementById('tax_to')) document.getElementById('tax_to').value = dateStr;
+            });
+        }
+
+        // Handle "Edit" Button (Event Delegation)
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.edit-tax-btn')) {
+                const btn = e.target.closest('.edit-tax-btn');
+                const id = btn.dataset.id;
+                const year = btn.dataset.year;
+                const quarter = btn.dataset.quarter;
+                const amount = btn.dataset.amount;
+                const dueDate = btn.dataset.dueDate;
+                const fromDate = btn.dataset.from;
+                const toDate = btn.dataset.to;
+                const status = btn.dataset.status;
+                const remarks = btn.dataset.remarks;
+
+                // Populate Form
+                taxIdInput.value = id;
+                document.getElementById('tax_year').value = year;
+                document.querySelector(`select[name="tax_quarter"]`).value = quarter;
+                document.querySelector(`input[name="tax_amount"]`).value = amount;
+                document.getElementById('tax_due_date').value = dueDate;
+                document.getElementById('tax_from').value = fromDate;
+                document.getElementById('tax_to').value = toDate;
+                document.querySelector(`select[name="tax_status"]`).value = status;
+                document.querySelector(`textarea[name="tax_remarks"]`).value = remarks;
+
+                // Update UI
+                taxModalTitle.textContent = 'Edit Real Property Tax Record';
+                saveTaxBtn.innerHTML = '<i class="fas fa-save me-1"></i> Update Tax Record';
+                
+                // Show Modal via hidden trigger
+                hiddenEditTrigger.click();
+            }
+        });
+
+        if (saveTaxBtn) {
+            saveTaxBtn.addEventListener('click', function() {
+                if (!addTaxForm.checkValidity()) {
+                    addTaxForm.reportValidity();
+                    return;
+                }
+
+                const formData = new FormData(addTaxForm);
+                const data = Object.fromEntries(formData.entries());
+                const taxId = taxIdInput.value;
+                
+                let url = "{% url 'add_property_tax' pk=property.pk %}";
+                if (taxId) {
+                    url = `/tax/${taxId}/update/`; 
+                }
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    uploadError.textContent = 'An error occurred during upload.';
-                    uploadError.classList.remove('d-none');
-                    uploadBtn.disabled = false;
-                    uploadBtn.innerHTML = 'Upload';
+                    alert('An error occurred while saving the tax record.');
                 });
             });
         }
