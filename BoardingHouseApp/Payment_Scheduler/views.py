@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import AuthenticationForm
-from .models import Customer, Payment, BoardingHouseUser, Room
+from .models import Customer, Payment, BoardingHouseUser, Room, RoomTransferHistory
 from .forms import CustomerForm, BoardingHouseUserForm, BoardingHouseUserEditForm, RoomForm
 from datetime import date, timedelta
 from django.utils import timezone
@@ -276,6 +276,71 @@ def transfer_customer(request, customer_id):
         if new_room_id:
             new_room = get_object_or_404(Room, pk=new_room_id)
             
+            # --- Payment Adjustment Logic ---
+            if old_room and customer.due_date:
+                # Calculate total paid for current cycle
+                current_payments = Payment.objects.filter(
+                    customer=customer, 
+                    due_date=customer.due_date,
+                    is_paid=True
+                )
+                amount_paid = current_payments.aggregate(Sum('amount_received'))['amount_received__sum'] or 0
+                
+                old_price = old_room.price
+                new_price = new_room.price
+                
+                # Only adjust if fully paid for the old room (or paid at least the old price)
+                if amount_paid >= old_price:
+                    diff = new_price - amount_paid
+                    
+                    if diff > 0:
+                        # Upgrade: New room is more expensive.
+                        # Waive the difference for the current cycle so they remain "Paid".
+                        Payment.objects.create(
+                            customer=customer,
+                            due_date=customer.due_date,
+                            amount=diff,
+                            amount_received=diff,
+                            is_paid=True,
+                            remarks=f"Transfer Adjustment: Moved to {new_room.room_number}",
+                            date_paid=timezone.localdate()
+                        )
+                    elif diff < 0:
+                        # Downgrade: New room is cheaper.
+                        # Credit the surplus to the next cycle.
+                        surplus = abs(diff)
+                        next_due = customer.due_date + relativedelta(months=1)
+                        
+                        # Check if a payment record already exists for next month (unlikely but possible)
+                        next_payment = Payment.objects.filter(customer=customer, due_date=next_due).first()
+                        
+                        if next_payment:
+                            next_payment.amount_received = (next_payment.amount_received or 0) + surplus
+                            # Check if this surplus makes it fully paid
+                            if next_payment.amount_received >= new_price:
+                                next_payment.is_paid = True
+                            next_payment.remarks = (next_payment.remarks or "") + f" | Transfer Credit from {old_room.room_number}"
+                            next_payment.save()
+                        else:
+                            Payment.objects.create(
+                                customer=customer,
+                                due_date=next_due,
+                                amount=new_price, # Set expected amount to new room price
+                                amount_received=surplus,
+                                is_paid=surplus >= new_price,
+                                remarks=f"Transfer Credit: Moved from {old_room.room_number}",
+                                date_paid=timezone.localdate() 
+                            )
+            
+            # --- Create History Record ---
+            RoomTransferHistory.objects.create(
+                customer=customer,
+                room_from=old_room,
+                room_to=new_room,
+                room_from_price=old_room.price if old_room else 0,
+                room_to_price=new_room.price
+            )
+
             # Update customer room
             customer.room = new_room
             customer.save()
@@ -299,9 +364,9 @@ def transfer_customer(request, customer_id):
                 new_room.status = 'Occupied'
             new_room.save(update_fields=['status'])
             
-            return redirect('room_occupants', pk=old_room.pk if old_room else new_room.pk)
+            return redirect('customers') # Redirect to customer list as that's where the modal is
             
-    return redirect('rooms')
+    return redirect('customers')
 
 @login_required
 @admin_required
@@ -329,6 +394,8 @@ def search_rooms(request):
             'room_type': r.room_type, 
             'price': str(r.price),
             'status': r.status,
+            'current_occupants': r.current_occupants,
+            'capacity': r.capacity,
             'available_slots': r.capacity - r.current_occupants
         })
     
@@ -792,3 +859,28 @@ def report_view(request):
         'filter_name': customer_name,
     }
     return render(request, 'Payment_Scheduler/report.html', context)
+
+@login_required
+@admin_required
+def transfer_report_view(request):
+    transfers = RoomTransferHistory.objects.select_related('customer', 'room_from', 'room_to').all().order_by('-transfer_date')
+    
+    # Filters
+    customer_name = request.GET.get('customer_name')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    
+    if customer_name:
+        transfers = transfers.filter(customer__name__icontains=customer_name)
+    if date_from:
+        transfers = transfers.filter(transfer_date__date__gte=date_from)
+    if date_to:
+        transfers = transfers.filter(transfer_date__date__lte=date_to)
+        
+    context = {
+        'transfers': transfers,
+        'filter_name': customer_name,
+        'filter_date_from': date_from,
+        'filter_date_to': date_to,
+    }
+    return render(request, 'Payment_Scheduler/transfer_report.html', context)

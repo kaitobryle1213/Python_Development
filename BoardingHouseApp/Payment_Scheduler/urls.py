@@ -27,7 +27,8 @@ urlpatterns = [
      path('rooms/<int:pk>/occupants/', views.room_occupants, name='room_occupants'),
      path('rooms/transfer/<int:customer_id>/', views.transfer_customer, name='transfer_customer'),
      path('api/search_rooms/', views.search_rooms, name='search_rooms'),
-     path('report/', views.report_view, name='report'),
+    path('report/', views.report_view, name='report'),
+    path('report/transfers/', views.transfer_report_view, name='transfer_report'),
 
     path('logout/', views.logout_view, name='logout'),
 ]

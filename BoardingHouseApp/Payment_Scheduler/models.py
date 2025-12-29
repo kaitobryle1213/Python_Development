@@ -93,3 +93,15 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.customer.name} - {self.due_date}"
+
+class RoomTransferHistory(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='transfer_history')
+    room_from = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='transfers_from')
+    room_to = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='transfers_to')
+    # We store prices explicitly to preserve history even if room price changes later
+    room_from_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    room_to_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    transfer_date = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.customer.name}: {self.room_from} -> {self.room_to} on {self.transfer_date}"
