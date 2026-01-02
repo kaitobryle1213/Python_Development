@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+{% load property_tags %}
+
+{% block title %}All Tax Records{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item d-flex align-items-center">
+    <a href="{% url 'dashboard' %}" class="text-decoration-none text-muted">
+        <i class="fas fa-home me-1"></i> Dashboard
+    </a>
+</li>
+<li class="breadcrumb-item active text-muted d-flex align-items-center" aria-current="page">
+    <i class="fa-solid fa-chevron-right mx-2 text-muted" style="font-size: 0.7rem;"></i>
+    <span class="fw-bold"><i class="fas fa-file-invoice-dollar me-2"></i>Property Tax</span>
+</li>
+{% endblock breadcrumbs %}
+
+{% block content %}
+<style>
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "" !important;
+        padding: 0 !important;
+    }
+    
+    .metric-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        background: white;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .metric-card-success:hover {
+        border-color: #198754 !important; /* Bootstrap success color */
+    }
+    .metric-card-warning:hover {
+        border-color: #ffc107 !important; /* Bootstrap warning color */
+    }
+    .metric-card-danger:hover {
+        border-color: #dc3545 !important; /* Bootstrap danger color */
+    }
+    .metric-card-secondary:hover {
+        border-color: #6c757d !important; /* Bootstrap secondary color */
+    }
+    
+    .tax-record-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: white;
+        transition: all 0.2s;
+    }
+    
+    .tax-record-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .tax-record-card-success:hover {
+        border-color: #198754 !important;
+    }
+    .tax-record-card-danger:hover {
+        border-color: #dc3545 !important;
+    }
+    .tax-record-card-secondary:hover {
+        border-color: #6c757d !important;
+    }
+</style>
+
+<div class="container-fluid pt-2">
+    <!-- Header -->
+    <div class="mb-4">
+        <h2 class="fw-bold mb-1">Property Tax</h2>
+        <p class="text-muted">Manage and track all real property tax records and payments</p>
+    </div>
+
+    <!-- Metrics Cards -->
+    <div class="row g-3 mb-5">
+        <!-- Total Tax Records -->
+        <div class="col-md-6 col-lg-3">
+            <div class="metric-card metric-card-secondary p-4 h-100 position-relative">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h6 class="fw-bold text-dark mb-0">Total Tax Records</h6>
+                    <i class="fas fa-file-invoice-dollar text-secondary"></i>
+                </div>
+                <h2 class="fw-bold mb-1">{{ total_records }}</h2>
+                <p class="text-muted small mb-0">₱{{ total_amount|intcomma }} total amount</p>
+            </div>
+        </div>
+
+        <!-- Paid Taxes -->
+        <div class="col-md-6 col-lg-3">
+            <div class="metric-card metric-card-success p-4 h-100">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h6 class="fw-bold text-dark mb-0">Paid Taxes</h6>
+                    <i class="far fa-check-circle text-success"></i>
+                </div>
+                <h2 class="fw-bold mb-1 text-success">{{ paid_count }}</h2>
+                <p class="text-muted small mb-0">₱{{ paid_amount|intcomma }} collected</p>
+            </div>
+        </div>
+
+        <!-- Unpaid Taxes -->
+        <div class="col-md-6 col-lg-3">
+            <div class="metric-card metric-card-warning p-4 h-100">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h6 class="fw-bold text-dark mb-0">Unpaid Taxes</h6>
+                    <i class="far fa-clock text-warning"></i>
+                </div>
+                <h2 class="fw-bold mb-1 text-warning">{{ unpaid_count }}</h2>
+                <p class="text-muted small mb-0">₱{{ unpaid_amount|intcomma }} outstanding</p>
+            </div>
+        </div>
+
+        <!-- Overdue Taxes -->
+        <div class="col-md-6 col-lg-3">
+            <div class="metric-card metric-card-danger p-4 h-100">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h6 class="fw-bold text-dark mb-0">Overdue Taxes</h6>
+                    <i class="fas fa-exclamation-circle text-danger"></i>
+                </div>
+                <h2 class="fw-bold mb-1 text-danger">{{ overdue_count }}</h2>
+                <p class="text-muted small mb-0">Past due date</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter & List Section -->
+    <h4 class="fw-bold mb-3">Property Tax Records</h4>
+    
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-lg-8">
+            <label class="form-label small fw-bold text-muted">Search</label>
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search..." value="{{ current_q }}">
+            </div>
+        </div>
+        <div class="col-lg-2">
+            <label class="form-label small fw-bold text-muted">Status</label>
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="All Status" {% if current_status == 'All Status' %}selected{% endif %}>All Status</option>
+                <option value="Paid" {% if current_status == 'Paid' %}selected{% endif %}>Paid</option>
+                <option value="Unpaid" {% if current_status == 'Unpaid' %}selected{% endif %}>Unpaid (All)</option>
+                <option value="Pending" {% if current_status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Overdue" {% if current_status == 'Overdue' %}selected{% endif %}>Overdue</option>
+                <option value="Due" {% if current_status == 'Due' %}selected{% endif %}>Due</option>
+            </select>
+        </div>
+        <div class="col-lg-2">
+            <label class="form-label small fw-bold text-muted">Year</label>
+            <select name="year" class="form-select" onchange="this.form.submit()">
+                <option value="All Years" {% if current_year == 'All Years' %}selected{% endif %}>All Years</option>
+                {% for y in years %}
+                <option value="{{ y }}" {% if current_year|stringformat:"s" == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+
+    <!-- Tax Records List -->
+    <div class="d-flex flex-column gap-3">
+        {% for tax in tax_records %}
+        <div class="tax-record-card p-3 position-relative {% if tax.tax_status == 'Paid' %}tax-record-card-success{% elif tax.tax_status == 'Overdue' %}tax-record-card-danger{% else %}tax-record-card-secondary{% endif %}">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="d-flex gap-3 align-items-start">
+                    <div class="text-muted pt-1">
+                        <i class="fas fa-file-invoice-dollar fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <h6 class="fw-bold mb-0 text-dark">{{ tax.property.title_no }}</h6>
+                            <span class="badge rounded-pill 
+                                {% if tax.tax_status == 'Paid' %}bg-success
+                                {% elif tax.tax_status == 'Overdue' %}bg-danger
+                                {% elif tax.tax_status == 'Pending' %}bg-secondary
+                                {% else %}bg-secondary{% endif %}">
+                                {{ tax.tax_status }}
+                            </span>
+                            <span class="text-muted small">{{ tax.tax_year }}</span>
+                            <a href="{% url 'property_detail' pk=tax.property.pk %}" class="stretched-link"></a>
+                            <i class="fas fa-external-link-alt text-muted small"></i>
+                        </div>
+                        <div class="text-muted small mb-1">
+                            {% with owner=tax.property.ownerinformation_set.first %}
+                                {{ owner.oi_fullname|default:"-" }}
+                            {% endwith %}
+                            &bull; 
+                            {% with loc=tax.property.localinformation %}
+                                {{ loc.loc_city|default:"-" }}, {{ loc.loc_province|default:"-" }}
+                            {% endwith %}
+                        </div>
+                        <div class="text-muted small">
+                            <span class="fw-bold">₱{{ tax.tax_amount|intcomma }} due</span> &bull; Due: {{ tax.tax_due_date|date:"M d, Y" }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    {% if tax.tax_status != 'Paid' %}
+                    <button class="btn btn-dark btn-sm rounded-pill px-3" disabled>
+                        <i class="far fa-check-circle me-1"></i> Not yet Paid
+                    </button>
+                    {% else %}
+                    <span class="text-success fw-bold small"><i class="fas fa-check-double me-1"></i> Paid</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-5">
+            <div class="mb-3 text-muted">
+                <i class="fas fa-search fa-3x"></i>
+            </div>
+            <h5 class="text-muted">No tax records found</h5>
+            <p class="text-muted small">Try adjusting your search or filters.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation" class="mt-5">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+
+            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock content %}

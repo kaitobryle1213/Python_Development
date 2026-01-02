@@ -1,4 +1,5 @@
 {% extends 'Payment_Scheduler/base.html' %}
+{% load form_tags %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -15,7 +16,9 @@
                     {% if field.name == 'room' %}
                         <div class="mb-3">
                             <label class="form-label text-secondary small">{{ field.label }}</label>
-                            <div style="display: none;">{{ field }}</div> <div class="input-group">
+                            <div style="display: none;">{{ field }}</div> 
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas {{ field.name|get_icon }}"></i></span>
                                 <input type="text" class="form-control" id="room_display" placeholder="Select a room" readonly 
                                        value="{% if form.instance.room %}{{ form.instance.room.room_number }} - {{ form.instance.room.room_type }}{% endif %}">
                                 <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#roomModal">
@@ -27,32 +30,47 @@
                     {% elif field.name == 'status' %}
                         <div class="mb-3">
                             <label class="form-label text-secondary small">{{ field.label }}</label>
-                            {{ field }}
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas {{ field.name|get_icon }}"></i></span>
+                                {{ field }}
+                            </div>
                         </div>
                         <div class="mb-3" id="leave_date_container" style="display: none;">
                             <label class="form-label text-danger small">Date left</label>
-                            <input type="date" name="date_left" id="id_date_left" class="form-control" 
-                                   value="{{ form.instance.date_left|date:'Y-m-d'|default:'' }}">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-calendar-times"></i></span>
+                                <input type="date" name="date_left" id="id_date_left" class="form-control" 
+                                       value="{{ form.instance.date_left|date:'Y-m-d'|default:'' }}">
+                            </div>
                         </div>
 
                     {% elif field.name == 'due_date' %}
                         <div class="mb-3">
                             <label class="form-label text-secondary small">{{ field.label }}</label>
-                            <input type="date" name="{{ field.name }}" class="form-control" 
-                                   value="{{ field.value|date:'Y-m-d'|default:'' }}" id="{{ field.id_for_label }}">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas {{ field.name|get_icon }}"></i></span>
+                                <input type="date" name="{{ field.name }}" class="form-control" 
+                                       value="{{ field.value|date:'Y-m-d'|default:'' }}" id="{{ field.id_for_label }}">
+                            </div>
                         </div>
 
                     {% elif field.name == 'date_entry' %}
-                        <div class="mb-3">
+                        <div class="mb-3" {% if not form.instance.pk %}style="display: none;"{% endif %}>
                             <label class="form-label text-secondary small">{{ field.label }}</label>
-                            <input type="date" name="{{ field.name }}" class="form-control" 
-                                   value="{{ field.value|date:'Y-m-d'|default:'' }}" id="{{ field.id_for_label }}">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas {{ field.name|get_icon }}"></i></span>
+                                <input type="date" name="{{ field.name }}" class="form-control" 
+                                       value="{{ field.value|date:'Y-m-d'|default:'' }}" id="{{ field.id_for_label }}">
+                            </div>
                         </div>
 
                     {% else %}
                         <div class="mb-3">
                             <label class="form-label text-secondary small">{{ field.label }}</label>
-                            {{ field }}
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas {{ field.name|get_icon }}"></i></span>
+                                {{ field }}
+                            </div>
                         </div>
                     {% endif %}
                 {% endfor %}

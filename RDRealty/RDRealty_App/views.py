@@ -2,9 +2,9 @@ from django.views.generic import CreateView, ListView, DetailView, TemplateView,
 from django.urls import reverse_lazy
 from django.http import JsonResponse
 from django.db.models import Q
-from django.db.models import Count 
+from django.db.models import Count, Sum
 from django.db.models.functions import TruncMonth 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -18,8 +18,10 @@ from django.conf import settings
 from django.utils import timezone
 import zipfile
 
-from .models import Property, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument, UserProfile, Notification, PropertyTax
+from .models import Property, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument, UserProfile, Notification, PropertyTax, AIRequestLog
 from .forms import PropertyCreateForm
+from .ai_brain import get_ai_response
+from django.views.decorators.csrf import csrf_exempt
 
 
 # --- 0. DASHBOARD VIEW (Landing Page) ---
@@ -32,6 +34,9 @@ class DashboardView(TemplateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Add today's date to context
+        context['today'] = timezone.now()
         
         # --- 1. PROPERTY METRICS (TOTAL COUNT) ---
         context['total_properties'] = Property.objects.count()
@@ -64,12 +69,11 @@ class DashboardView(TemplateView):
         context['current_month_added'] = current_month_count
         
         # -----------------------------------------------------------------
-        # --- 3. TAX & MOVEMENT METRICS (REMOVED/SET TO DEFAULT) ---
-        # These are set to 0.00/0 to prevent errors if dashboard.html still references them.
+        # --- 3. TAX & MOVEMENT METRICS ---
         # -----------------------------------------------------------------
-        context['total_tax_due'] = 0.00
-        context['total_tax_paid'] = 0.00
-        context['pending_tax_count'] = 0
+        context['total_tax_due'] = PropertyTax.objects.exclude(tax_status='Paid').aggregate(Sum('tax_amount'))['tax_amount__sum'] or 0.00
+        context['total_tax_paid'] = PropertyTax.objects.filter(tax_status='Paid').aggregate(Sum('tax_amount'))['tax_amount__sum'] or 0.00
+        context['pending_tax_count'] = PropertyTax.objects.filter(tax_status='Pending').count()
         context['total_movements'] = 0
         
         # --- 4. OTHER METRICS ---
@@ -230,7 +234,7 @@ class PropertyUpdateView(UpdateView):
             docs_to_delete = list(SupportingDocument.objects.filter(id__in=valid_delete_ids))
             deleted_root = Path(settings.MEDIA_ROOT) / "supporting_docs" / "Deleted_Files"
             deleted_root.mkdir(parents=True, exist_ok=True)
-            timestamp = timezone.now().strftime("%Y%m%d%H%M%S")
+            timestamp = timezone.localtime(timezone.now()).strftime("%Y%m%d%H%M%S")
             zip_name = f"deleted_{self.object.property_id}_{timestamp}.zip"
             zip_path = deleted_root / zip_name
             with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -398,10 +402,72 @@ class PropertyDetailView(DetailView):
         # Fetch related SupportingDocuments
         context['supporting_docs'] = self.object.supportingdocument_set.all()
         # Fetch related Tax Records
-        context['tax_records'] = self.object.propertytax_set.all().order_by('-tax_year', '-tax_due_date')
+        context['tax_records'] = self.object.propertytax_set.all().order_by('tax_due_date')
         return context
 
 # --- 3.5 ADD PROPERTY TAX API ---
+class AllTaxRecordsView(ListView):
+    model = PropertyTax
+    template_name = 'all_tax_records.html'
+    context_object_name = 'tax_records'
+    paginate_by = 6
+    ordering = ['tax_due_date']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        query = self.request.GET.get('q')
+        status = self.request.GET.get('status')
+        year = self.request.GET.get('year')
+
+        if query:
+            queryset = queryset.filter(
+                Q(property__title_no__icontains=query) |
+                Q(property__ownerinformation__oi_fullname__icontains=query) |
+                Q(property__localinformation__loc_city__icontains=query) |
+                Q(id__icontains=query)
+            )
+        
+        if status and status != 'All Status':
+            if status == 'Unpaid':
+                queryset = queryset.exclude(tax_status='Paid')
+            else:
+                queryset = queryset.filter(tax_status=status)
+            
+        if year and year != 'All Years':
+            queryset = queryset.filter(tax_year=year)
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        all_taxes = PropertyTax.objects.all()
+        
+        # Metrics
+        context['total_records'] = all_taxes.count()
+        context['total_amount'] = all_taxes.aggregate(Sum('tax_amount'))['tax_amount__sum'] or 0
+        
+        paid_taxes = all_taxes.filter(tax_status='Paid')
+        context['paid_count'] = paid_taxes.count()
+        context['paid_amount'] = paid_taxes.aggregate(Sum('tax_amount'))['tax_amount__sum'] or 0
+        
+        unpaid_taxes = all_taxes.exclude(tax_status='Paid')
+        context['unpaid_count'] = unpaid_taxes.count()
+        context['unpaid_amount'] = unpaid_taxes.aggregate(Sum('tax_amount'))['tax_amount__sum'] or 0
+        
+        overdue_taxes = all_taxes.filter(tax_status='Overdue')
+        context['overdue_count'] = overdue_taxes.count()
+        
+        # Filter Options
+        context['years'] = PropertyTax.objects.values_list('tax_year', flat=True).distinct().order_by('-tax_year')
+        
+        # Current Filters
+        context['current_q'] = self.request.GET.get('q', '')
+        context['current_status'] = self.request.GET.get('status', 'All Status')
+        context['current_year'] = self.request.GET.get('year', 'All Years')
+        
+        return context
+
+
 @login_required
 def add_property_tax(request, pk):
     if request.method == 'POST':
@@ -433,6 +499,9 @@ def add_property_tax(request, pk):
 
 @login_required
 def update_property_tax(request, pk):
+    if not is_admin(request.user):
+        return JsonResponse({'success': False, 'message': 'Permission denied. Only admins can edit tax records.'}, status=403)
+
     if request.method == 'POST':
         try:
             tax_record = get_object_or_404(PropertyTax, pk=pk)
@@ -497,6 +566,7 @@ def global_search(request):
 
             results.append({
                 'category': 'Property',
+                'id': prop.pk,
                 'title': prop.title_no,
                 'description': f"{owner_name or 'No owner'} | Lot {prop.lot_no} | {loc_text or prop.get_title_classification_display()}",
                 'url': str(reverse_lazy('property_detail', kwargs={'pk': prop.pk}))
@@ -591,7 +661,7 @@ def notifications_api(request):
             'id': n.id,
             'category': n.category,
             'message': n.message,
-            'created_at': n.created_at.strftime('%Y-%m-%d %H:%M'),
+            'created_at': timezone.localtime(n.created_at).strftime('%Y-%m-%d %H:%M'),
             'url': url,
         })
     return JsonResponse({'notifications': data})
@@ -790,3 +860,45 @@ def upload_document(request, pk):
         return JsonResponse({'success': True, 'message': 'Document uploaded successfully.'})
         
     return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+@login_required
+def ai_usage_api(request):
+    """
+    Returns the current usage stats for the AI service.
+    This replaces client-side tracking with server-side truth.
+    """
+    now = timezone.now()
+    one_day_ago = now - timedelta(days=1)
+    one_minute_ago = now - timedelta(minutes=1)
+
+    # Count GLOBAL usage (Project Level)
+    # If we want per-user, we filter by user=request.user
+    # But user asked for "Google AI Studio" connection, which is Project Level.
+    # However, to avoid one user depleting others, we might want per-user?
+    # User's prompt: "Connect it to the google AI Studio... request per minute (RPM) and request per day (RPD)"
+    # This implies showing the PROJECT quota usage.
+    
+    daily_count = AIRequestLog.objects.filter(timestamp__gte=one_day_ago).count()
+    minute_count = AIRequestLog.objects.filter(timestamp__gte=one_minute_ago).count()
+
+    return JsonResponse({
+        'daily': daily_count,
+        'minute': minute_count,
+        'daily_limit': 20, # Matches User's Free Tier
+        'minute_limit': 5   # Matches User's Free Tier
+    })
+
+@login_required
+@csrf_exempt
+def ai_chat_api(request):
+    if request.method == 'POST':
+        user_message = request.POST.get('message', '')
+        image_file = request.FILES.get('image', None)
+        
+        if not user_message and not image_file:
+             return JsonResponse({'response': "I need a message or an image to assist you."})
+             
+        ai_response = get_ai_response(user_message, image_file, user=request.user)
+        return JsonResponse({'response': ai_response})
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=405)

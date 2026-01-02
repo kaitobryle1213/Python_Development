@@ -25,14 +25,17 @@
                             {% csrf_token %}
                             <div class="mb-4">
                                 <label class="form-label text-secondary small">Select New Room</label>
-                                <select name="new_room" class="form-select" required>
-                                    <option value="" selected disabled>Choose a room...</option>
-                                    {% for r in available_rooms %}
-                                        <option value="{{ r.id }}">
-                                            Room {{ r.room_number }} ({{ r.room_type }}) - ₱{{ r.price }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white"><i class="fas fa-bed"></i></span>
+                                    <select name="new_room" class="form-select" required>
+                                        <option value="" selected disabled>Choose a room...</option>
+                                        {% for r in available_rooms %}
+                                            <option value="{{ r.id }}">
+                                                Room {{ r.room_number }} ({{ r.room_type }}) - ₱{{ r.price }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
                             </div>
                             
                             <div class="d-flex justify-content-end gap-2">

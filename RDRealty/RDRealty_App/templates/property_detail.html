@@ -81,16 +81,18 @@
         <div>
             <h1 class="fw-bold"><i class="fas fa-building me-2"></i>{{ property.title_no }}</h1>
             <p class="text-muted mb-0">
-                <span class="me-3"><i class="fas fa-map-marker-alt me-1"></i>Lot {{ property.lot_no }}</span>
+                <span class="me-3"><i class="fas fa-map-marker-alt me-1"></i>{{ property.lot_no }}</span>
                 <span class="badge bg-light text-dark border rounded-pill">
                     {{ property.get_title_classification_display }}
                 </span>
             </p>
         </div>
         <div>
+            {% if request.user.is_staff or request.user.is_superuser %}
             <a href="{% url 'property_update' pk=property.pk %}" class="btn btn-warning shadow-sm">
                 <i class="fas fa-edit me-1"></i> Edit Property
             </a>
+            {% endif %}
             <a href="{% url 'property_list' %}" class="btn btn-secondary shadow-sm ms-2">
                 <i class="fas fa-arrow-left me-1"></i> Back to List
             </a>
@@ -299,8 +301,10 @@
                                 <option value="All Years">All Years</option>
                             </select>
                         </div>
-                        <div class="col-lg-3 d-flex gap-2">
-                             <button class="btn btn-warning w-100 d-flex align-items-center justify-content-center text-nowrap" data-bs-toggle="modal" data-bs-target="#addTaxModal"><i class="fas fa-plus me-2"></i> Add Tax</button>
+                        <div class="col-lg-3 d-flex gap-2 align-items-end">
+                             <button class="btn btn-primary w-100" id="addTaxBtn">
+                                <i class="fas fa-plus me-1"></i> Add Tax Record
+                            </button>
                         </div>
                     </div>
 
@@ -326,10 +330,10 @@
                                     <td class="fw-bold text-muted searchable">{{ tax.id }}</td>
                                     <td>{{ property.title_no }}</td>
                                     <td>{{ property.lot_no }}</td>
-                                    <td class="fw-bold searchable">₱{{ tax.tax_amount|intcomma }}</td>
+                                    <td class="searchable">₱{{ tax.tax_amount|intcomma }}</td>
                                     <td>{{ owner_info.oi_fullname|default:"-"|truncatechars:20 }}</td>
-                                    <td class="fw-bold searchable">{{ tax.tax_year }}</td>
-                                    <td class="text-danger fw-bold searchable">{{ tax.tax_due_date|date:"M d, Y" }}</td>
+                                    <td class="searchable">{{ tax.tax_year }}</td>
+                                    <td class="searchable">{{ tax.tax_due_date|date:"M d, Y" }}</td>
                                     <td class="searchable">
                                         <span class="badge rounded-pill 
                                             {% if tax.tax_status == 'Paid' %}bg-success
@@ -340,6 +344,7 @@
                                         </span>
                                     </td>
                                     <td class="text-end">
+                                        {% if request.user.is_staff or request.user.is_superuser %}
                                         <button class="btn btn-sm btn-light border edit-tax-btn" 
                                             data-id="{{ tax.id }}"
                                             data-year="{{ tax.tax_year }}"
@@ -353,6 +358,7 @@
                                         >
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}
@@ -643,26 +649,45 @@
                 // 1. Text Search Filter
                 let textMatch = false;
                 
-                // Only search within .searchable cells
-                let text = '';
-                row.querySelectorAll('.searchable').forEach(cell => {
-                    text += cell.textContent.toLowerCase() + ' ';
-                });
-                
-                // Remove commas for number matching
-                const textNoCommas = text.replace(/,/g, '');
-                
                 if (query === '') {
                     textMatch = true;
-                } else if (isNumeric) {
-                    try {
-                        const regex = new RegExp('\\b' + query + '\\b');
-                        textMatch = regex.test(textNoCommas);
-                    } catch (e) {
-                        textMatch = textNoCommas.includes(query);
-                    }
                 } else {
-                    textMatch = text.includes(query) || textNoCommas.includes(query);
+                    // Iterate through searchable cells
+                    const cells = row.querySelectorAll('.searchable');
+                    for (let cell of cells) {
+                        const content = cell.textContent.toLowerCase().trim();
+                        const contentNoCommas = content.replace(/,/g, '');
+                        
+                        if (isNumeric) {
+                            // Strict numeric matching:
+                            // 1. Exact match of content (e.g., ID "2")
+                            if (contentNoCommas === query) {
+                                textMatch = true;
+                                break;
+                            }
+                            // 2. Word boundary match (e.g., "Jan 2, 2024" -> matches "2")
+                            // We use regex with word boundaries on the cell content
+                            try {
+                                const regex = new RegExp('\\b' + query + '\\b');
+                                if (regex.test(contentNoCommas)) {
+                                    textMatch = true;
+                                    break;
+                                }
+                            } catch (e) {
+                                // Fallback
+                                if (contentNoCommas.includes(query)) {
+                                    textMatch = true;
+                                    break;
+                                }
+                            }
+                        } else {
+                            // Non-numeric: standard substring match
+                            if (content.includes(query) || contentNoCommas.includes(query)) {
+                                textMatch = true;
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 // 2. Status Filter
@@ -753,10 +778,9 @@
             document.body.appendChild(hiddenEditTrigger);
         }
         
-        // Handle "Add Tax" Button
-        const addTaxBtn = document.getElementById('addTaxBtn');
-        if (addTaxBtn) {
-            addTaxBtn.addEventListener('click', function() {
+        // Handle "Add Tax" Button (Event Delegation)
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.add-tax-btn') || e.target.id === 'addTaxBtn') {
                 addTaxForm.reset();
                 taxIdInput.value = '';
                 taxModalTitle.textContent = 'Add Real Property Tax Record';
@@ -775,8 +799,11 @@
                 if(document.getElementById('tax_due_date')) document.getElementById('tax_due_date').value = dateStr;
                 if(document.getElementById('tax_from')) document.getElementById('tax_from').value = dateStr;
                 if(document.getElementById('tax_to')) document.getElementById('tax_to').value = dateStr;
-            });
-        }
+                
+                // Show Modal
+                hiddenEditTrigger.click();
+            }
+        });
 
         // Handle "Edit" Button (Event Delegation)
         document.addEventListener('click', function(e) {

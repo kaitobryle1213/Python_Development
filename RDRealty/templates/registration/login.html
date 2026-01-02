@@ -16,134 +16,156 @@
     
     <style>
         :root {
-            --primary-color: #0f172a; /* Slate 900 */
-            --primary-hover: #1e293b; /* Slate 800 */
-            --accent-color: #3b82f6; /* Blue 500 */
-            --bg-gradient-start: #f8fafc;
-            --bg-gradient-end: #e2e8f0;
+            /* Brand Colors derived from Logo/Theme */
+            --brand-primary: #1e3a8a; /* Deep Blue */
+            --brand-secondary: #3b82f6; /* Lighter Blue */
+            --brand-gradient-start: #1e3a8a;
+            --brand-gradient-end: #60a5fa;
+            
+            --text-main: #1e293b;
+            --text-muted: #64748b;
         }
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f1f5f9;
-            background-image: 
-                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
-            background-size: 100% 100%;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
+            background: linear-gradient(135deg, var(--brand-primary) 0%, #1e1b4b 100%); /* Deep rich background */
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0;
-            color: #334155;
-        }
-
-        .login-container {
-            width: 100%;
-            max-width: 400px;
             padding: 20px;
-            animation: fadeInUp 0.6s ease-out;
         }
 
         .login-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            padding: 40px 30px;
+            background: #ffffff;
+            width: 100%;
+            max-width: 900px;
+            min-height: 600px;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
             overflow: hidden;
             position: relative;
         }
-        
-        /* Top decorative line */
-        .login-card::before {
-            content: '';
+
+        /* Left Side - Brand/Logo Area */
+        .brand-side {
+            flex: 1;
+            background: linear-gradient(135deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 40px;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* Decorative Circles for "Modern" look */
+        .circle-decoration {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
         }
+        .circle-1 { width: 300px; height: 300px; top: -50px; left: -50px; }
+        .circle-2 { width: 200px; height: 200px; bottom: 50px; right: -50px; }
+        .circle-3 { width: 100px; height: 100px; top: 40%; right: 20%; background: rgba(255,255,255,0.05); }
 
-        .brand-section {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .brand-logo {
-            width: 64px;
-            height: 64px;
+        .brand-logo-large {
+            width: 180px;
+            height: 180px;
             object-fit: contain;
-            margin-bottom: 15px;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2));
+            z-index: 2;
+            animation: float 6s ease-in-out infinite;
         }
 
-        .brand-title {
-            font-size: 1.5rem;
+        .brand-text {
+            margin-top: 30px;
+            text-align: center;
+            z-index: 2;
+        }
+        
+        .brand-text h2 {
             font-weight: 700;
-            color: #0f172a;
-            margin-bottom: 5px;
+            font-size: 2rem;
+            margin-bottom: 10px;
             letter-spacing: -0.5px;
         }
 
-        .brand-subtitle {
-            font-size: 0.875rem;
-            color: #64748b;
+        .brand-text p {
+            font-size: 1rem;
+            opacity: 0.9;
+            max-width: 300px;
+            line-height: 1.6;
+        }
+
+        /* Right Side - Form Area */
+        .form-side {
+            flex: 1;
+            padding: 60px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background-color: #ffffff;
+        }
+
+        .login-header {
+            margin-bottom: 40px;
+        }
+
+        .login-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 10px;
+        }
+
+        .login-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
         }
 
         .form-floating > .form-control {
             border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            padding-left: 45px;
-            height: 52px;
-            font-size: 0.95rem;
+            border: 2px solid #e2e8f0;
+            padding-left: 20px; /* Reset padding since we moved icons or remove them for cleaner look */
+            height: 55px;
+            font-size: 1rem;
+            background-color: #f8fafc;
         }
         
         .form-floating > .form-control:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            border-color: var(--brand-secondary);
+            background-color: #fff;
+            box-shadow: none;
         }
 
         .form-floating > label {
-            padding-left: 45px;
-            padding-top: 14px; /* Adjust based on height */
-        }
-
-        .input-icon {
-            position: absolute;
-            top: 50%;
-            left: 16px;
-            transform: translateY(-50%);
-            color: #94a3b8;
-            z-index: 5;
-            transition: color 0.2s;
-        }
-
-        .form-floating:focus-within .input-icon {
-            color: #3b82f6;
+            padding-left: 20px;
+            padding-top: 15px;
+            color: var(--text-muted);
         }
 
         .btn-primary {
-            background-color: #0f172a;
-            border-color: #0f172a;
-            height: 50px;
+            background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
+            border: none;
+            height: 55px;
             border-radius: 12px;
             font-weight: 600;
-            font-size: 1rem;
-            letter-spacing: 0.3px;
-            transition: all 0.2s;
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+            margin-top: 20px;
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .btn-primary:hover {
-            background-color: #1e293b;
-            border-color: #1e293b;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -5px rgba(59, 130, 246, 0.5);
+            background: linear-gradient(90deg, #1e3a8a, #2563eb);
         }
 
         .alert-danger {
@@ -155,33 +177,66 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            padding: 15px;
         }
 
         .copyright {
+            margin-top: 40px;
             text-align: center;
-            margin-top: 25px;
-            font-size: 0.75rem;
-            color: #94a3b8; /* Light slate text for better contrast against dark bg */
-        }
-        
-        .copyright a {
+            font-size: 0.8rem;
             color: #cbd5e1;
-            text-decoration: none;
         }
 
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 900px) {
+            .login-card {
+                flex-direction: column;
+                max-width: 500px;
+            }
+            .brand-side {
+                min-height: 250px;
+                padding: 30px;
+            }
+            .brand-logo-large {
+                width: 100px;
+                height: 100px;
+            }
+            .brand-text { display: none; } /* Hide text on mobile to save space */
+            .form-side {
+                padding: 40px 30px;
+            }
+            .circle-1 { width: 150px; height: 150px; }
+            .circle-2 { width: 100px; height: 100px; }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-card">
-            <div class="brand-section">
-                <img src="{% static 'images/RDCorp.png' %}" alt="RD Corp Logo" class="brand-logo">
-                <h1 class="brand-title">RD Realty</h1>
-                <p class="brand-subtitle">Welcome back! Please sign in to continue.</p>
+    <div class="login-card">
+        <!-- Left Side: Brand & Visuals -->
+        <div class="brand-side">
+            <div class="circle-decoration circle-1"></div>
+            <div class="circle-decoration circle-2"></div>
+            <div class="circle-decoration circle-3"></div>
+            
+            <img src="{% static 'images/RDCorp_transparent.png' %}" alt="RD Corp Logo" class="brand-logo-large">
+            
+            <div class="brand-text">
+                <h2>RD Realty</h2>
+                <p>Professional Property Management Solutions</p>
+            </div>
+        </div>
+
+        <!-- Right Side: Login Form -->
+        <div class="form-side">
+            <div class="login-header">
+                <h1 class="login-title">Welcome back</h1>
+                <p class="login-subtitle">Please enter your details to sign in.</p>
             </div>
 
             {% if form.errors %}
@@ -202,26 +257,32 @@
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.GET.next|default:'' }}">
                 
-                <div class="form-floating mb-3 position-relative">
-                    <i class="fas fa-user input-icon"></i>
+                <div class="form-floating mb-3">
                     <input type="text" name="username" class="form-control" id="floatingInput" placeholder="Username" autocomplete="username" required>
                     <label for="floatingInput">Username</label>
                 </div>
                 
-                <div class="form-floating mb-4 position-relative">
-                    <i class="fas fa-lock input-icon"></i>
+                <div class="form-floating mb-4">
                     <input type="password" name="password" class="form-control" id="floatingPassword" placeholder="Password" autocomplete="current-password" required>
                     <label for="floatingPassword">Password</label>
                 </div>
 
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="form-check">
+                        <!-- Optional: Remember me checkbox if supported later -->
+                    </div>
+                    <!-- Optional: Forgot Password link -->
+                    <!-- <a href="#" class="text-decoration-none" style="color: var(--brand-secondary); font-size: 0.9rem;">Forgot Password?</a> -->
+                </div>
+
                 <button class="btn btn-primary w-100" type="submit">
-                    Sign in <i class="fas fa-arrow-right ms-2"></i>
+                    Sign in
                 </button>
             </form>
-        </div>
-        
-        <div class="copyright">
-            &copy; {% now "Y" %} RD Realty Corporation. All rights reserved.
+            
+            <div class="copyright text-muted mt-4">
+                &copy; {% now "Y" %} RD Realty Corp.
+            </div>
         </div>
     </div>
 </body>

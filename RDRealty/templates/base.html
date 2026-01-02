@@ -14,6 +14,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            /* Brand Colors derived from Logo/Theme */
+            --brand-primary: #1e3a8a; /* Deep Blue */
+            --brand-secondary: #3b82f6; /* Lighter Blue */
+            --brand-gradient-start: #1e3a8a;
+            --brand-gradient-end: #60a5fa;
+            
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
         /* Global Font Settings */
         html {
             font-size: 0.9rem; /* Base size 14.4px for compact feel */
@@ -50,6 +61,11 @@
             border: 1px solid #e2e8f0;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
             border-radius: 0.5rem;
+        }
+
+        /* Cursor for header to indicate clickability */
+        .ai-chat-header {
+            cursor: pointer;
         }
         
         .card-header {
@@ -102,8 +118,8 @@
         #sidebar {
             min-width: 260px;
             max-width: 260px;
-            background: #fff;
-            color: #475569; /* Slate-600 */
+            background: linear-gradient(180deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%);
+            color: #f8fafc;
             transition: all 0.3s;
             position: sticky;
             top: 0;
@@ -137,8 +153,8 @@
 
         #sidebar .sidebar-header {
             padding: 20px;
-            background: #fff;
-            border-bottom: none;
+            background: transparent;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
         }
@@ -147,7 +163,7 @@
             margin: 0;
             font-size: 1.1rem;
             font-weight: 700;
-            color: #0f172a;
+            color: #fff;
             margin-left: 10px;
             white-space: nowrap;
         }
@@ -176,7 +192,7 @@
         }
 
         #sidebar ul p {
-            color: #94a3b8; /* Slate-400 */
+            color: rgba(255, 255, 255, 0.6);
             padding: 10px 10px;
             font-size: 0.75rem;
             font-weight: 600;
@@ -196,7 +212,7 @@
             font-weight: 500;
             display: flex;
             align-items: center;
-            color: #0f172a; /* Slate-900 / Black */
+            color: rgba(255, 255, 255, 0.8);
             text-decoration: none;
             transition: all 0.2s;
             white-space: nowrap;
@@ -205,13 +221,15 @@
         }
 
         #sidebar ul li a:hover {
-            background: #eff6ff; /* Light Blue background on hover */
-            color: #2563eb; /* Blue text on hover */
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
         }
 
         #sidebar ul li a.active {
-            background-color: #eff6ff !important;
-            color: #2563eb !important; /* Blue-600 */
+            background-color: rgba(255, 255, 255, 0.2) !important;
+            color: white !important;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         #sidebar ul li a i {
@@ -219,11 +237,11 @@
             font-size: 1rem;
             width: 24px;
             text-align: center;
-            color: #64748b; /* Gray icon normally */
+            color: rgba(255, 255, 255, 0.6);
         }
         
         #sidebar ul li a:hover i, #sidebar ul li a.active i {
-            color: #2563eb; /* Blue icon on hover/active */
+            color: white;
         }
 
         #sidebar.minimized ul li a {
@@ -242,6 +260,12 @@
         
         #sidebar.minimized .dropdown-toggle::after {
             display: none;
+        }
+
+        /* Prevent submenus from expanding/showing blank spaces when minimized */
+        #sidebar.minimized .collapse.show,
+        #sidebar.minimized .collapsing {
+            display: none !important;
         }
 
         /* Sidebar Footer */
@@ -295,6 +319,43 @@
 
         #sidebar-border-toggle:hover {
             background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        /* Sidebar Footer User Link States */
+        #sidebar .sidebar-footer a.dropdown-toggle {
+            color: rgba(255, 255, 255, 0.9) !important;
+        }
+        #sidebar .sidebar-footer a.dropdown-toggle:hover,
+        #sidebar .sidebar-footer a.dropdown-toggle[aria-expanded="true"] {
+            color: #fff !important;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+        }
+        
+        /* Ensure dropdown menu text is readable - Override the general sidebar link style */
+        #sidebar .dropdown-menu .dropdown-item {
+            color: #212529 !important;
+            display: block; /* Reset flex display from sidebar links */
+            width: 100%;
+        }
+        
+        #sidebar .dropdown-menu .dropdown-item:hover {
+            color: #16181b !important;
+            background-color: #f8f9fa !important;
+        }
+        
+        #sidebar .dropdown-menu .dropdown-item.text-danger {
+            color: #dc3545 !important;
+        }
+        
+        #sidebar .dropdown-menu .dropdown-item.text-danger:hover {
+            color: #bb2d3b !important;
+            background-color: #f8f9fa !important;
+        }
+
+        /* Ensure dropdown menu text is readable */
+        #sidebar .sidebar-footer .dropdown-menu {
+            color: #1e293b;
         }
 
         /* Content Area */
@@ -373,12 +434,18 @@
         
         /* Submenu */
         #sidebar ul.collapse {
-            background-color: #fff;
+            background-color: transparent !important;
         }
         
         #sidebar ul.collapse li a {
             padding-left: 65px;
             font-size: 0.95em;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        #sidebar ul.collapse li a:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
         }
         
         #sidebar.minimized ul.collapse li a {
@@ -671,10 +738,10 @@
         <div id="sidebar-border-toggle" title="Click to toggle sidebar"></div>
         
         <div class="sidebar-header">
-            <img src="{% static 'images/RDCorp.png' %}" alt="RD Corp Logo" class="logo-img">
+            <img src="{% static 'images/RDCorp_transparent.png' %}" alt="RD Corp Logo" class="logo-img">
             <h3>
                 RD Corporation<br>
-                <small style="font-size: 0.6em; color: #888; font-weight: normal;">Property Management</small>
+                <small style="font-size: 0.6em; color: rgba(255,255,255,0.7); font-weight: normal;">Property Management</small>
             </h3>
         </div>
 
@@ -702,12 +769,29 @@
                     </li>
                 </ul>
             </li>
+            <li>
+                <a href="#taxSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                    <i class="fas fa-file-invoice-dollar"></i> <span>Property Tax</span>
+                </a>
+                <ul class="collapse list-unstyled" id="taxSubmenu">
+                    <li>
+                        <a href="{% url 'all_tax_records' %}">
+                             <span>All Tax Records</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#globalAddTaxModal">
+                             <span>Add Tax</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
         </ul>
         
         <!-- User Profile Footer -->
-        <div class="sidebar-footer border-top p-3">
+        <div class="sidebar-footer border-top p-3" style="border-color: rgba(255,255,255,0.1) !important;">
             <div class="dropup">
-                <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+                <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-white" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
                     <div class="avatar me-2">
                          <span class="rounded-circle bg-warning text-white d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px; font-size: 0.9rem;">
                             {{ request.user.username|make_list|first|upper }}
@@ -715,7 +799,7 @@
                     </div>
                     <div class="user-info text-truncate" style="max-width: 140px;">
                         <small class="d-block fw-bold">{{ request.user.profile.full_name|default:request.user.username }}</small>
-                        <small class="d-block text-muted" style="font-size: 0.7rem;">{% if request.user.is_staff %}Admin{% else %}User{% endif %}</small>
+                        <small class="d-block" style="font-size: 0.7rem; color: rgba(255,255,255,0.7);">{% if request.user.is_staff %}Admin{% else %}User{% endif %}</small>
                     </div>
                 </a>
                 <ul class="dropdown-menu shadow" aria-labelledby="dropdownUser1" style="min-width: 240px;">
@@ -776,6 +860,101 @@
         <div class="main-content">
             {% block content %}
             {% endblock content %}
+        </div>
+    </div>
+</div>
+
+<!-- Global Add Tax Modal -->
+<div class="modal fade" id="globalAddTaxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Add Property Tax Record</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Step 1: Search Property -->
+                <div id="taxPropertySearchSection">
+                    <p class="text-muted small mb-3">Search for a property to add a tax record.</p>
+                    <div class="position-relative">
+                        <input type="text" id="taxPropertySearchInput" class="form-control" placeholder="Search by Title No, Owner, or Location..." autocomplete="off">
+                        <div id="taxPropertySearchResults" class="list-group position-absolute w-100 shadow-sm mt-1" style="z-index: 1050; max-height: 250px; overflow-y: auto; display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Selected Property & Form -->
+                <div id="taxFormSection" style="display: none;">
+                    <div class="alert alert-info py-2 small mb-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-info-circle me-1"></i> Selected: <span id="taxSelectedPropertyTitle" class="fw-bold"></span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-info" id="changeTaxPropertyBtn">Change</button>
+                    </div>
+                    
+                    <form id="globalAddTaxForm">
+                        <input type="hidden" id="global_tax_property_id">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Tax Year</label>
+                                <input type="number" class="form-control" name="tax_year" placeholder="YYYY" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Quarter</label>
+                                <select class="form-select" name="tax_quarter">
+                                    <option value="Annual">Annual</option>
+                                    <option value="Q1">Q1</option>
+                                    <option value="Q2">Q2</option>
+                                    <option value="Q3">Q3</option>
+                                    <option value="Q4">Q4</option>
+                                </select>
+                            </div>
+                             <div class="col-md-4">
+                                <label class="form-label fw-bold small">Tax Amount (₱)</label>
+                                <input type="number" step="0.01" class="form-control" name="tax_amount" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Due Date</label>
+                                <input type="date" class="form-control" name="tax_due_date" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Period From</label>
+                                <input type="date" class="form-control" name="tax_from" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Period To</label>
+                                <input type="date" class="form-control" name="tax_to" required>
+                            </div>
+                        </div>
+
+                         <div class="mb-3">
+                            <label class="form-label fw-bold small">Status</label>
+                            <select class="form-select w-auto" name="tax_status">
+                                <option value="Pending">Pending</option>
+                                <option value="Due">Due</option>
+                                <option value="Overdue">Overdue</option>
+                                <option value="Paid">Paid</option>
+                                <option value="Partially Paid">Partially Paid</option>
+                                <option value="Contested">Contested</option>
+                                <option value="Exempted">Exempted</option>
+                                <option value="Waived">Waived</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Remarks (Optional)</label>
+                            <textarea class="form-control" name="tax_remarks" rows="2"></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-warning" id="saveGlobalTaxBtn">Save Record</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -865,6 +1044,126 @@
         } catch (e) {
         }
     });
+
+    // Global Add Tax Modal Logic
+    const taxPropertySearchInput = document.getElementById('taxPropertySearchInput');
+    const taxPropertySearchResults = document.getElementById('taxPropertySearchResults');
+    const taxPropertySearchSection = document.getElementById('taxPropertySearchSection');
+    const taxFormSection = document.getElementById('taxFormSection');
+    const taxSelectedPropertyTitle = document.getElementById('taxSelectedPropertyTitle');
+    const changeTaxPropertyBtn = document.getElementById('changeTaxPropertyBtn');
+    const globalAddTaxForm = document.getElementById('globalAddTaxForm');
+    const saveGlobalTaxBtn = document.getElementById('saveGlobalTaxBtn');
+    const globalTaxPropertyId = document.getElementById('global_tax_property_id');
+    let taxSearchDebounce;
+
+    if (taxPropertySearchInput) {
+        taxPropertySearchInput.addEventListener('input', function() {
+            clearTimeout(taxSearchDebounce);
+            const query = this.value.trim();
+            if (query.length === 0) {
+                taxPropertySearchResults.style.display = 'none';
+                return;
+            }
+            
+            taxSearchDebounce = setTimeout(() => {
+                fetch(`{% url 'global_search' %}?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const properties = data.results.filter(item => item.category === 'Property');
+                        if (properties.length > 0) {
+                            let html = '';
+                            properties.forEach(prop => {
+                                html += `
+                                    <a href="#" class="list-group-item list-group-item-action" 
+                                       onclick="selectTaxProperty(event, '${prop.id}', '${prop.title.replace(/'/g, "\\'")}')">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1 text-primary fw-bold">${prop.title}</h6>
+                                        </div>
+                                        <small class="text-muted">${prop.description}</small>
+                                    </a>
+                                `;
+                            });
+                            taxPropertySearchResults.innerHTML = html;
+                            taxPropertySearchResults.style.display = 'block';
+                        } else {
+                            taxPropertySearchResults.innerHTML = '<div class="list-group-item text-muted">No properties found.</div>';
+                            taxPropertySearchResults.style.display = 'block';
+                        }
+                    });
+            }, 300);
+        });
+    }
+
+    window.selectTaxProperty = function(e, id, title) {
+        e.preventDefault();
+        if (globalTaxPropertyId) globalTaxPropertyId.value = id;
+        if (taxSelectedPropertyTitle) taxSelectedPropertyTitle.textContent = title;
+        if (taxPropertySearchSection) taxPropertySearchSection.style.display = 'none';
+        if (taxFormSection) taxFormSection.style.display = 'block';
+        if (taxPropertySearchResults) taxPropertySearchResults.style.display = 'none';
+    };
+
+    if (changeTaxPropertyBtn) {
+        changeTaxPropertyBtn.addEventListener('click', function() {
+            if (globalAddTaxForm) globalAddTaxForm.reset();
+            if (globalTaxPropertyId) globalTaxPropertyId.value = '';
+            if (taxFormSection) taxFormSection.style.display = 'none';
+            if (taxPropertySearchSection) taxPropertySearchSection.style.display = 'block';
+            if (taxPropertySearchInput) {
+                taxPropertySearchInput.value = '';
+                taxPropertySearchInput.focus();
+            }
+        });
+    }
+
+    if (saveGlobalTaxBtn) {
+        saveGlobalTaxBtn.addEventListener('click', function() {
+            if (!globalAddTaxForm.checkValidity()) {
+                globalAddTaxForm.reportValidity();
+                return;
+            }
+            
+            const formData = new FormData(globalAddTaxForm);
+            const data = Object.fromEntries(formData.entries());
+            const propertyId = globalTaxPropertyId.value;
+            
+            fetch(`/property/${propertyId}/add-tax/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                     const modal = bootstrap.Modal.getInstance(document.getElementById('globalAddTaxModal'));
+                     modal.hide();
+                     window.location.href = `/property/${propertyId}/`;
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving.');
+            });
+        });
+    }
+
+    // Reset modal on close
+    const globalAddTaxModal = document.getElementById('globalAddTaxModal');
+    if (globalAddTaxModal) {
+        globalAddTaxModal.addEventListener('hidden.bs.modal', function () {
+            if (globalAddTaxForm) globalAddTaxForm.reset();
+            if (taxFormSection) taxFormSection.style.display = 'none';
+            if (taxPropertySearchSection) taxPropertySearchSection.style.display = 'block';
+            if (taxPropertySearchInput) taxPropertySearchInput.value = '';
+            if (taxPropertySearchResults) taxPropertySearchResults.style.display = 'none';
+        });
+    }
 
     const submenuMappings = [
         { id: 'propertySubmenu', prefixes: ['/properties/', '/property/', '/add-property/'] },
@@ -1233,6 +1532,434 @@
                 }
             });
         }
+    });
+</script>
+
+<!-- AI Chat Integration -->
+<style>
+    /* AI Chat Floating Button & Window */
+    #aiChatButton {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        background-color: #4f46e5; /* Indigo-600 */
+        color: white;
+        border-radius: 50%;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        cursor: pointer;
+        z-index: 1060;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    #aiChatButton:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(79, 70, 229, 0.5);
+    }
+    
+    #aiChatWindow {
+        position: fixed;
+        bottom: 100px;
+        right: 30px;
+        width: 380px;
+        height: 500px;
+        background-color: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        display: none;
+        flex-direction: column;
+        z-index: 1060;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+    }
+    #aiChatWindow.show {
+        display: flex;
+    }
+    
+    .ai-chat-header {
+        background: linear-gradient(135deg, #4f46e5, #6366f1);
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .ai-chat-header h5 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .ai-chat-messages {
+        flex-grow: 1;
+        padding: 20px;
+        overflow-y: auto;
+        background-color: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .ai-message {
+        max-width: 80%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+    .ai-message.bot {
+        align-self: flex-start;
+        background-color: white;
+        border: 1px solid #e2e8f0;
+        color: #334155;
+        border-top-left-radius: 2px;
+    }
+    .ai-message.user {
+        align-self: flex-end;
+        background-color: #4f46e5;
+        color: white;
+        border-top-right-radius: 2px;
+    }
+    
+    .ai-chat-input-area {
+        padding: 15px;
+        background-color: white;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        gap: 10px;
+    }
+    .ai-chat-input-area input {
+        flex-grow: 1;
+        border: 1px solid #cbd5e1;
+        border-radius: 20px;
+        padding: 8px 15px;
+        font-size: 0.9rem;
+    }
+    .ai-chat-input-area input:focus {
+        outline: none;
+        border-color: #4f46e5;
+    }
+    .ai-chat-input-area button {
+        background-color: #4f46e5;
+        color: white;
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .ai-chat-input-area button:hover {
+        background-color: #4338ca;
+    }
+</style>
+
+<!-- AI Chat Floating Button -->
+<div id="aiChatButton" title="Ask Kaito">
+    <i class="fas fa-robot"></i>
+</div>
+
+<!-- AI Chat Window -->
+<div id="aiChatWindow">
+    <div class="ai-chat-header">
+        <div class="d-flex flex-column">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-robot"></i>
+                <h5 class="mb-0">Kaito AI Assistant</h5>
+            </div>
+            <div style="font-size: 0.75rem; opacity: 0.9; margin-top: 4px;" id="aiLimitNote">
+                <span id="minuteLimitDisplay">5</span>/5 per min. <span id="dailyLimitDisplay">20</span>/20 per day.
+            </div>
+            <div id="aiLimitWarning" style="font-size: 0.75rem; color: #ef4444; display: none; margin-top: 2px;">
+                Limit reached. Please wait.
+            </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" id="closeAiChat"></button>
+    </div>
+    <div class="ai-chat-messages" id="aiChatMessages">
+        <!-- Messages will be loaded via JS -->
+    </div>
+    <div class="ai-chat-input-area">
+        <input type="file" id="aiImageInput" accept="image/*" style="display: none;">
+        <button id="attachAiImage" title="Upload Image" style="background-color: #f1f5f9; color: #64748b;">
+            <i class="fas fa-paperclip"></i>
+        </button>
+        <input type="text" id="aiChatInput" placeholder="Type a message...">
+        <button id="sendAiMessage">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+    <div id="imagePreviewArea" style="display: none; padding: 0 15px 10px; background: white; font-size: 0.8rem; color: #64748b;">
+        <i class="fas fa-image me-1"></i> <span id="imageFileName"></span> 
+        <i class="fas fa-times ms-2" style="cursor: pointer;" id="removeImage"></i>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const aiChatButton = document.getElementById('aiChatButton');
+        const aiChatWindow = document.getElementById('aiChatWindow');
+        const closeAiChat = document.getElementById('closeAiChat');
+        const aiChatInput = document.getElementById('aiChatInput');
+        const sendAiMessage = document.getElementById('sendAiMessage');
+        const aiChatMessages = document.getElementById('aiChatMessages');
+        
+        const attachAiImage = document.getElementById('attachAiImage');
+        const aiImageInput = document.getElementById('aiImageInput');
+        const imagePreviewArea = document.getElementById('imagePreviewArea');
+        const imageFileName = document.getElementById('imageFileName');
+        const removeImage = document.getElementById('removeImage');
+
+        const STORAGE_KEY = 'rdrealty_ai_chat_history';
+        const LOGOUT_URL = "{% url 'app_logout' %}";
+
+        // --- Chat Persistence & Management ---
+
+        function saveMessage(text, sender) {
+            let history = localStorage.getItem(STORAGE_KEY);
+            let messages = history ? JSON.parse(history) : [];
+            messages.push({ text: text, sender: sender });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+        }
+
+        function addMessage(text, sender, save = true) {
+            const div = document.createElement('div');
+            div.classList.add('ai-message', sender);
+            
+            // Allow basic formatting for bot messages
+            if (sender === 'bot') {
+                // Convert newlines to <br>
+                let formattedText = text.replace(/\n/g, '<br>');
+                // Bold text **text** -> <strong>text</strong>
+                formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                div.innerHTML = formattedText;
+            } else {
+                div.textContent = text;
+            }
+            
+            aiChatMessages.appendChild(div);
+            aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+
+            if (save) {
+                saveMessage(text, sender);
+            }
+        }
+
+        function loadHistory() {
+            const history = localStorage.getItem(STORAGE_KEY);
+            aiChatMessages.innerHTML = '';
+            
+            if (history) {
+                try {
+                    const messages = JSON.parse(history);
+                    if (messages.length > 0) {
+                        messages.forEach(msg => addMessage(msg.text, msg.sender, false));
+                    } else {
+                        showWelcomeMessage();
+                    }
+                } catch (e) {
+                    console.error("Error parsing chat history", e);
+                    showWelcomeMessage();
+                }
+            } else {
+                showWelcomeMessage();
+            }
+        }
+
+        function showWelcomeMessage() {
+            addMessage("Hello! I am Kaito your RDRealty AI Assistant. I can help you identify upcoming due dates, analyze financial data, and suggest actions. How can I assist you today?", 'bot', true);
+        }
+
+        // Clear history on logout
+        // Select by href specifically to ensure we catch the logout link
+        const logoutLinks = document.querySelectorAll(`a[href="${LOGOUT_URL}"]`);
+        logoutLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                localStorage.removeItem(STORAGE_KEY);
+            });
+        });
+
+        // --- UI Interactions ---
+
+        function toggleChat() {
+            aiChatWindow.classList.toggle('show');
+            if (aiChatWindow.classList.contains('show')) {
+                aiChatInput.focus();
+                // Scroll to bottom when opening
+                aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+            }
+        }
+
+        if (aiChatButton) aiChatButton.addEventListener('click', toggleChat);
+        if (closeAiChat) {
+            closeAiChat.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent header click
+                toggleChat();
+            });
+        }
+        
+        // Minimize on Header Click
+        const chatHeader = document.querySelector('.ai-chat-header');
+        if (chatHeader) {
+            chatHeader.addEventListener('click', function() {
+                aiChatWindow.classList.toggle('minimized');
+            });
+        }
+
+        // Image Attachment Logic
+        if (attachAiImage) {
+            attachAiImage.addEventListener('click', () => aiImageInput.click());
+        }
+        
+        if (aiImageInput) {
+            aiImageInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    imageFileName.textContent = this.files[0].name;
+                    imagePreviewArea.style.display = 'block';
+                    attachAiImage.style.color = '#4f46e5';
+                }
+            });
+        }
+
+        if (removeImage) {
+            removeImage.addEventListener('click', function() {
+                aiImageInput.value = '';
+                imagePreviewArea.style.display = 'none';
+                attachAiImage.style.color = '#64748b';
+            });
+        }
+
+        // --- Server-Side Rate Limit Tracking ---
+        let currentUsage = { daily: 0, minute: 0, daily_limit: 1500, minute_limit: 15 };
+        const USAGE_API_URL = "{% url 'ai_usage_api' %}";
+
+        function updateUsageStats() {
+            fetch(USAGE_API_URL)
+                .then(r => r.json())
+                .then(data => {
+                    currentUsage = data;
+                    updateLimitUI();
+                })
+                .catch(e => console.error("Failed to fetch usage stats", e));
+        }
+
+        function updateLimitUI() {
+            const dailyLeft = Math.max(0, currentUsage.daily_limit - currentUsage.daily);
+            const minuteLeft = Math.max(0, currentUsage.minute_limit - currentUsage.minute);
+            
+            const dailyEl = document.getElementById('dailyLimitDisplay');
+            const minuteEl = document.getElementById('minuteLimitDisplay');
+            const warningEl = document.getElementById('aiLimitWarning');
+            
+            // Update the denominator text if possible, or just the numerator
+            // We assume the HTML structure has /5 and /20 hardcoded text next to spans.
+            // Ideally we should update the text nodes too, but for now let's just update the numbers.
+            
+            if (dailyEl) dailyEl.textContent = dailyLeft;
+            if (minuteEl) minuteEl.textContent = minuteLeft;
+            
+            if (dailyLeft === 0 || minuteLeft === 0) {
+                 if (warningEl) {
+                     warningEl.style.display = 'block';
+                     warningEl.textContent = dailyLeft === 0 ? "Daily limit reached." : "Please wait a moment...";
+                 }
+                 aiChatInput.disabled = true;
+                 sendAiMessage.disabled = true;
+            } else {
+                 if (warningEl) warningEl.style.display = 'none';
+                 aiChatInput.disabled = false;
+                 sendAiMessage.disabled = false;
+            }
+        }
+
+        // Poll every 5 seconds
+        setInterval(updateUsageStats, 5000);
+        // Initial call
+        updateUsageStats();
+
+        function handleSend() {
+            // Client-side pre-check (optional, as server also checks)
+            if (currentUsage.daily >= currentUsage.daily_limit || currentUsage.minute >= currentUsage.minute_limit) {
+                updateLimitUI();
+                return;
+            }
+
+            const text = aiChatInput.value.trim();
+            const file = aiImageInput.files[0];
+            
+            if (!text && !file) return;
+
+            // User UI Update
+            let userMsg = text;
+            if (file) userMsg += ` [Attached: ${file.name}]`;
+            addMessage(userMsg, 'user', true);
+            
+            aiChatInput.value = '';
+            
+            // Clear Image Selection in UI
+            if (file) {
+                 aiImageInput.value = '';
+                 imagePreviewArea.style.display = 'none';
+                 attachAiImage.style.color = '#64748b';
+            }
+
+            // Show Thinking (Don't save this to history)
+            const loadingId = 'loading-' + Date.now();
+            const loadingDiv = document.createElement('div');
+            loadingDiv.classList.add('ai-message', 'bot');
+            loadingDiv.id = loadingId;
+            loadingDiv.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Analyzing...';
+            aiChatMessages.appendChild(loadingDiv);
+            aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+
+            // Send to Backend
+            const formData = new FormData();
+            formData.append('message', text);
+            if (file) {
+                formData.append('image', file);
+            }
+
+            fetch("{% url 'ai_chat_api' %}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const loadingMsg = document.getElementById(loadingId);
+                if (loadingMsg) loadingMsg.remove();
+
+                if (data.response) {
+                    addMessage(data.response, 'bot', true);
+                    // Refresh usage stats immediately after successful response
+                    updateUsageStats();
+                } else if (data.error) {
+                    addMessage("Error: " + data.error, 'bot', true);
+                }
+            })
+            .catch(error => {
+                const loadingMsg = document.getElementById(loadingId);
+                if (loadingMsg) loadingMsg.remove();
+                addMessage("Sorry, I encountered a network error. Please check your connection.", 'bot', true);
+                console.error('Error:', error);
+            });
+        }
+
+        if (sendAiMessage) sendAiMessage.addEventListener('click', handleSend);
+        if (aiChatInput) {
+            aiChatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') handleSend();
+            });
+        }
+
+        // Initialize History
+        loadHistory();
     });
 </script>
 

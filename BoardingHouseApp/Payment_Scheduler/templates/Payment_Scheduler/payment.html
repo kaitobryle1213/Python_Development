@@ -25,19 +25,31 @@
                         <div class="row g-3 mb-4">
                             <div class="col-md-4">
                                 <label class="form-label text-secondary small">Customer ID</label>
-                                <input type="text" class="form-control bg-light" id="customer_id_display" readonly>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fas fa-id-badge"></i></span>
+                                    <input type="text" class="form-control bg-light" id="customer_id_display" readonly>
+                                </div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label text-secondary small">Room No.</label>
-                                <input type="text" class="form-control bg-light" id="room_no" readonly>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fas fa-door-open"></i></span>
+                                    <input type="text" class="form-control bg-light" id="room_no" readonly>
+                                </div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label text-secondary small">Date Today</label>
-                                <input type="text" class="form-control bg-light" id="date_today" value="{% now 'Y-m-d' %}" readonly>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fas fa-calendar-day"></i></span>
+                                    <input type="text" class="form-control bg-light" id="date_today" value="{% now 'Y-m-d' %}" readonly>
+                                </div>
                             </div>
                             <div class="col-12">
                                 <label class="form-label text-secondary small">Customer Name</label>
-                                <input type="text" class="form-control bg-light" id="customer_name" readonly>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fas fa-user"></i></span>
+                                    <input type="text" class="form-control bg-light" id="customer_name" readonly>
+                                </div>
                             </div>
                         </div>
 
@@ -46,32 +58,38 @@
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-label text-secondary small">Due Date</label>
-                                <input type="text" class="form-control bg-light" id="due_date" readonly>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="fas fa-calendar-alt"></i></span>
+                                    <input type="text" class="form-control bg-light" id="due_date" readonly>
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label text-secondary small">Amount Due</label>
                                 <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0">₱</span>
-                                    <input type="number" class="form-control bg-light border-start-0 fw-bold" id="balance_amount" readonly>
+                                    <span class="input-group-text bg-light">₱</span>
+                                    <input type="number" class="form-control bg-light fw-bold" id="balance_amount" readonly>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label text-secondary small">Payment Received</label>
                                 <div class="input-group">
-                                    <span class="input-group-text bg-white border-end-0">₱</span>
-                                    <input type="number" class="form-control border-start-0" id="amount_received" step="0.01" required oninput="calculateChange()">
+                                    <span class="input-group-text bg-white">₱</span>
+                                    <input type="number" class="form-control" id="amount_received" step="0.01" required oninput="calculateChange()">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label text-secondary small">Change</label>
                                 <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0">₱</span>
-                                    <input type="number" class="form-control bg-light border-start-0 fw-bold text-success" id="amount_change" readonly>
+                                    <span class="input-group-text bg-light">₱</span>
+                                    <input type="number" class="form-control bg-light fw-bold text-success" id="amount_change" readonly>
                                 </div>
                             </div>
                             <div class="col-12">
                                 <label class="form-label text-secondary small">Remarks</label>
-                                <textarea class="form-control" id="remarks" rows="2" placeholder="Enter remarks (optional)"></textarea>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white"><i class="fas fa-comment-alt"></i></span>
+                                    <textarea class="form-control" id="remarks" rows="2" placeholder="Enter remarks (optional)"></textarea>
+                                </div>
                             </div>
                         </div>
 

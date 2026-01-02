@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.db.models import Max
 from django.conf import settings
+from django.contrib.auth.models import User
 import os
 
 # --- 1. PROPERTY MODEL ---
@@ -100,9 +101,18 @@ class Property(models.Model):
             self.property_id = last + 1
         super().save(*args, **kwargs)
 
+# --- 10. AI REQUEST LOG ---
+class AIRequestLog(models.Model):
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    request_type = models.CharField(max_length=50, default='chat') 
+
+    def __str__(self):
+        return f"AI Request at {self.timestamp}"
+
     class Meta:
-        verbose_name = "Property"
-        verbose_name_plural = "Properties"
+        verbose_name = "AI Request Log"
+        verbose_name_plural = "AI Request Logs"
 
 # The TitleMovement and PropertyTax models have been removed.
 
@@ -201,7 +211,7 @@ def supporting_document_upload_to(instance, filename):
     prop_id = getattr(instance, "property_id", None)
     if not prop_id and getattr(instance, "property", None):
         prop_id = getattr(instance.property, "property_id", "")
-    timestamp = timezone.now().strftime("%Y%m%d")
+    timestamp = timezone.localtime(timezone.now()).strftime("%Y%m%d")
     safe_base = base.replace(" ", "_")
     return f"supporting_docs/{safe_base}_{prop_id}_{timestamp}{ext}"
 

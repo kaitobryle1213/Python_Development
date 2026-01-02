@@ -22,15 +22,24 @@
         <form method="get" class="row g-3 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small fw-bold text-secondary">Customer Name</label>
-                <input type="text" name="customer_name" class="form-control" placeholder="Search name..." value="{{ filter_name|default:'' }}">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fas fa-user"></i></span>
+                    <input type="text" name="customer_name" class="form-control" placeholder="Search name..." value="{{ filter_name|default:'' }}">
+                </div>
             </div>
             <div class="col-md-3">
                 <label class="form-label small fw-bold text-secondary">Date Transfer From</label>
-                <input type="date" name="date_from" class="form-control" value="{{ filter_date_from|default:'' }}">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fas fa-calendar-alt"></i></span>
+                    <input type="date" name="date_from" class="form-control" value="{{ filter_date_from|default:'' }}">
+                </div>
             </div>
             <div class="col-md-3">
                 <label class="form-label small fw-bold text-secondary">Date Transfer To</label>
-                <input type="date" name="date_to" class="form-control" value="{{ filter_date_to|default:'' }}">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fas fa-calendar-alt"></i></span>
+                    <input type="date" name="date_to" class="form-control" value="{{ filter_date_to|default:'' }}">
+                </div>
             </div>
             <div class="col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-primary w-100">
