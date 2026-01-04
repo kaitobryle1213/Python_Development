@@ -112,9 +112,19 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="title-movements-tab" data-bs-toggle="tab" data-bs-target="#title-movements" type="button" role="tab" aria-controls="title-movements" aria-selected="false">
+                <i class="fas fa-chart-line me-2"></i>Title Movements ({{ title_movements|length|default:0 }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab" aria-controls="documents" aria-selected="false">
                 <i class="far fa-folder-open me-2"></i>Documents
                 <span class="badge bg-secondary ms-2 rounded-pill bg-opacity-25 text-dark">{{ supporting_docs|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history" aria-selected="false">
+                <i class="fas fa-history me-2"></i>Change History
             </button>
         </li>
     </ul>
@@ -381,6 +391,155 @@
             </div>
         </div>
 
+        <!-- Title Movements Tab -->
+        <div class="tab-pane fade" id="title-movements" role="tabpanel" aria-labelledby="title-movements-tab">
+            <!-- Status Banner -->
+            <div class="card mb-4 border border-success border-opacity-25 bg-success bg-opacity-10">
+                <div class="card-body d-flex align-items-center">
+                    <i class="far fa-check-circle text-success fs-4 me-3"></i>
+                    <div>
+                        <h6 class="fw-bold text-success mb-0">Title Available</h6>
+                        <p class="text-success text-opacity-75 small mb-0">Ready for new movement requests</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h3 class="h5 mb-0 text-dark fw-bold">Movement Records</h3>
+                    <p class="text-muted small mb-0">View and manage all title movement transactions</p>
+                </div>
+                <div class="card-body">
+                    <!-- Filters and Action -->
+                    <div class="row mb-4 align-items-end g-2">
+                        <div class="col-lg-7">
+                            <label class="form-label small fw-bold text-muted">Search</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                <input type="text" class="form-control border-start-0 ps-0" placeholder="Search by status, released by, received by, or purpose...">
+                            </div>
+                        </div>
+                        <div class="col-lg-2">
+                            <label class="form-label small fw-bold text-muted">Movement Status</label>
+                            <select class="form-select">
+                                <option selected>All Status</option>
+                                <option value="Released">Released</option>
+                                <option value="In Transit">In Transit</option>
+                                <option value="Received">Received</option>
+                                <option value="Returned">Returned</option>
+                            </select>
+                        </div>
+                        <div class="col-lg-3">
+                             <button class="btn btn-white border w-100 fw-medium" data-bs-toggle="modal" data-bs-target="#requestMovementModal">
+                                <i class="fas fa-plus me-1"></i> Request Movement
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="row g-4">
+                        {% for movement in title_movements %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 shadow-sm border rounded-3">
+                                <div class="card-body p-4">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div>
+                                            <div class="d-flex align-items-center mb-1">
+                                                <i class="fas fa-file-signature text-dark me-2"></i>
+                                                <h5 class="fw-bold mb-0 text-dark">Movement #{{ movement.id }}</h5>
+                                            </div>
+                                            <p class="text-muted small mb-0">{{ movement.created_at|date:"M d, Y" }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        {% if movement.status == 'Returned' %}
+                                        <span class="badge rounded-pill px-3 py-2 fw-bold" style="background-color: #e9d5ff; color: #7e22ce;">
+                                            {{ movement.status|upper }}
+                                        </span>
+                                        {% elif movement.status == 'Lost' %}
+                                        <span class="badge rounded-pill px-3 py-2 fw-bold" style="background-color: #fee2e2; color: #b91c1c;">
+                                            {{ movement.status|upper }}
+                                        </span>
+                                        {% elif movement.status == 'Pending Return' %}
+                                        <span class="badge rounded-pill px-3 py-2 fw-bold" style="background-color: #fff7ed; color: #ea580c;">
+                                            {{ movement.status|upper }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2 fw-bold">
+                                            {{ movement.status|upper|default:"RELEASED" }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <div class="row mb-2">
+                                            <div class="col-4 text-muted small">Released by:</div>
+                                            <div class="col-8 fw-medium text-dark text-end">{{ movement.tm_released_by.get_full_name|default:movement.tm_released_by.username }}</div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-4 text-muted small">Received by:</div>
+                                            <div class="col-8 fw-medium text-dark text-end">{{ movement.tm_received_by }}</div>
+                                        </div>
+                                        {% if movement.returned_at %}
+                                        <div class="row mb-2">
+                                            <div class="col-4 text-muted small">Returned by:</div>
+                                            <div class="col-8 fw-medium text-dark text-end">{{ movement.tm_returned_by|default:"-" }}</div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-4 text-muted small">Received on Return:</div>
+                                            <div class="col-8 fw-medium text-dark text-end">{{ movement.tm_received_by_on_return|default:"-" }}</div>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-4 text-muted small">Returned Date:</div>
+                                            <div class="col-8 fw-bold text-dark text-end">{{ movement.returned_at|date:"M d, Y" }}</div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted small">Transmittal:</label>
+                                        <div class="bg-light rounded p-2 border">
+                                            <span class="fw-medium">{{ movement.tm_transmittal_no }}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label class="form-label text-muted small">Purpose:</label>
+                                        <div class="bg-light rounded p-2 border">
+                                            <span class="fw-medium">{{ movement.tm_purpose }}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-white border fw-medium flex-grow-1" 
+                                                data-id="{{ movement.id }}"
+                                                data-status="{{ movement.status|default:'Released' }}"
+                                                data-transmittal="{{ movement.tm_transmittal_no|default:'' }}"
+                                                data-turned-over="{{ movement.tm_turned_over_by|default:'' }}"
+                                                data-received="{{ movement.tm_received_by|default:'' }}"
+                                                data-returned-by="{{ movement.tm_returned_by|default:'' }}"
+                                                data-received-on-return="{{ movement.tm_received_by_on_return|default:'' }}"
+                                                onclick="handleUpdateClick(this)">
+                                            <i class="far fa-edit me-1"></i> Update
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="mt-3 pt-3 border-top">
+                                        <p class="text-muted small mb-0">By {{ movement.tm_released_by.get_full_name|default:"System Administrator" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center py-5">
+                             <p class="text-muted mb-0">No movement records found.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Documents Tab -->
         <div class="tab-pane fade" id="documents" role="tabpanel" aria-labelledby="documents-tab">
             <div class="card shadow-sm border-0">
@@ -447,6 +606,118 @@
                             <p class="text-muted small">Upload documents via the Edit Property page.</p>
                         </div>
                         {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="h5 mb-0 text-dark fw-bold">Change History</h3>
+                            <p class="text-muted small mb-0">Track all updates and modifications to this property</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- History Search & Filter -->
+                    <form method="GET" class="row mb-4 g-2" id="historyFilterForm">
+                        <input type="hidden" name="tab" value="history">
+                        <div class="col-md-7">
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                                <input type="text" name="history_q" class="form-control border-start-0 bg-light" 
+                                       placeholder="Search in history..." value="{{ request.GET.history_q|default:'' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select name="history_type" class="form-select bg-light">
+                                <option value="All Types" {% if request.GET.history_type == 'All Types' %}selected{% endif %}>All Types</option>
+                                <option value="ADD" {% if request.GET.history_type == 'ADD' %}selected{% endif %}>Add</option>
+                                <option value="UPDATE" {% if request.GET.history_type == 'UPDATE' %}selected{% endif %}>Update</option>
+                                <option value="STATUS_CHANGE" {% if request.GET.history_type == 'STATUS_CHANGE' %}selected{% endif %}>Status Change</option>
+                                <option value="TAX_UPDATE" {% if request.GET.history_type == 'TAX_UPDATE' %}selected{% endif %}>Tax Update</option>
+                                <option value="MOVEMENT_UPDATE" {% if request.GET.history_type == 'MOVEMENT_UPDATE' %}selected{% endif %}>Movement Update</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-dark w-100">Filter</button>
+                        </div>
+                    </form>
+
+                    <!-- History Timeline/Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle border-top">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0 small text-uppercase fw-bold text-muted" style="width: 150px;">Date & Time</th>
+                                    <th class="border-0 small text-uppercase fw-bold text-muted">Field</th>
+                                    <th class="border-0 small text-uppercase fw-bold text-muted">Previous Value</th>
+                                    <th class="border-0 small text-uppercase fw-bold text-muted">Current Value</th>
+                                    <th class="border-0 small text-uppercase fw-bold text-muted">Type</th>
+                                    <th class="border-0 small text-uppercase fw-bold text-muted">Changed By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in change_history %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark">{{ item.changed_at|date:"M d, Y" }}</div>
+                                        <div class="text-muted small">{{ item.changed_at|date:"h:i A" }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="fw-medium text-primary">{{ item.field_name }}</span>
+                                        {% if item.reason %}
+                                        <div class="text-muted small mt-1"><i class="fas fa-info-circle me-1"></i>{{ item.reason }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="p-2 bg-light rounded small text-muted text-decoration-line-through border-start border-danger border-3">
+                                            {{ item.old_value|default:"(Empty)"|linebreaksbr }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="p-2 bg-light rounded small text-dark fw-medium border-start border-success border-3">
+                                            {{ item.new_value|default:"(Empty)"|linebreaksbr }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if item.change_type == 'ADD' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">Add</span>
+                                        {% elif item.change_type == 'UPDATE' %}
+                                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3">Update</span>
+                                        {% elif item.change_type == 'STATUS_CHANGE' %}
+                                        <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3">Status</span>
+                                        {% elif item.change_type == 'TAX_UPDATE' %}
+                                        <span class="badge bg-info bg-opacity-10 text-info rounded-pill px-3">Tax</span>
+                                        {% elif item.change_type == 'MOVEMENT_UPDATE' %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-3">Movement</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-dark text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px; font-size: 10px;">
+                                                {{ item.changed_by.username|slice:":1"|upper }}
+                                            </div>
+                                            <span class="small fw-medium">{{ item.changed_by.get_full_name|default:item.changed_by.username }}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="fas fa-history fa-3x mb-3 opacity-25"></i>
+                                            <p class="mb-0">No history records found for this property.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -537,6 +808,109 @@
     </div>
 </div>
 
+<!-- Request Title Movement Modal -->
+<div class="modal fade" id="requestMovementModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Request Title Movement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="requestMovementForm">
+                    {% csrf_token %}
+                    <!-- Info Card -->
+                    <div class="card bg-light border-0 mb-4">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-white p-2 rounded shadow-sm me-3">
+                                    <i class="fas fa-chart-line text-dark"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-0">Title Movement Request</h6>
+                                    <p class="text-muted small mb-0">Property: {{ property.property_id }}</p>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <p class="text-muted small mb-0">Requested by</p>
+                                <p class="fw-bold mb-0">{{ request.user.get_full_name|default:request.user.username }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Purpose -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small">Purpose of Release</label>
+                        <textarea class="form-control" name="tm_purpose" rows="3" placeholder="Describe the purpose for releasing this title (e.g., for loan application, property sale, etc.)" required></textarea>
+                        <div class="form-text small">Explain why the title needs to be released</div>
+                    </div>
+                    <!-- Released/Approved By -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Released By</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control bg-light" value="{{ request.user.get_full_name|default:request.user.username }}" readonly>
+                                <span class="input-group-text bg-light"><i class="far fa-user"></i></span>
+                            </div>
+                            <div class="form-text small">Current logged-in user (automatically set)</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Approved By</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control bg-light" value="{{ request.user.get_full_name|default:request.user.username }}" readonly>
+                                <span class="input-group-text bg-light"><i class="far fa-user"></i></span>
+                            </div>
+                            <div class="form-text small">Current logged-in user (automatically approved)</div>
+                        </div>
+                    </div>
+                    <!-- Transmittal Info -->
+                    <h6 class="fw-bold mb-3">Transmittal Information</h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Transmittal Number</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="tm_transmittal_no" id="tm_transmittal_no" placeholder="TM-YY-XXXX" required>
+                                <button class="btn btn-light border" type="button" id="generateTMBtn">Generate</button>
+                            </div>
+                            <div class="form-text small">Unique transmittal reference number</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Received By</label>
+                            <input type="text" class="form-control" name="tm_received_by" placeholder="Name of receiving person/entity" required>
+                            <div class="form-text small">Person or entity receiving the title</div>
+                        </div>
+                    </div>
+                    <!-- Upload Documents -->
+                    <div class="mb-3">
+                         <label class="form-label fw-bold small"><i class="fas fa-upload me-1"></i> Upload Documents</label>
+                         <div class="border dashed-border rounded p-4 text-center bg-light position-relative" style="border-style: dashed; border-color: #cbd5e1;">
+                            <input type="file" id="tmDocumentsInput" class="position-absolute top-0 start-0 w-100 h-100 opacity-0" style="cursor: pointer;" multiple accept="image/*,.pdf,.doc,.docx">
+                            <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                            <p class="fw-bold mb-1">Drop up to 5 files here or click to browse</p>
+                            <p class="text-muted small mb-0">Maximum file size: 10MB • Up to 5 files</p>
+                         </div>
+                         
+                         <!-- File List -->
+                         <div id="tmFilesWrapper" class="mt-3 d-none">
+                            <p class="mb-2 text-muted small fw-bold">Uploaded Files (<span id="tmFilesCount">0</span>/5)</p>
+                            <ul id="tmFilesList" class="list-group list-group-flush small"></ul>
+                         </div>
+                         
+                         <div class="form-text small">Upload supporting documents for this title movement (max 5 files, 10MB each)</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0 pt-0 justify-content-start">
+                <button type="button" class="btn btn-dark" id="submitMovementBtn">
+                    <i class="far fa-file-alt me-1"></i> Create & Approve Movement
+                </button>
+                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="uploadDocumentModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -563,8 +937,164 @@
     </div>
 </div>
 
+<!-- Update Movement Status Modal -->
+<div class="modal fade" id="updateMovementModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Update Movement Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-4">
+                <form id="updateMovementForm">
+                    <input type="hidden" name="movement_id" id="update_movement_id">
+                    
+                    <!-- Info Card -->
+                    <div class="card bg-light border-0 mb-4 rounded-3">
+                        <div class="card-body d-flex align-items-center p-3">
+                            <div class="me-3">
+                                <i class="fas fa-chart-line fa-lg text-dark"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-0">Update Movement Status</h6>
+                                <p class="text-muted small mb-0">Current Status: <span id="update_current_status" class="fw-bold"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- New Status -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small">New Status</label>
+                        <select class="form-select form-select-lg" name="new_status" id="update_new_status">
+                            <option value="Released">Released</option>
+                            <option value="In Transit">In Transit</option>
+                            <option value="Received">Received</option>
+                            <option value="Returned">Returned</option>
+                            <option value="Lost">Lost</option>
+                            <option value="Pending Return">Pending Return</option>
+                        </select>
+                    </div>
+
+                    <!-- Transmittal Number (Visible only for In Transit) -->
+                    <div class="mb-4" id="update_transmittal_container" style="display: none;">
+                        <label class="form-label fw-bold small">Transmittal Number</label>
+                        <input type="text" class="form-control" name="tm_transmittal_no" id="update_transmittal_no" placeholder="TM-YY-XXXXX">
+                        <div class="form-text small">Update transmittal reference if needed</div>
+                    </div>
+
+                    <!-- Received Fields (Visible only for Received) -->
+                    <div id="update_received_container" class="mb-4" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Turned Over By</label>
+                                <input type="text" class="form-control" name="tm_turned_over_by" id="update_turned_over_by" placeholder="Person who delivered the title">
+                                <div class="form-text small">Person who delivered the title</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Received By</label>
+                                <input type="text" class="form-control" name="tm_received_by" id="update_received_by" placeholder="Person who received the title">
+                                <div class="form-text small">Person who received the title</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Returned Fields (Visible only for Returned) -->
+                    <div id="update_returned_container" class="mb-4" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                 <label class="form-label fw-bold small">Returned By</label>
+                                 <input type="text" class="form-control" name="tm_returned_by" id="update_returned_by" placeholder="Full Name">
+                                 <div class="form-text small">Person who returned the title</div>
+                             </div>
+                            <div class="col-md-6">
+                                 <label class="form-label fw-bold small">Received By (On Return)</label>
+                                 <input type="text" class="form-control" name="tm_received_by_on_return" id="update_received_by_on_return" placeholder="{{ request.user.get_full_name|default:request.user.username }}" value="{{ request.user.get_full_name|default:request.user.username }}">
+                                 <div class="form-text small">Person who received the returned title</div>
+                             </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Released Info Box -->
+                    <div id="statusInfo_Released" class="status-info-box alert alert-primary align-items-center border-0 bg-primary-subtle text-primary rounded-3 p-3 d-none" role="alert">
+                        <i class="fas fa-circle me-3 small text-primary"></i>
+                        <div>
+                            <span class="fw-bold d-block">Released</span>
+                            <div class="small text-primary-emphasis">Title has been released from custody</div>
+                        </div>
+                    </div>
+
+                    <!-- In Transit Info Box -->
+                    <div id="statusInfo_InTransit" class="status-info-box alert alert-warning align-items-center border-0 bg-warning-subtle text-warning-emphasis rounded-3 p-3 d-none" role="alert">
+                        <i class="fas fa-circle me-3 small text-warning"></i>
+                        <div>
+                            <span class="fw-bold d-block">In Transit</span>
+                            <div class="small text-warning-emphasis">Title is being transmitted</div>
+                        </div>
+                    </div>
+
+                    <!-- Received Info Box -->
+                    <div id="statusInfo_Received" class="status-info-box alert alert-primary align-items-center border-0 bg-primary-subtle text-primary rounded-3 p-3 d-none" role="alert" style="background-color: #f0f7ff !important;">
+                        <i class="fas fa-circle me-3 small text-success"></i>
+                        <div>
+                            <span class="fw-bold d-block">Received</span>
+                            <div class="small text-primary-emphasis">Title has been received by recipient</div>
+                        </div>
+                    </div>
+
+                    <!-- Returned Info Box -->
+                    <div id="statusInfo_Returned" class="status-info-box alert alert-primary align-items-center border-0 rounded-3 p-3 d-none" role="alert" style="background-color: #f0f4ff !important; color: #4a6cf7 !important;">
+                         <i class="fas fa-circle me-3 small" style="color: #a855f7;"></i>
+                         <div>
+                            <span class="fw-bold d-block" style="color: #4a6cf7;">Returned</span>
+                            <div class="small" style="color: #6366f1;">Title has been returned to custody</div>
+                         </div>
+                    </div>
+
+                    <!-- Lost Info Box -->
+                    <div id="statusInfo_Lost" class="status-info-box alert alert-primary align-items-center border-0 rounded-3 p-3 d-none" role="alert" style="background-color: #f0f7ff !important; border: 1px solid #dee2e6 !important;">
+                        <i class="fas fa-circle me-3 small text-danger"></i>
+                        <div>
+                           <span class="fw-bold d-block text-primary">Lost</span>
+                           <div class="small text-primary">Title has been reported lost</div>
+                        </div>
+                   </div>
+
+                   <!-- Pending Return Info Box -->
+                   <div id="statusInfo_PendingReturn" class="status-info-box alert alert-primary align-items-center border-0 rounded-3 p-3 d-none" role="alert" style="background-color: #f0f7ff !important; border: 1px solid #dee2e6 !important;">
+                       <i class="fas fa-circle me-3 small" style="color: #ff6b00;"></i>
+                       <div>
+                          <span class="fw-bold d-block text-primary">Pending Return</span>
+                          <div class="small text-primary">Title is pending return to custody</div>
+                       </div>
+                  </div>
+
+                </form>
+            </div>
+            <div class="modal-footer border-0 pt-0 pb-4 justify-content-start px-3">
+                <button type="button" class="btn btn-dark fw-medium px-4" id="confirmUpdateBtn">
+                    <i class="fas fa-save me-2"></i> Update Status
+                </button>
+                <button type="button" class="btn btn-white border fw-medium px-4" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Handle tab selection from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeTab = urlParams.get('tab');
+        if (activeTab) {
+            const tabTrigger = document.querySelector(`#${activeTab}-tab`);
+            if (tabTrigger) {
+                const tab = new bootstrap.Tab(tabTrigger);
+                tab.show();
+            }
+        }
+
         // Simple Client-side Search for Documents
         const searchInput = document.getElementById('docSearch');
         if (searchInput) {
@@ -847,33 +1377,334 @@
                 }
 
                 const formData = new FormData(addTaxForm);
-                const data = Object.fromEntries(formData.entries());
-                const taxId = taxIdInput.value;
-                
-                let url = "{% url 'add_property_tax' pk=property.pk %}";
-                if (taxId) {
-                    url = `/tax/${taxId}/update/`; 
-                }
+                const isUpdate = taxIdInput.value !== '';
+                const url = isUpdate 
+                    ? "{% url 'update_property_tax' pk=0 %}".replace('0', taxIdInput.value)
+                    : "{% url 'add_property_tax' pk=property.pk %}";
 
                 fetch(url, {
                     method: 'POST',
+                    body: formData,
                     headers: {
-                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    body: JSON.stringify(data)
+                    }
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         location.reload();
                     } else {
-                        alert('Error: ' + data.message);
+                        alert('Error: ' + (data.error || 'Unknown error occurred'));
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     alert('An error occurred while saving the tax record.');
+                });
+            });
+        }
+        
+        // --- Request Movement Logic ---
+        const generateTMBtn = document.getElementById('generateTMBtn');
+        if (generateTMBtn) {
+            generateTMBtn.addEventListener('click', function() {
+                fetch("{% url 'generate_transmittal_number' %}")
+                .then(r => r.json())
+                .then(data => {
+                    if(data.tm_number) {
+                        document.getElementById('tm_transmittal_no').value = data.tm_number;
+                    }
+                })
+                .catch(err => console.error(err));
+            });
+        }
+        
+        // File Upload Logic for Title Movement
+        const tmFileInput = document.getElementById('tmDocumentsInput');
+        const tmFilesWrapper = document.getElementById('tmFilesWrapper');
+        const tmFilesList = document.getElementById('tmFilesList');
+        const tmFilesCount = document.getElementById('tmFilesCount');
+        let tmDataTransfer = new DataTransfer();
+
+        function renderTmFiles() {
+            tmFilesList.innerHTML = '';
+            const files = Array.from(tmDataTransfer.files);
+            if (!files.length) {
+                tmFilesWrapper.classList.add('d-none');
+                tmFilesCount.textContent = '0';
+                return;
+            }
+            tmFilesWrapper.classList.remove('d-none');
+            tmFilesCount.textContent = String(files.length);
+            
+            files.forEach((file, index) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center bg-success-subtle mb-2 rounded border';
+                
+                const left = document.createElement('div');
+                left.className = 'd-flex align-items-center';
+                
+                let iconClass = 'fa-file';
+                if (file.type.includes('image')) iconClass = 'fa-image';
+                else if (file.type.includes('pdf')) iconClass = 'fa-file-pdf';
+                
+                const iconDiv = document.createElement('div');
+                iconDiv.className = 'bg-white rounded-circle p-1 me-2 d-flex align-items-center justify-content-center shadow-sm';
+                iconDiv.style.width = '30px';
+                iconDiv.style.height = '30px';
+                iconDiv.innerHTML = `<i class="fas ${iconClass} text-primary small"></i>`;
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'fw-semibold text-dark small';
+                nameSpan.textContent = file.name;
+                
+                left.appendChild(iconDiv);
+                left.appendChild(nameSpan);
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-link text-muted p-0 text-decoration-none';
+                removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+                removeBtn.addEventListener('click', function () {
+                    const nextTransfer = new DataTransfer();
+                    Array.from(tmDataTransfer.files).forEach(function (f, i) {
+                        if (i !== index) {
+                            nextTransfer.items.add(f);
+                        }
+                    });
+                    tmDataTransfer = nextTransfer;
+                    renderTmFiles();
+                });
+                
+                li.appendChild(left);
+                li.appendChild(removeBtn);
+                tmFilesList.appendChild(li);
+            });
+        }
+
+        if (tmFileInput) {
+            tmFileInput.addEventListener('change', function () {
+                const selected = Array.from(tmFileInput.files);
+                const MAX_FILES = 5;
+                const MAX_SIZE = 10 * 1024 * 1024;
+                
+                selected.forEach(function (file) {
+                    if (file.size > MAX_SIZE) {
+                        alert('"' + file.name + '" exceeds 10MB and will be ignored.');
+                        return;
+                    }
+                    if (tmDataTransfer.files.length >= MAX_FILES) {
+                        alert('Maximum of ' + MAX_FILES + ' files allowed.');
+                        return;
+                    }
+                    tmDataTransfer.items.add(file);
+                });
+                
+                tmFileInput.value = '';
+                renderTmFiles();
+            });
+        }
+        
+        const submitMovementBtn = document.getElementById('submitMovementBtn');
+        const requestMovementForm = document.getElementById('requestMovementForm');
+        
+        if (submitMovementBtn) {
+            submitMovementBtn.addEventListener('click', function() {
+                if (!requestMovementForm.checkValidity()) {
+                    requestMovementForm.reportValidity();
+                    return;
+                }
+                
+                const formData = new FormData(requestMovementForm);
+                
+                // Append files
+                for (let i = 0; i < tmDataTransfer.files.length; i++) {
+                    formData.append('tm_documents', tmDataTransfer.files[i]);
+                }
+
+                const url = "{% url 'add_title_movement' pk=property.pk %}";
+                
+                fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error occurred'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while creating the movement request.');
+                });
+            });
+        }
+        // --- Update Movement Status Logic ---
+        const updateMovementModalEl = document.getElementById('updateMovementModal');
+        const updateMovementModal = updateMovementModalEl ? new bootstrap.Modal(updateMovementModalEl) : null;
+        const updateMovementForm = document.getElementById('updateMovementForm');
+        const updateStatusBtn = document.getElementById('confirmUpdateBtn');
+        const updateNewStatusSelect = document.getElementById('update_new_status');
+        
+        // Exposed to global scope for onclick handler
+        window.openUpdateModal = function(movementId, currentStatus, transmittalNo, turnedOverBy, receivedBy, returnedBy, receivedByOnReturn) {
+            if (!updateMovementModal) return;
+            
+            document.getElementById('update_movement_id').value = movementId;
+            document.getElementById('update_current_status').textContent = currentStatus || 'Released';
+            
+            // Set transmittal number
+            const transmittalInput = document.getElementById('update_transmittal_no');
+            if (transmittalInput) {
+                transmittalInput.value = transmittalNo || '';
+            }
+
+            // Set Received fields
+            const turnedOverInput = document.getElementById('update_turned_over_by');
+            const receivedByInput = document.getElementById('update_received_by');
+            if (turnedOverInput) turnedOverInput.value = turnedOverBy || '';
+            if (receivedByInput) receivedByInput.value = receivedBy || '';
+
+            // Set Returned fields
+            const returnedByInput = document.getElementById('update_returned_by');
+            const receivedByOnReturnInput = document.getElementById('update_received_by_on_return');
+            if (returnedByInput) returnedByInput.value = returnedBy || '';
+            if (receivedByOnReturnInput) receivedByOnReturnInput.value = receivedByOnReturn || '';
+            
+            // Reset to Released by default as per requirement
+            if(updateNewStatusSelect) {
+                updateNewStatusSelect.value = 'Released';
+                toggleStatusInfo('Released');
+            }
+            
+            updateMovementModal.show();
+        };
+
+        // Helper to handle the update button click and avoid long inline JS
+        window.handleUpdateClick = function(btn) {
+            const id = btn.getAttribute('data-id');
+            const status = btn.getAttribute('data-status');
+            const transmittal = btn.getAttribute('data-transmittal');
+            const turnedOver = btn.getAttribute('data-turned-over');
+            const received = btn.getAttribute('data-received');
+            const returnedBy = btn.getAttribute('data-returned-by');
+            const receivedByOnReturn = btn.getAttribute('data-received-on-return');
+            openUpdateModal(id, status, transmittal, turnedOver, received, returnedBy, receivedByOnReturn);
+        };
+
+        if (updateNewStatusSelect) {
+            updateNewStatusSelect.addEventListener('change', function() {
+                toggleStatusInfo(this.value);
+            });
+        }
+        
+        function toggleStatusInfo(status) {
+            document.querySelectorAll('.status-info-box').forEach(el => {
+                el.classList.add('d-none');
+                el.classList.remove('d-flex');
+            });
+            
+            // Handle spaces in status (e.g. "In Transit" -> "InTransit")
+            const safeStatus = status.replace(/\s+/g, '');
+            const target = document.getElementById('statusInfo_' + safeStatus);
+            
+            if (target) {
+                target.classList.remove('d-none');
+                target.classList.add('d-flex');
+            }
+            
+            // Show/Hide Transmittal Input
+            const transmittalContainer = document.getElementById('update_transmittal_container');
+            if (transmittalContainer) {
+                if (status === 'In Transit') {
+                    transmittalContainer.style.display = 'block';
+                } else {
+                    transmittalContainer.style.display = 'none';
+                }
+            }
+
+            // Show/Hide Received Container
+            const receivedContainer = document.getElementById('update_received_container');
+            if (receivedContainer) {
+                if (status === 'Received') {
+                    receivedContainer.style.display = 'block';
+                } else {
+                    receivedContainer.style.display = 'none';
+                }
+            }
+
+            // Show/Hide Returned Container
+             const returnedContainer = document.getElementById('update_returned_container');
+             if (returnedContainer) {
+                 if (status === 'Returned') {
+                     returnedContainer.style.display = 'block';
+                 } else {
+                     returnedContainer.style.display = 'none';
+                 }
+             }
+             
+             // Handle Lost status: Ensure other containers are hidden
+              if (status === 'Lost' || status === 'Pending Return') {
+                  if (transmittalContainer) transmittalContainer.style.display = 'none';
+                  if (receivedContainer) receivedContainer.style.display = 'none';
+                  if (returnedContainer) returnedContainer.style.display = 'none';
+              }
+        }
+        
+        if (updateStatusBtn) {
+            updateStatusBtn.addEventListener('click', function() {
+                 const movementId = document.getElementById('update_movement_id').value;
+                 const newStatus = updateNewStatusSelect.value;
+                 const transmittalNo = document.getElementById('update_transmittal_no').value;
+                 const turnedOverBy = document.getElementById('update_turned_over_by').value;
+                 const receivedBy = document.getElementById('update_received_by').value;
+                 const returnedBy = document.getElementById('update_returned_by').value;
+                 const receivedByOnReturn = document.getElementById('update_received_by_on_return').value;
+                 
+                 const formData = new FormData();
+                 formData.append('movement_id', movementId);
+                 formData.append('new_status', newStatus);
+                 if (newStatus === 'In Transit') {
+                    formData.append('tm_transmittal_no', transmittalNo);
+                 }
+                 if (newStatus === 'Received') {
+                    formData.append('tm_turned_over_by', turnedOverBy);
+                    formData.append('tm_received_by', receivedBy);
+                 }
+                 if (newStatus === 'Returned') {
+                    formData.append('tm_returned_by', returnedBy);
+                    formData.append('tm_received_by_on_return', receivedByOnReturn);
+                 }
+                 
+                 const url = "{% url 'update_title_movement_status' %}";
+                 
+                 fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error occurred'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while updating the status.');
                 });
             });
         }

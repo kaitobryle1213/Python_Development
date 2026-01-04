@@ -21,29 +21,31 @@
             --brand-gradient-start: #1e3a8a;
             --brand-gradient-end: #60a5fa;
             
-            --text-main: #1e293b;
-            --text-muted: #64748b;
+            --text-main: #030712; /* Darker black for crisper text */
+            --text-muted: #4b5563; /* Darker muted text */
         }
 
         /* Global Font Settings */
         html {
             font-size: 0.9rem; /* Base size 14.4px for compact feel */
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         
         body {
             background-color: #f1f5f9; /* Slate-100 for better contrast */
-            color: #334155; /* Slate-700 */
+            color: var(--text-main);
             font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+            font-optical-sizing: auto;
             overflow-x: hidden;
-            -webkit-font-smoothing: antialiased; /* Crisp text for WebKit/Blink */
-            -moz-osx-font-smoothing: grayscale; /* Crisp text for Firefox */
             line-height: 1.5;
         }
 
         /* Typography improvements */
         h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
-            font-weight: 600;
-            color: #0f172a; /* Slate-900 */
+            font-weight: 700;
+            color: #000000; /* Pure black for headings */
             letter-spacing: -0.025em; /* Tighter tracking for headings */
             margin-bottom: 0.5rem;
         }
@@ -640,6 +642,11 @@
             color: #b45309;
         }
 
+        .notification-icon.movement {
+            background-color: #fff8e1;
+            color: #f57f17;
+        }
+
         .notification-item-message {
             font-weight: 500;
             color: #111827;
@@ -768,7 +775,17 @@
                         </a>
                     </li>
                 </ul>
-            </li>
+                    </li>
+                    <li>
+                        <a href="#titleMovementSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle {% if request.resolver_match.app_name == 'movements' %}active{% endif %}">
+                            <i class="fa-solid fa-chart-line"></i><span>Title Movements</span>
+                        </a>
+                        <ul class="collapse list-unstyled {% if request.resolver_match.app_name == 'movements' %}show{% endif %}" id="titleMovementSubmenu">
+                            <li>
+                                <a href="{% url 'movement_list' %}" class="{% if request.resolver_match.url_name == 'movement_list' %}active{% endif %}">All Movements</a>
+                            </li>
+                        </ul>
+                    </li>
             <li>
                 <a href="#taxSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
                     <i class="fas fa-file-invoice-dollar"></i> <span>Property Tax</span>
@@ -1206,52 +1223,74 @@
         });
 
         // Search functionality
-        searchInput.addEventListener('input', function() {
-            clearTimeout(debounceTimer);
-            const query = this.value.trim();
-            
-            if (query.length === 0) {
+        function performSearch(query = '') {
+            if (query === '') {
                 searchResults.innerHTML = '<div class="text-center py-5 text-muted">Type to search...</div>';
                 return;
             }
 
-            debounceTimer = setTimeout(() => {
-                fetch(`{% url 'global_search' %}?q=${encodeURIComponent(query)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.results.length > 0) {
-                            let html = '';
-                            data.results.forEach(item => {
-                                html += `
-                                    <a href="${item.url}" class="text-decoration-none text-dark">
-                                        <div class="search-result-item">
-                                            <div class="search-result-icon">
-                                                <i class="fas fa-building"></i>
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <span class="search-result-title">
-                                                    ${item.title} 
-                                                    <span class="badge-type">${item.category}</span>
-                                                </span>
-                                                <span class="search-result-meta">${item.description}</span>
-                                            </div>
-                                            <i class="fas fa-chevron-right text-muted"></i>
+            fetch(`{% url 'global_search' %}?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.results.length > 0) {
+                        let html = '';
+                        data.results.forEach(item => {
+                            let icon = 'fa-building';
+                            let badgeClass = 'bg-primary';
+                            
+                            if (item.category === 'Movement') {
+                                icon = 'fa-exchange-alt';
+                                badgeClass = 'bg-info text-dark';
+                            } else if (item.category === 'Tax') {
+                                icon = 'fa-file-invoice-dollar';
+                                badgeClass = 'bg-warning text-dark';
+                            }
+
+                            html += `
+                                <a href="${item.url}" class="text-decoration-none text-dark">
+                                    <div class="search-result-item">
+                                        <div class="search-result-icon">
+                                            <i class="fas ${icon}"></i>
                                         </div>
-                                    </a>
-                                `;
-                            });
-                            searchResults.innerHTML = html;
-                        } else {
-                            searchResults.innerHTML = '<div class="text-center py-4 text-muted">No results found.</div>';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        searchResults.innerHTML = '<div class="text-center py-4 text-danger">An error occurred.</div>';
-                    });
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center gap-2 mb-1">
+                                                <span class="search-result-title fw-bold">${item.title}</span>
+                                                <span class="badge ${badgeClass} xx-small" style="font-size: 0.65rem;">${item.category}</span>
+                                            </div>
+                                            <span class="search-result-meta text-muted small">${item.description}</span>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-muted xx-small"></i>
+                                    </div>
+                                </a>
+                            `;
+                        });
+                        searchResults.innerHTML = html;
+                    } else {
+                        searchResults.innerHTML = '<div class="text-center py-4 text-muted">No results found.</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    searchResults.innerHTML = '<div class="text-center py-4 text-danger">An error occurred.</div>';
+                });
+        }
+
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const query = this.value.trim();
+            
+            debounceTimer = setTimeout(() => {
+                performSearch(query);
             }, 300);
         });
+
+        // Focus input on modal open
+        searchModalEl.addEventListener('shown.bs.modal', function () {
+            searchInput.focus();
+        });
         const notificationsUrl = "{% url 'notifications_api' %}";
+        const markReadUrl = "{% url 'mark_notifications_read' %}";
+        const clearAllUrl = "{% url 'clear_all_notifications' %}";
         const notificationBell = document.getElementById('notificationBell');
         const notificationDropdown = document.getElementById('notificationDropdown');
         const notificationList = document.getElementById('notificationList');
@@ -1259,34 +1298,15 @@
         const markAllAsReadBtn = document.getElementById('markAllAsRead');
         const clearNotificationsBtn = document.getElementById('clearNotifications');
         
-        // User-specific storage keys
+        // User-specific storage keys (kept for UI state, but server handles is_read)
         const currentUserId = "{{ request.user.id|default:'' }}";
         const STORAGE_KEY_READ = currentUserId ? `rd_notif_read_${currentUserId}` : 'rd_notif_read_anon';
-        const STORAGE_KEY_CLEARED = currentUserId ? `rd_notif_cleared_${currentUserId}` : 'rd_notif_cleared_anon';
         
         let latestNotificationId = null;
-
-        // Legacy cleanup (optional, to keep storage clean from old global keys)
-        // localStorage.removeItem('rd_notif_last_read');
-        // localStorage.removeItem('rd_notif_cleared_up_to');
 
         function renderNotifications(data) {
             const items = data.notifications || [];
             const lastReadRaw = localStorage.getItem(STORAGE_KEY_READ);
-            // Get the list of individually cleared notification IDs
-            const clearedListRaw = localStorage.getItem(STORAGE_KEY_CLEARED); 
-            // We'll now use STORAGE_KEY_CLEARED to store a JSON array of cleared IDs, not just a "cleared up to" number
-            let clearedIds = [];
-            try {
-                clearedIds = JSON.parse(clearedListRaw);
-                if (!Array.isArray(clearedIds)) {
-                    // Migration from old logic (single number) to new logic (array)
-                    clearedIds = []; 
-                }
-            } catch (e) {
-                clearedIds = [];
-            }
-
             const lastRead = lastReadRaw ? parseInt(lastReadRaw, 10) : 0;
 
             if (items.length === 0) {
@@ -1295,22 +1315,14 @@
                 return;
             }
 
-            // Filter out items that are in the clearedIds list
-            const visibleItems = items.filter(item => {
-                return !clearedIds.includes(item.id);
-            });
-
-            if (visibleItems.length === 0) {
-                notificationList.innerHTML = '<div class="notification-empty">No recent notifications.</div>';
-                notificationDot.classList.add('d-none');
-                return;
-            }
-
             let html = '';
             let hasUnread = false;
-            visibleItems.forEach(item => {
+            
+            items.forEach(item => {
                 const idNum = typeof item.id === 'number' ? item.id : parseInt(item.id, 10);
-                const isUnread = !isNaN(idNum) && idNum > lastRead;
+                // Notification is unread if server says is_read is false AND it's higher than our last locally read ID
+                const isUnread = !item.is_read && (!isNaN(idNum) && idNum > lastRead);
+                
                 if (isUnread) {
                     hasUnread = true;
                 }
@@ -1325,6 +1337,9 @@
                 } else if (categoryLabel === 'TAX') {
                     iconClass = 'tax';
                     iconFa = 'fa-file-invoice-dollar';
+                } else if (categoryLabel === 'MOVEMENT') {
+                    iconClass = 'movement';
+                    iconFa = 'fa-exchange-alt';
                 }
                 
                 const unreadClass = isUnread ? 'notification-item-unread' : '';
@@ -1355,22 +1370,14 @@
             clickableItems.forEach(el => {
                 const url = el.getAttribute('data-url');
                 const idAttr = el.getAttribute('data-id');
-                const idNum = idAttr ? parseInt(idAttr, 10) : NaN;
                 
-                el.addEventListener('click', function (e) {
-                    // If the close button was clicked, do nothing here (handled by other listener)
+                el.addEventListener('click', function(e) {
                     if (e.target.closest('.clear-single-notification')) return;
-
-                    e.stopPropagation();
-                    if (!isNaN(idNum)) {
-                        const currentLastReadRaw = localStorage.getItem(STORAGE_KEY_READ);
-                        const currentLastRead = currentLastReadRaw ? parseInt(currentLastReadRaw, 10) : 0;
-                        const newLastRead = idNum > currentLastRead ? idNum : currentLastRead;
-                        localStorage.setItem(STORAGE_KEY_READ, newLastRead.toString());
+                    
+                    if (idAttr) {
+                        markNotificationsAsReadServer([parseInt(idAttr, 10)]);
                     }
-                    if (url) {
-                        window.location.href = url;
-                    }
+                    if (url) window.location.href = url;
                 });
                 
                 if (url) {
@@ -1378,48 +1385,25 @@
                 }
             });
 
-            // Attach event listeners for the "Clear" (X) buttons
+            // Attach event listeners for clearing (marking as read on server)
             const clearButtons = notificationList.querySelectorAll('.clear-single-notification');
             clearButtons.forEach(btn => {
                 btn.addEventListener('click', function(e) {
-                    e.stopPropagation(); // Prevent triggering the item click
-                    e.preventDefault();
-                    
-                    const notifId = parseInt(this.getAttribute('data-id'), 10);
-                    if (!isNaN(notifId)) {
-                        // Add to cleared list
-                        let currentCleared = [];
-                        try {
-                            currentCleared = JSON.parse(localStorage.getItem(STORAGE_KEY_CLEARED) || '[]');
-                            if (!Array.isArray(currentCleared)) currentCleared = [];
-                        } catch(err) { currentCleared = []; }
-                        
-                        if (!currentCleared.includes(notifId)) {
-                            currentCleared.push(notifId);
-                            localStorage.setItem(STORAGE_KEY_CLEARED, JSON.stringify(currentCleared));
-                        }
-                        
-                        // Simple DOM removal for responsiveness
-                        const itemRow = this.closest('.notification-item');
-                        if (itemRow) {
-                            itemRow.remove();
-                        }
-                        
-                        // Check if list is empty now
+                    e.stopPropagation();
+                    const id = this.getAttribute('data-id');
+                    if (id) {
+                        markNotificationsAsReadServer([parseInt(id, 10)]);
+                        // Optimistically remove from UI
+                        this.closest('.notification-item').remove();
                         if (notificationList.querySelectorAll('.notification-item').length === 0) {
                             notificationList.innerHTML = '<div class="notification-empty">No recent notifications.</div>';
-                            notificationDot.classList.add('d-none');
-                        }
-                        
-                        const remainingUnread = notificationList.querySelectorAll('.notification-item-unread');
-                        if (remainingUnread.length === 0) {
                             notificationDot.classList.add('d-none');
                         }
                     }
                 });
             });
 
-            latestNotificationId = visibleItems.length > 0 ? visibleItems[0].id : null;
+            latestNotificationId = items.length > 0 ? items[0].id : null;
 
             if (hasUnread) {
                 notificationDot.classList.remove('d-none');
@@ -1430,6 +1414,31 @@
             } else {
                 notificationDot.classList.add('d-none');
             }
+        }
+
+        function markNotificationsAsReadServer(ids) {
+            if (!ids || ids.length === 0) return;
+            
+            fetch(markReadUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ids: ids })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // Update local storage to match server state for the dot logic
+                    const maxId = Math.max(...ids);
+                    const currentRead = parseInt(localStorage.getItem(STORAGE_KEY_READ) || '0', 10);
+                    if (maxId > currentRead) {
+                        localStorage.setItem(STORAGE_KEY_READ, maxId.toString());
+                    }
+                }
+            })
+            .catch(err => console.error('Error marking read:', err));
         }
 
         function fetchNotifications() {
@@ -1463,16 +1472,17 @@
             if (markAllAsReadBtn) {
                 markAllAsReadBtn.addEventListener('click', function (e) {
                     e.stopPropagation();
-                    notificationDot.classList.add('d-none');
-                    if (latestNotificationId) {
-                        const latestIdNum = typeof latestNotificationId === 'number'
-                            ? latestNotificationId
-                            : parseInt(latestNotificationId, 10);
-                        if (!isNaN(latestIdNum)) {
-                            localStorage.setItem(STORAGE_KEY_READ, latestIdNum.toString());
-                            const items = notificationList.querySelectorAll('.notification-item');
-                            items.forEach(el => el.classList.remove('notification-item-unread'));
-                        }
+                    const items = notificationList.querySelectorAll('.notification-item');
+                    const ids = Array.from(items).map(el => parseInt(el.getAttribute('data-id'), 10)).filter(id => !isNaN(id));
+                    
+                    if (ids.length > 0) {
+                        markNotificationsAsReadServer(ids);
+                        items.forEach(el => el.classList.remove('notification-item-unread'));
+                        notificationDot.classList.add('d-none');
+                        
+                        // Update local storage to the latest ID in the list
+                        const maxId = Math.max(...ids);
+                        localStorage.setItem(STORAGE_KEY_READ, maxId.toString());
                     }
                 });
             }
@@ -1481,48 +1491,28 @@
                 clearNotificationsBtn.addEventListener('click', function (e) {
                     e.stopPropagation();
                     
-                    // 1. Get all current visible notification IDs
                     const items = notificationList.querySelectorAll('.notification-item');
-                    let newClearedIds = [];
-                    items.forEach(el => {
-                        const idAttr = el.getAttribute('data-id');
-                        const idNum = idAttr ? parseInt(idAttr, 10) : NaN;
-                        if (!isNaN(idNum)) {
-                            newClearedIds.push(idNum);
+                    const ids = Array.from(items).map(el => parseInt(el.getAttribute('data-id'), 10)).filter(id => !isNaN(id));
+                    const maxId = ids.length > 0 ? Math.max(...ids) : null;
+
+                    fetch(clearAllUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
                         }
-                    });
-
-                    if (newClearedIds.length > 0) {
-                        // 2. Add to existing cleared list in localStorage
-                        let currentCleared = [];
-                        try {
-                            currentCleared = JSON.parse(localStorage.getItem(STORAGE_KEY_CLEARED) || '[]');
-                            if (!Array.isArray(currentCleared)) currentCleared = [];
-                        } catch(err) { currentCleared = []; }
-
-                        // Merge unique IDs
-                        newClearedIds.forEach(id => {
-                            if (!currentCleared.includes(id)) {
-                                currentCleared.push(id);
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (maxId !== null) {
+                                localStorage.setItem(STORAGE_KEY_READ, maxId.toString());
                             }
-                        });
-
-                        localStorage.setItem(STORAGE_KEY_CLEARED, JSON.stringify(currentCleared));
-                        
-                        // 3. Mark all as read as well (optional but good UX)
-                        if (latestNotificationId) {
-                            const latestIdNum = typeof latestNotificationId === 'number'
-                                ? latestNotificationId
-                                : parseInt(latestNotificationId, 10);
-                            if (!isNaN(latestIdNum)) {
-                                localStorage.setItem(STORAGE_KEY_READ, latestIdNum.toString());
-                            }
+                            notificationList.innerHTML = '<div class="notification-empty">No recent notifications.</div>';
+                            notificationDot.classList.add('d-none');
                         }
-                    }
-
-                    // 4. Update UI
-                    notificationList.innerHTML = '<div class="notification-empty">You have cleared all notifications.</div>';
-                    notificationDot.classList.add('d-none');
+                    })
+                    .catch(err => console.error('Error clearing all notifications:', err));
                 });
             }
 

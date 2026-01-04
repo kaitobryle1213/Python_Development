@@ -201,13 +201,22 @@
                     </div>
                 </div>
                 
-                <div>
+                <div class="d-flex align-items-center gap-2" style="position: relative; z-index: 2;">
                     {% if tax.tax_status != 'Paid' %}
                     <button class="btn btn-dark btn-sm rounded-pill px-3" disabled>
                         <i class="far fa-check-circle me-1"></i> Not yet Paid
                     </button>
                     {% else %}
                     <span class="text-success fw-bold small"><i class="fas fa-check-double me-1"></i> Paid</span>
+                    {% endif %}
+
+                    {% if request.user.is_staff or request.user.is_superuser %}
+                    <form method="post" action="{% url 'tax_record_delete' pk=tax.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this tax record?')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-light btn-sm rounded border ms-1">
+                            <i class="far fa-trash-alt text-danger"></i>
+                        </button>
+                    </form>
                     {% endif %}
                 </div>
             </div>

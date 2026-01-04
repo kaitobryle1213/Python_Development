@@ -1,4 +1,4 @@
-from django.views.generic import CreateView, ListView, DetailView, TemplateView, UpdateView
+from django.views.generic import CreateView, ListView, DetailView, TemplateView, UpdateView, View
 from django.urls import reverse_lazy
 from django.http import JsonResponse
 from django.db.models import Q
@@ -18,7 +18,7 @@ from django.conf import settings
 from django.utils import timezone
 import zipfile
 
-from .models import Property, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument, UserProfile, Notification, PropertyTax, AIRequestLog
+from .models import Property, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument, UserProfile, Notification, PropertyTax, AIRequestLog, TitleMovementRequest, TitleMovementDocument, PropertyHistory
 from .forms import PropertyCreateForm
 from .ai_brain import get_ai_response
 from django.views.decorators.csrf import csrf_exempt
@@ -28,7 +28,6 @@ from django.views.decorators.csrf import csrf_exempt
 class DashboardView(TemplateView):
     """
     Renders the main dashboard template and provides key metrics.
-    Tax and Movement metrics are removed as those models no longer exist.
     """
     template_name = 'dashboard.html'
     
@@ -38,405 +37,440 @@ class DashboardView(TemplateView):
         # Add today's date to context
         context['today'] = timezone.now()
         
-        # --- 1. PROPERTY METRICS (TOTAL COUNT) ---
+        # --- 1. PROPERTY METRICS ---
         context['total_properties'] = Property.objects.count()
+        context['active_properties'] = Property.objects.filter(title_status='ACT').count()
+        context['collateral_properties'] = Property.objects.filter(title_status='COL').count()
         
-        # -----------------------------------------------------------------
-        # --- 2. MONTHLY ADDITIONS LOGIC (UPDATED) ---
-        # Using filter with date range for better reliability with timezones
-        # -----------------------------------------------------------------
+        # Monthly additions
         current_date = timezone.localdate()
+        start_of_month = timezone.make_aware(datetime.combine(current_date.replace(day=1), time.min))
+        context['properties_this_month'] = Property.objects.filter(date_added__gte=start_of_month).count()
         
-        # Calculate start of current month
-        start_date = current_date.replace(day=1)
+        # Property Classifications for Chart/List
+        classifications = Property.objects.values('title_classification').annotate(count=Count('title_classification'))
+        total_count = context['total_properties']
+        classification_data = []
+        for c in classifications:
+            code = c['title_classification']
+            name = dict(Property.CLASSIFICATION_CHOICES).get(code, code)
+            count = c['count']
+            percentage = (count / total_count * 100) if total_count > 0 else 0
+            classification_data.append({
+                'name': name,
+                'count': count,
+                'percentage': round(percentage, 1),
+                'code': code
+            })
+        context['classifications'] = classification_data
         
-        # Calculate start of next month
-        if start_date.month == 12:
-            next_month_date = date(start_date.year + 1, 1, 1)
-        else:
-            next_month_date = date(start_date.year, start_date.month + 1, 1)
-            
-        # Convert to aware datetimes for database query
-        start_dt = timezone.make_aware(datetime.combine(start_date, time.min))
-        end_dt = timezone.make_aware(datetime.combine(next_month_date, time.min))
+        # --- 2. TAX METRICS ---
+        total_paid = PropertyTax.objects.filter(tax_status='Paid').aggregate(total=Sum('tax_amount'))['total'] or 0
+        total_due = PropertyTax.objects.exclude(tax_status='Paid').aggregate(total=Sum('tax_amount'))['total'] or 0
+        context['total_tax_paid'] = total_paid
+        context['total_tax_due'] = total_due
+        
+        all_tax_sum = PropertyTax.objects.aggregate(total=Sum('tax_amount'))['total'] or 1
+        context['collection_rate'] = round((total_paid / all_tax_sum * 100), 1) if all_tax_sum > 0 else 0
+        context['overdue_payments'] = PropertyTax.objects.filter(tax_status='Overdue').count()
+        
+        # Tax Status Breakdown
+        tax_statuses = PropertyTax.objects.values('tax_status').annotate(count=Count('tax_status'), total_amount=Sum('tax_amount'))
+        context['tax_status_overview'] = tax_statuses
 
-        # Filter properties added in the current month range
-        current_month_count = Property.objects.filter(
-            date_added__gte=start_dt,
-            date_added__lt=end_dt
-        ).count()
+        # --- 3. TITLE MOVEMENT METRICS ---
+        context['total_movements'] = TitleMovementRequest.objects.count()
+        context['returned_movements'] = TitleMovementRequest.objects.filter(status='Returned').count()
+        context['currently_out'] = TitleMovementRequest.objects.exclude(status='Returned').count()
+        # Assuming 'Overdue' logic for movements if exists, otherwise 0
+        context['overdue_returns'] = 0 
         
-        context['current_month_added'] = current_month_count
-        
-        # -----------------------------------------------------------------
-        # --- 3. TAX & MOVEMENT METRICS ---
-        # -----------------------------------------------------------------
-        context['total_tax_due'] = PropertyTax.objects.exclude(tax_status='Paid').aggregate(Sum('tax_amount'))['tax_amount__sum'] or 0.00
-        context['total_tax_paid'] = PropertyTax.objects.filter(tax_status='Paid').aggregate(Sum('tax_amount'))['tax_amount__sum'] or 0.00
-        context['pending_tax_count'] = PropertyTax.objects.filter(tax_status='Pending').count()
-        context['total_movements'] = 0
-        
-        # --- 4. OTHER METRICS ---
-        context['classification_data'] = []
-        context['pending_approvals'] = 0 
-        
+        # Movement Status Breakdown
+        context['movement_status_overview'] = TitleMovementRequest.objects.values('status').annotate(count=Count('status'))
+
+        # --- 4. RECENTLY ADDED PROPERTIES ---
+        context['recent_properties'] = Property.objects.all().prefetch_related('ownerinformation_set').order_by('-date_added')[:5]
+
         return context
 
-# --- 1. PROPERTY CREATION VIEW (KEPT) ---
+# --- AUTH VIEWS ---
+def logout_view(request):
+    auth_logout(request)
+    return redirect('login')
+
+# --- PROPERTY VIEWS ---
+class PropertyListView(ListView):
+    model = Property
+    template_name = 'property_list.html'
+    context_object_name = 'properties'
+    paginate_by = 10
+
+    def get_queryset(self):
+        qs = Property.objects.all().order_by('-date_added')
+        q = self.request.GET.get('q')
+        if q:
+            qs = qs.filter(
+                Q(title_no__icontains=q) | 
+                Q(lot_no__icontains=q) |
+                Q(property_id__icontains=q)
+            )
+        return qs
+
 class PropertyCreateView(CreateView):
     model = Property
     form_class = PropertyCreateForm
     template_name = 'add_property/property_create.html'
     success_url = reverse_lazy('property_list')
-    
+
     def form_valid(self, form):
-        # Handle file uploads validation BEFORE saving anything
-        files = self.request.FILES.getlist('ai_supp_docs')
-        MAX_FILES = 5
-        MAX_SIZE_MB = 10
-        MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
-
-        if len(files) > MAX_FILES:
-            form.add_error(None, f"You can only upload a maximum of {MAX_FILES} files.")
-            return self.form_invalid(form)
-
-        for f in files:
-            if f.size > MAX_SIZE_BYTES:
-                form.add_error(None, f"File {f.name} exceeds the {MAX_SIZE_MB}MB limit.")
-                return self.form_invalid(form)
-
-        response = super().form_valid(form)
-        loc_specific = self.request.POST.get('loc_specific', '')
-        loc_province = self.request.POST.get('loc_province', '')
-        loc_city = self.request.POST.get('loc_city', '')
-        loc_barangay = self.request.POST.get('loc_barangay', '')
-        LocalInformation.objects.create(
-            property_id=self.object.property_id,
-            loc_specific=loc_specific,
-            loc_province=loc_province,
-            loc_city=loc_city,
-            loc_barangay=loc_barangay
-        )
-
-        oi_fullname = self.request.POST.get('oi_fullname', '')
-        oi_bankname = self.request.POST.get('oi_bankname', '')
-        oi_custody_title = self.request.POST.get('oi_custody_title', '')
-        OwnerInformation.objects.create(
-            property_id=self.object.property_id,
-            oi_fullname=oi_fullname,
-            oi_bankname=oi_bankname,
-            oi_custody_title=oi_custody_title
-        )
-
-        fi_encumbrance = self.request.POST.get('fi_encumbrance', '')
-        fi_mortgage = self.request.POST.get('fi_mortgage', '')
-        fi_borrower = self.request.POST.get('fi_borrower', '')
-        FinancialInformation.objects.create(
-            property_id=self.object.property_id,
-            fi_encumbrance=fi_encumbrance,
-            fi_mortgage=fi_mortgage,
-            fi_borrower=fi_borrower
-        )
-
-        ai_remarks = self.request.POST.get('ai_remarks', '')
-        AdditionalInformation.objects.create(
-            property_id=self.object.property_id,
-            ai_remarks=ai_remarks
-        )
-
-        # Save files after successful form validation
-        for f in files:
-            SupportingDocument.objects.create(
-                property_id=self.object.property_id,
-                file=f
+        self.object = form.save(commit=False)
+        self.object.user_id = self.request.user.id
+        self.object.save()
+        
+        # Track initial creation for Property model fields
+        fields_to_track = ['title_no', 'lot_no', 'lot_area', 'title_classification', 'title_status', 'title_description']
+        for field in fields_to_track:
+            val = getattr(self.object, field)
+            
+            # Map choice codes to labels
+            if field == 'title_classification':
+                val = dict(Property.CLASSIFICATION_CHOICES).get(val, val)
+            elif field == 'title_status':
+                val = dict(Property.STATUS_CHOICES).get(val, val)
+                
+            track_field_change(
+                self.object, 
+                self.request.user, 
+                field.replace('_', ' ').title(), 
+                None, 
+                val,
+                change_type='ADD'
             )
-
+            
+        # Save related info with 'ADD' type
+        save_related_info(self.object, self.request, change_type='ADD')
+        
         Notification.objects.create(
+            user=self.request.user,
             category='PROPERTY',
-            message=f"New Property added with Title No.: {self.object.title_no}"
+            message=f"New property added: {self.object.title_no}"
         )
+        return super().form_valid(form)
 
-        return response
-
-# --- 1.5 PROPERTY UPDATE VIEW ---
 class PropertyUpdateView(UpdateView):
     model = Property
     form_class = PropertyCreateForm
     template_name = 'add_property/property_update.html'
     success_url = reverse_lazy('property_list')
     
-    def dispatch(self, request, *args, **kwargs):
-        if not is_admin(request.user):
-            return redirect('property_list')
-        return super().dispatch(request, *args, **kwargs)
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Try to get existing local info
-        try:
-            local_info = LocalInformation.objects.get(property_id=self.object.property_id)
-            context['local_info'] = local_info
-        except LocalInformation.DoesNotExist:
-            context['local_info'] = None
-
-        # Try to get existing owner info
-        try:
-            owner_info = OwnerInformation.objects.get(property_id=self.object.property_id)
-            context['owner_info'] = owner_info
-        except OwnerInformation.DoesNotExist:
-            context['owner_info'] = None
-
-        # Try to get existing financial info
-        try:
-            financial_info = FinancialInformation.objects.get(property_id=self.object.property_id)
-            context['financial_info'] = financial_info
-        except FinancialInformation.DoesNotExist:
-            context['financial_info'] = None
-
-        # Try to get existing additional info
-        try:
-            additional_info = AdditionalInformation.objects.get(property_id=self.object.property_id)
-            context['additional_info'] = additional_info
-        except AdditionalInformation.DoesNotExist:
-            context['additional_info'] = None
-
-        # Get existing supporting documents
-        context['supporting_docs'] = SupportingDocument.objects.filter(property_id=self.object.property_id)
-
+        context['mode'] = 'edit'
+        obj = self.object
+        context['local_info'] = LocalInformation.objects.filter(property=obj).first()
+        context['owner_info'] = OwnerInformation.objects.filter(property=obj).first()
+        context['financial_info'] = FinancialInformation.objects.filter(property=obj).first()
+        context['additional_info'] = AdditionalInformation.objects.filter(property=obj).first()
+        context['supporting_docs'] = SupportingDocument.objects.filter(property_id=obj.property_id)
         return context
 
     def form_valid(self, form):
-        files = self.request.FILES.getlist('ai_supp_docs')
-        delete_ids = self.request.POST.getlist('delete_files')
+        # Store old values before saving
+        old_obj = Property.objects.get(pk=self.object.pk)
         
-        current_docs = SupportingDocument.objects.filter(property_id=self.object.property_id)
-        current_count = current_docs.count()
-        
-        valid_delete_ids = list(current_docs.filter(id__in=delete_ids).values_list('id', flat=True))
-        
-        projected_count = current_count - len(valid_delete_ids) + len(files)
-        
-        MAX_FILES = 5
-        MAX_SIZE_MB = 10
-        MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
-
-        if projected_count > MAX_FILES:
-             form.add_error(None, f"Total files cannot exceed {MAX_FILES}. You currently have {current_count}, are deleting {len(valid_delete_ids)}, and adding {len(files)}.")
-             return self.form_invalid(form)
-
-        for f in files:
-            if f.size > MAX_SIZE_BYTES:
-                form.add_error(None, f"File {f.name} exceeds the {MAX_SIZE_MB}MB limit.")
-                return self.form_invalid(form)
-
-        docs_to_delete = []
-        if valid_delete_ids:
-            docs_to_delete = list(SupportingDocument.objects.filter(id__in=valid_delete_ids))
-            deleted_root = Path(settings.MEDIA_ROOT) / "supporting_docs" / "Deleted_Files"
-            deleted_root.mkdir(parents=True, exist_ok=True)
-            timestamp = timezone.localtime(timezone.now()).strftime("%Y%m%d%H%M%S")
-            zip_name = f"deleted_{self.object.property_id}_{timestamp}.zip"
-            zip_path = deleted_root / zip_name
-            with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-                for doc in docs_to_delete:
-                    try:
-                        file_path = Path(doc.file.path)
-                    except (ValueError, AttributeError):
-                        continue
-                    if file_path.is_file():
-                        archive.write(str(file_path), arcname=file_path.name)
-                        try:
-                            file_path.unlink()
-                        except OSError:
-                            pass
-            SupportingDocument.objects.filter(id__in=valid_delete_ids).delete()
-
         response = super().form_valid(form)
-        loc_specific = self.request.POST.get('loc_specific', '')
-        loc_province = self.request.POST.get('loc_province', '')
-        loc_city = self.request.POST.get('loc_city', '')
-        loc_barangay = self.request.POST.get('loc_barangay', '')
         
-        # Update or create
-        LocalInformation.objects.update_or_create(
-            property_id=self.object.property_id,
-            defaults={
-                'loc_specific': loc_specific,
-                'loc_province': loc_province,
-                'loc_city': loc_city,
-                'loc_barangay': loc_barangay
-            }
-        )
-
-        oi_fullname = self.request.POST.get('oi_fullname', '')
-        oi_bankname = self.request.POST.get('oi_bankname', '')
-        oi_custody_title = self.request.POST.get('oi_custody_title', '')
-
-        OwnerInformation.objects.update_or_create(
-            property_id=self.object.property_id,
-            defaults={
-                'oi_fullname': oi_fullname,
-                'oi_bankname': oi_bankname,
-                'oi_custody_title': oi_custody_title
-            }
-        )
-
-        fi_encumbrance = self.request.POST.get('fi_encumbrance', '')
-        fi_mortgage = self.request.POST.get('fi_mortgage', '')
-        fi_borrower = self.request.POST.get('fi_borrower', '')
-
-        FinancialInformation.objects.update_or_create(
-            property_id=self.object.property_id,
-            defaults={
-                'fi_encumbrance': fi_encumbrance,
-                'fi_mortgage': fi_mortgage,
-                'fi_borrower': fi_borrower
-            }
-        )
-
-        ai_remarks = self.request.POST.get('ai_remarks', '')
-        AdditionalInformation.objects.update_or_create(
-            property_id=self.object.property_id,
-            defaults={
-                'ai_remarks': ai_remarks
-            }
-        )
-
-        # Handle file uploads (append new files)
-        for f in files:
-            SupportingDocument.objects.create(
-                property_id=self.object.property_id,
-                file=f
+        # Track changes for Property model fields
+        fields_to_track = ['title_no', 'lot_no', 'lot_area', 'title_classification', 'title_status', 'title_description']
+        for field in fields_to_track:
+            old_val = getattr(old_obj, field)
+            new_val = getattr(self.object, field)
+            
+            # Map choice codes to labels for better readability in history
+            if field == 'title_classification':
+                old_val = dict(Property.CLASSIFICATION_CHOICES).get(old_val, old_val)
+                new_val = dict(Property.CLASSIFICATION_CHOICES).get(new_val, new_val)
+            elif field == 'title_status':
+                old_val = dict(Property.STATUS_CHOICES).get(old_val, old_val)
+                new_val = dict(Property.STATUS_CHOICES).get(new_val, new_val)
+                
+            track_field_change(
+                self.object, 
+                self.request.user, 
+                field.replace('_', ' ').title(), 
+                old_val, 
+                new_val,
+                change_type='STATUS_CHANGE' if field == 'title_status' else 'UPDATE'
             )
-
+            
+        # Save related info (this function will also need to track changes)
+        save_related_info(self.object, self.request)
+        
         Notification.objects.create(
+            user=self.request.user,
             category='PROPERTY',
-            message=f"Property updated with Title No.: {self.object.title_no}"
+            message=f"Property updated: {self.object.title_no}"
         )
-
         return response
 
-# --- 2. PROPERTY LIST VIEW (KEPT) ---
-class PropertyListView(ListView):
-    model = Property
-    template_name = 'property_list.html'
-    context_object_name = 'properties'
-    ordering = ['title_no']
-    paginate_by = 20  # Add pagination
+def track_field_change(property_obj, user, field_name, old_value, new_value, change_type='UPDATE', reason=None):
+    """Helper to record changes in PropertyHistory."""
+    if old_value is None: old_value = ""
+    if new_value is None: new_value = ""
+    
+    # Convert to string for comparison
+    old_value_str = str(old_value).strip()
+    new_value_str = str(new_value).strip()
+    
+    # Only track if value actually changed or if it's an 'ADD' event with a non-empty value
+    if change_type == 'ADD':
+        if new_value_str:
+            PropertyHistory.objects.create(
+                property=property_obj,
+                change_type=change_type,
+                field_name=field_name,
+                old_value="",
+                new_value=new_value_str,
+                reason=reason or "Initial creation",
+                changed_by=user
+            )
+    elif old_value_str != new_value_str:
+        PropertyHistory.objects.create(
+            property=property_obj,
+            change_type=change_type,
+            field_name=field_name,
+            old_value=old_value_str,
+            new_value=new_value_str,
+            reason=reason,
+            changed_by=user
+        )
 
-    def get_queryset(self):
-        # Optimize: Prefetch related data to avoid N+1 queries
-        queryset = Property.objects.prefetch_related('ownerinformation_set').all()
-        
-        q = self.request.GET.get('q')
-        if q:
-            class_matches = [k for k, v in Property.CLASSIFICATION_CHOICES if q.lower() in v.lower()]
-            status_matches = [k for k, v in Property.STATUS_CHOICES if q.lower() in v.lower()]
-            
-            query = Q(title_no__icontains=q) | \
-                    Q(lot_no__icontains=q) | \
-                    Q(title_description__icontains=q) | \
-                    Q(lot_area__icontains=q) | \
-                    Q(property_id__icontains=q) | \
-                    Q(date_added__icontains=q) | \
-                    Q(localinformation__loc_province__icontains=q) | \
-                    Q(localinformation__loc_city__icontains=q) | \
-                    Q(localinformation__loc_barangay__icontains=q) | \
-                    Q(localinformation__loc_specific__icontains=q) | \
-                    Q(ownerinformation__oi_fullname__icontains=q) | \
-                    Q(ownerinformation__oi_bankname__icontains=q) | \
-                    Q(ownerinformation__oi_custody_title__icontains=q) | \
-                    Q(financialinformation__fi_encumbrance__icontains=q) | \
-                    Q(financialinformation__fi_mortgage__icontains=q) | \
-                    Q(financialinformation__fi_borrower__icontains=q) | \
-                    Q(additionalinformation__ai_remarks__icontains=q) | \
-                    Q(supportingdocument__file__icontains=q)
-            
-            if class_matches:
-                query |= Q(title_classification__in=class_matches)
-            query |= Q(title_classification__icontains=q)
-            
-            if status_matches:
-                query |= Q(title_status__in=status_matches)
-            query |= Q(title_status__icontains=q)
-            
-            queryset = queryset.filter(query).distinct()
-            
-        # Classification filter (Dropdown)
-        classification = self.request.GET.get('classification')
-        if classification and classification != 'Classification':
-            queryset = queryset.filter(title_classification=classification)
-            
-        # Status filter (Dropdown)
-        status = self.request.GET.get('status')
-        if status and status != 'Status':
-            queryset = queryset.filter(title_status=status)
-            
-        return queryset
+def save_related_info(property_obj, request, change_type='UPDATE'):
+    """
+    Helper function to save related information for a property.
+    """
+    # 1. Local Information
+    local_info, _ = LocalInformation.objects.get_or_create(property=property_obj)
+    
+    # Track Local Info changes
+    loc_fields = {
+        'loc_specific': 'Location Specific',
+        'loc_province': 'Province',
+        'loc_city': 'City',
+        'loc_barangay': 'Barangay'
+    }
+    for field, label in loc_fields.items():
+        old_val = getattr(local_info, field)
+        new_val = request.POST.get(field)
+        track_field_change(property_obj, request.user, label, old_val, new_val, change_type=change_type)
+        setattr(local_info, field, new_val)
+    local_info.save()
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Pass current filter values to context to maintain state in UI
-        context['current_q'] = self.request.GET.get('q', '')
-        context['current_classification'] = self.request.GET.get('classification', 'Classification')
-        context['current_status'] = self.request.GET.get('status', 'Status')
-        context['total_properties_count'] = Property.objects.count()
-        return context
+    # 2. Owner Information
+    owner_info, _ = OwnerInformation.objects.get_or_create(property=property_obj)
+    
+    owner_fields = {
+        'oi_fullname': 'Owner Full Name',
+        'oi_bankname': 'Bank Name',
+        'oi_custody_title': 'Custody Of Title'
+    }
+    for field, label in owner_fields.items():
+        old_val = getattr(owner_info, field)
+        new_val = request.POST.get(field)
+        track_field_change(property_obj, request.user, label, old_val, new_val, change_type=change_type)
+        setattr(owner_info, field, new_val)
+    owner_info.save()
 
-# --- 3. PROPERTY DETAIL VIEW (UPDATED) ---
+    # 3. Financial Information
+    financial_info, _ = FinancialInformation.objects.get_or_create(property=property_obj)
+    
+    fin_fields = {
+        'fi_encumbrance': 'Encumbrance',
+        'fi_mortgage': 'Mortgage',
+        'fi_borrower': 'Borrower'
+    }
+    for field, label in fin_fields.items():
+        old_val = getattr(financial_info, field)
+        new_val = request.POST.get(field)
+        track_field_change(property_obj, request.user, label, old_val, new_val, change_type=change_type)
+        setattr(financial_info, field, new_val)
+    financial_info.save()
+
+    # 4. Additional Information
+    additional_info, _ = AdditionalInformation.objects.get_or_create(property=property_obj)
+    
+    old_remarks = additional_info.ai_remarks
+    new_remarks = request.POST.get('ai_remarks')
+    track_field_change(property_obj, request.user, 'Remarks', old_remarks, new_remarks, change_type=change_type)
+    additional_info.ai_remarks = new_remarks
+    additional_info.save()
+
+    # 5. Supporting Documents (Uploads)
+    files = request.FILES.getlist('ai_supp_docs')
+    for f in files:
+        SupportingDocument.objects.create(property=property_obj, file=f)
+
+    # 6. Delete Supporting Documents if requested
+    delete_ids = request.POST.getlist('delete_files')
+    if delete_ids:
+        SupportingDocument.objects.filter(id__in=delete_ids, property=property_obj).delete()
+
 class PropertyDetailView(DetailView):
     model = Property
     template_name = 'property_detail.html'
     context_object_name = 'property'
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Fetch related LocalInformation
-        context['local_info'] = self.object.localinformation_set.first()
-        # Fetch related OwnerInformation
-        context['owner_info'] = self.object.ownerinformation_set.first()
-        # Fetch related FinancialInformation
-        context['financial_info'] = self.object.financialinformation_set.first()
-        # Fetch related AdditionalInformation
-        context['additional_info'] = self.object.additionalinformation_set.first()
-        # Fetch related SupportingDocuments
-        context['supporting_docs'] = self.object.supportingdocument_set.all()
-        # Fetch related Tax Records
-        context['tax_records'] = self.object.propertytax_set.all().order_by('tax_due_date')
+        obj = self.object
+        
+        context['local_info'] = LocalInformation.objects.filter(property=obj).first()
+        context['owner_info'] = OwnerInformation.objects.filter(property=obj).first()
+        context['financial_info'] = FinancialInformation.objects.filter(property=obj).first()
+        context['additional_info'] = AdditionalInformation.objects.filter(property=obj).first()
+        context['supporting_docs'] = SupportingDocument.objects.filter(property_id=obj.property_id)
+        context['tax_records'] = PropertyTax.objects.filter(property=obj).order_by('-tax_year')
+        
+        # Title Movements (Optimized)
+        context['title_movements'] = obj.title_movements.select_related('tm_released_by', 'tm_approved_by').order_by('-created_at')
+        
+        # Change History
+        history_qs = obj.history.select_related('changed_by').all().order_by('-changed_at')
+        
+        # History Search/Filters
+        q = self.request.GET.get('history_q')
+        if q:
+            history_qs = history_qs.filter(
+                Q(field_name__icontains=q) |
+                Q(old_value__icontains=q) |
+                Q(new_value__icontains=q) |
+                Q(reason__icontains=q)
+            )
+            
+        h_type = self.request.GET.get('history_type')
+        if h_type and h_type != 'All Types':
+            history_qs = history_qs.filter(change_type=h_type)
+            
+        context['change_history'] = history_qs
+        
         return context
 
-# --- 3.5 ADD PROPERTY TAX API ---
+# --- TAX VIEWS ---
+@login_required
+def add_property_tax(request, pk):
+    if request.method == 'POST':
+        property_obj = get_object_or_404(Property, pk=pk)
+        
+        tax_year = request.POST.get('tax_year')
+        tax_quarter = request.POST.get('tax_quarter')
+        tax_amount = request.POST.get('tax_amount')
+        tax_due_date = request.POST.get('tax_due_date')
+        tax_from = request.POST.get('tax_from')
+        tax_to = request.POST.get('tax_to')
+        tax_status = request.POST.get('tax_status')
+        tax_remarks = request.POST.get('tax_remarks')
+        
+        tax = PropertyTax.objects.create(
+            property=property_obj,
+            tax_year=tax_year,
+            tax_quarter=tax_quarter,
+            tax_amount=tax_amount,
+            tax_due_date=tax_due_date,
+            tax_from=tax_from,
+            tax_to=tax_to,
+            tax_status=tax_status,
+            tax_remarks=tax_remarks,
+            created_by=request.user
+        )
+        
+        # Track tax record addition in history
+        tax_info = f"Year: {tax_year}, Quarter: {tax_quarter}, Amount: {tax_amount}"
+        track_field_change(
+            property_obj, 
+            request.user, 
+            "Tax Record", 
+            None, 
+            tax_info, 
+            change_type='ADD',
+            reason=f"Added tax record for {tax_year} {tax_quarter}"
+        )
+        
+        Notification.objects.create(
+            user=request.user,
+            category='TAX',
+            message=f"New tax record added for Property: {property_obj.title_no}"
+        )
+        return JsonResponse({'success': True})
+    return JsonResponse({'error': 'Invalid method'}, status=405)
+
+@login_required
+def update_property_tax(request, pk):
+    tax = get_object_or_404(PropertyTax, pk=pk)
+    if request.method == 'POST':
+        old_status = tax.tax_status
+        new_status = request.POST.get('tax_status')
+        
+        tax.tax_year = request.POST.get('tax_year')
+        tax.tax_quarter = request.POST.get('tax_quarter')
+        tax.tax_amount = request.POST.get('tax_amount')
+        tax.tax_due_date = request.POST.get('tax_due_date')
+        tax.tax_from = request.POST.get('tax_from')
+        tax.tax_to = request.POST.get('tax_to')
+        tax.tax_status = new_status
+        tax.tax_remarks = request.POST.get('tax_remarks')
+        tax.save()
+        
+        # Track tax status change
+        if old_status != new_status:
+            track_field_change(
+                tax.property, 
+                request.user, 
+                f'Tax Status ({tax.tax_year})', 
+                old_status, 
+                new_status, 
+                change_type='TAX_UPDATE',
+                reason=f"Tax status for {tax.tax_year} updated to {new_status}"
+            )
+        
+        Notification.objects.create(
+            user=request.user,
+            category='TAX',
+            message=f"Tax record updated for Property: {tax.property.title_no}"
+        )
+        return JsonResponse({'success': True})
+    return JsonResponse({'error': 'Invalid method'}, status=405)
+
 class AllTaxRecordsView(ListView):
     model = PropertyTax
     template_name = 'all_tax_records.html'
     context_object_name = 'tax_records'
-    paginate_by = 6
-    ordering = ['tax_due_date']
+    paginate_by = 20
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        query = self.request.GET.get('q')
-        status = self.request.GET.get('status')
-        year = self.request.GET.get('year')
-
-        if query:
-            queryset = queryset.filter(
-                Q(property__title_no__icontains=query) |
-                Q(property__ownerinformation__oi_fullname__icontains=query) |
-                Q(property__localinformation__loc_city__icontains=query) |
-                Q(id__icontains=query)
-            )
+        qs = PropertyTax.objects.select_related('property').all().order_by('-tax_year', '-tax_due_date')
         
+        # Search filter
+        q = self.request.GET.get('q')
+        if q:
+            qs = qs.filter(
+                Q(property__title_no__icontains=q) |
+                Q(property__property_id__icontains=q)
+            )
+            
+        # Status filter
+        status = self.request.GET.get('status')
         if status and status != 'All Status':
             if status == 'Unpaid':
-                queryset = queryset.exclude(tax_status='Paid')
+                qs = qs.exclude(tax_status='Paid')
             else:
-                queryset = queryset.filter(tax_status=status)
-            
+                qs = qs.filter(tax_status=status)
+                
+        # Year filter
+        year = self.request.GET.get('year')
         if year and year != 'All Years':
-            queryset = queryset.filter(tax_year=year)
+            qs = qs.filter(tax_year=year)
             
-        return queryset
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -454,354 +488,262 @@ class AllTaxRecordsView(ListView):
         context['unpaid_count'] = unpaid_taxes.count()
         context['unpaid_amount'] = unpaid_taxes.aggregate(Sum('tax_amount'))['tax_amount__sum'] or 0
         
-        overdue_taxes = all_taxes.filter(tax_status='Overdue')
-        context['overdue_count'] = overdue_taxes.count()
+        context['overdue_count'] = all_taxes.filter(tax_status='Overdue').count()
         
-        # Filter Options
-        context['years'] = PropertyTax.objects.values_list('tax_year', flat=True).distinct().order_by('-tax_year')
-        
-        # Current Filters
+        # Filter options
+        context['years'] = sorted(list(set(all_taxes.values_list('tax_year', flat=True))), reverse=True)
         context['current_q'] = self.request.GET.get('q', '')
         context['current_status'] = self.request.GET.get('status', 'All Status')
         context['current_year'] = self.request.GET.get('year', 'All Years')
         
         return context
 
+from django.urls import reverse
 
-@login_required
-def add_property_tax(request, pk):
-    if request.method == 'POST':
-        try:
-            property_obj = get_object_or_404(Property, pk=pk)
-            data = json.loads(request.body)
-            
-            tax_record = PropertyTax.objects.create(
-                property=property_obj,
-                tax_year=data.get('tax_year'),
-                tax_quarter=data.get('tax_quarter'),
-                tax_amount=data.get('tax_amount'),
-                tax_due_date=data.get('tax_due_date'),
-                tax_from=data.get('tax_from'),
-                tax_to=data.get('tax_to'),
-                tax_status=data.get('tax_status'),
-                tax_remarks=data.get('tax_remarks')
-            )
-            
-            Notification.objects.create(
-                category='TAX',
-                message=f"New Tax Record added for Property: {property_obj.title_no}"
-            )
-
-            return JsonResponse({'success': True, 'message': 'Tax record added successfully!'})
-        except Exception as e:
-            return JsonResponse({'success': False, 'message': str(e)}, status=400)
-    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
-
-@login_required
-def update_property_tax(request, pk):
-    if not is_admin(request.user):
-        return JsonResponse({'success': False, 'message': 'Permission denied. Only admins can edit tax records.'}, status=403)
-
-    if request.method == 'POST':
-        try:
-            tax_record = get_object_or_404(PropertyTax, pk=pk)
-            data = json.loads(request.body)
-            
-            tax_record.tax_year = data.get('tax_year')
-            tax_record.tax_quarter = data.get('tax_quarter')
-            tax_record.tax_amount = data.get('tax_amount')
-            tax_record.tax_due_date = data.get('tax_due_date')
-            tax_record.tax_from = data.get('tax_from')
-            tax_record.tax_to = data.get('tax_to')
-            tax_record.tax_status = data.get('tax_status')
-            tax_record.tax_remarks = data.get('tax_remarks')
-            
-            tax_record.save()
-            
-            return JsonResponse({'success': True, 'message': 'Tax record updated successfully!'})
-        except Exception as e:
-            return JsonResponse({'success': False, 'message': str(e)}, status=400)
-    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
-
-# --- 4. GLOBAL SEARCH API ---
+# --- API VIEWS ---
 def global_search(request):
-    query = request.GET.get('q', '')
+    q = request.GET.get('q', '').strip()
     results = []
     
-    if query:
-        properties = Property.objects.prefetch_related('ownerinformation_set', 'localinformation_set').filter(
-            Q(title_no__icontains=query) | 
-            Q(lot_no__icontains=query) |
-            Q(title_classification__icontains=query) |
-            Q(title_status__icontains=query) |
-            Q(title_description__icontains=query) |
-            Q(property_id__icontains=query) |
-            Q(lot_area__icontains=query) |
-            Q(localinformation__loc_province__icontains=query) |
-            Q(localinformation__loc_city__icontains=query) |
-            Q(localinformation__loc_barangay__icontains=query) |
-            Q(localinformation__loc_specific__icontains=query) |
-            Q(ownerinformation__oi_fullname__icontains=query) |
-            Q(ownerinformation__oi_bankname__icontains=query) |
-            Q(ownerinformation__oi_custody_title__icontains=query) |
-            Q(financialinformation__fi_encumbrance__icontains=query) |
-            Q(financialinformation__fi_mortgage__icontains=query) |
-            Q(financialinformation__fi_borrower__icontains=query) |
-            Q(additionalinformation__ai_remarks__icontains=query) |
-            Q(supportingdocument__file__icontains=query)
-        ).distinct()[:5]
+    if q:
+        # 1. Search Properties
+        props = Property.objects.filter(
+            Q(title_no__icontains=q) | 
+            Q(lot_no__icontains=q) |
+            Q(property_id__icontains=q)
+        ).order_by('-date_added')[:5]
         
-        for prop in properties:
-            owner = prop.ownerinformation_set.first()
-            owner_name = owner.oi_fullname if owner and owner.oi_fullname else ""
-            loc = prop.localinformation_set.first()
-            loc_parts = []
-            if loc and loc.loc_barangay:
-                loc_parts.append(loc.loc_barangay)
-            if loc and loc.loc_city:
-                loc_parts.append(loc.loc_city)
-            if loc and loc.loc_province:
-                loc_parts.append(loc.loc_province)
-            loc_text = ", ".join(loc_parts) if loc_parts else ""
-
+        for p in props:
             results.append({
+                'title': p.title_no,
                 'category': 'Property',
-                'id': prop.pk,
-                'title': prop.title_no,
-                'description': f"{owner_name or 'No owner'} | Lot {prop.lot_no} | {loc_text or prop.get_title_classification_display()}",
-                'url': str(reverse_lazy('property_detail', kwargs={'pk': prop.pk}))
+                'description': f"Lot {p.lot_no} - {p.get_title_classification_display()}",
+                'url': reverse('property_detail', kwargs={'pk': p.pk}),
+                'date': p.date_added
             })
 
-        # Search User Management
-        # Include Profile full_name in search
-        users = User.objects.select_related('profile').filter(
-            Q(username__icontains=query) |
-            Q(first_name__icontains=query) |
-            Q(last_name__icontains=query) |
-            Q(email__icontains=query) |
-            Q(profile__full_name__icontains=query)
-        )[:5]
+        # 2. Search Title Movements
+        movements = TitleMovementRequest.objects.filter(
+            Q(tm_transmittal_no__icontains=q) |
+            Q(tm_purpose__icontains=q) |
+            Q(tm_received_by__icontains=q) |
+            Q(property__title_no__icontains=q)
+        ).select_related('property').order_by('-created_at')[:5]
 
-        for user in users:
-            role = "Admin" if user.is_staff else "User"
-            status = "Active" if user.is_active else "Inactive"
-            # Try to get full name from profile, fallback to first/last or username
-            full_name = user.username
-            if hasattr(user, 'profile') and user.profile.full_name:
-                full_name = user.profile.full_name
-            
+        for m in movements:
             results.append({
-                'category': 'User Management',
-                'title': full_name, # Show Fullname as main title as requested
-                'description': f"{user.username} | {role} | {status}",
-                # Use update URL if user is admin, else maybe list? Using update for now as it's the "detail" view
-                'url': str(reverse_lazy('user_view', kwargs={'user_id': user.id}))
+                'title': f"Movement: {m.tm_transmittal_no}",
+                'category': 'Movement',
+                'description': f"{m.status} - {m.tm_purpose} for {m.property.title_no}",
+                'url': reverse('property_detail', kwargs={'pk': m.property.pk}) + '#movements',
+                'date': m.created_at
             })
 
-        # Tax Record Search
-        taxes = PropertyTax.objects.select_related('property').filter(
-            Q(id__icontains=query) |
-            Q(tax_year__icontains=query) |
-            Q(tax_quarter__icontains=query) |
-            Q(tax_amount__icontains=query) |
-            Q(tax_due_date__icontains=query) |
-            Q(tax_status__icontains=query) |
-            Q(property__title_no__icontains=query) |
-            Q(property__lot_no__icontains=query)
-        )[:5]
+        # 3. Search Tax Records
+        taxes = PropertyTax.objects.filter(
+            Q(property__title_no__icontains=q) |
+            Q(property__property_id__icontains=q) |
+            Q(tax_year__icontains=q)
+        ).select_related('property').order_by('-created_at')[:5]
 
-        for tax in taxes:
+        for t in taxes:
             results.append({
-                'category': 'Tax Record',
-                'title': f"Receipt {tax.id}",
-                'description': f"{tax.property.title_no} | Lot {tax.property.lot_no} | {tax.tax_year} | {tax.tax_status}",
-                'url': str(reverse_lazy('property_detail', kwargs={'pk': tax.property.pk}))
+                'title': f"Tax: {t.tax_year} Q{t.tax_quarter}",
+                'category': 'Tax',
+                'description': f"{t.tax_status} - {t.property.title_no} (Amount: {t.tax_amount})",
+                'url': reverse('property_detail', kwargs={'pk': t.property.pk}) + '#tax',
+                'date': t.created_at
             })
-            
-    return JsonResponse({'results': results})
 
+        # Sort combined results by date (newest first)
+        results.sort(key=lambda x: x['date'], reverse=True)
+    
+    # Remove date from final response to avoid serialization issues if needed, 
+    # but JsonResponse can handle datetime if we use a custom encoder or just stringify it.
+    # Actually, let's just make it a clean list for the frontend.
+    final_results = []
+    for r in results:
+        final_results.append({
+            'title': r['title'],
+            'category': r['category'],
+            'description': r['description'],
+            'url': r['url']
+        })
+
+    return JsonResponse({'results': final_results})
 
 @login_required
 def notifications_api(request):
-    notifications_qs = Notification.objects.filter(
-        created_at__gte=request.user.date_joined
-    )
-
-    if not (request.user.is_staff or request.user.is_superuser):
-        notifications_qs = notifications_qs.filter(category__in=['PROPERTY', 'TAX'])
-
-    notifications = notifications_qs.order_by('-created_at')[:15]
-    data = []
-    for n in notifications:
-        url = ''
-        if n.category == 'PROPERTY':
-            marker = 'Title No.:'
-            if marker in n.message:
-                title_no = n.message.split(marker, 1)[1].strip()
-                if title_no:
-                    prop = Property.objects.filter(title_no=title_no).first()
-                    if prop:
-                        url = str(reverse_lazy('property_detail', kwargs={'pk': prop.pk}))
-        elif n.category == 'USER':
-            if ':' in n.message:
-                username = n.message.split(':', 1)[1].strip()
-                if username:
-                    user = User.objects.filter(username=username).first()
-                    if user:
-                        url = str(reverse_lazy('user_view', kwargs={'user_id': user.id}))
-        elif n.category == 'TAX':
-            if 'Property:' in n.message:
-                title_no = n.message.split('Property:', 1)[1].strip()
-                if title_no:
-                    prop = Property.objects.filter(title_no=title_no).first()
-                    if prop:
-                        url = str(reverse_lazy('property_detail', kwargs={'pk': prop.pk}))
-
-        data.append({
-            'id': n.id,
-            'category': n.category,
-            'message': n.message,
-            'created_at': timezone.localtime(n.created_at).strftime('%Y-%m-%d %H:%M'),
-            'url': url,
-        })
+    """
+    Returns unread notifications for the current user.
+    A notification is unread if the user is not in the read_by relationship.
+    """
+    # Filter notifications that the current user has NOT read yet
+    notifs = Notification.objects.exclude(read_by=request.user).order_by('-created_at')[:20]
+    
+    data = [{
+        'id': n.id,
+        'category': n.category,
+        'message': n.message, 
+        'created_at': n.created_at.strftime('%Y-%m-%d %H:%M'),
+        'is_read': False # They are all unread because of the filter above
+    } for n in notifs]
     return JsonResponse({'notifications': data})
 
-# --- 5. AUTH: LOGIN VIEW ---
-def login_view(request):
+@login_required
+def mark_notifications_read(request):
     if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '')
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            auth_login(request, user)
-            next_url = request.POST.get('next') or request.GET.get('next')
-            if next_url:
-                return redirect(next_url)
-            return redirect('dashboard')
-        return render(request, 'registration/login.html', {'form': {}, 'error_message': "Invalid username or password."})
-    return render(request, 'registration/login.html', {'form': {}})
-
-def logout_view(request):
-    auth_logout(request)
-    return redirect('login')
-
-# --- 7. PH LOCATIONS API (Local JSON) ---
-LOCATIONS_DATA = None
-
-def load_locations_data():
-    global LOCATIONS_DATA
-    if LOCATIONS_DATA is None:
         try:
-            file_path = os.path.join(settings.BASE_DIR, 'RDRealty_App', 'static', 'data', 'ph_location.json')
-            with open(file_path, 'r', encoding='utf-8') as f:
-                LOCATIONS_DATA = json.load(f)
+            data = json.loads(request.body)
+            notif_ids = data.get('ids', [])
+            if notif_ids:
+                notifs = Notification.objects.filter(id__in=notif_ids)
+                for n in notifs:
+                    n.read_by.add(request.user)
+                return JsonResponse({'success': True})
         except Exception as e:
-            print(f"Error loading locations data: {e}")
-            LOCATIONS_DATA = {"provinces": []}
-    return LOCATIONS_DATA
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+
+@login_required
+def clear_all_notifications(request):
+    """
+    Marks all notifications as read for the current user.
+    """
+    if request.method == 'POST':
+        try:
+            # Find all notifications that this user hasn't read yet
+            unread_notifs = Notification.objects.exclude(read_by=request.user)
+            # Add the user to the read_by relationship for all of them
+            for n in unread_notifs:
+                n.read_by.add(request.user)
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+
+import requests
+import json
+import os
+from django.conf import settings
+from django.core.cache import cache
+
+LOCATION_FILE_PATH = os.path.join(settings.BASE_DIR, 'RDRealty_App', 'static', 'data', 'ph_location.json')
+
+def get_location_data():
+    """Helper to get location data from local JSON file or cache."""
+    cache_key = 'local_ph_location_data_v2'
+    data = cache.get(cache_key)
+    
+    if data is None:
+        if os.path.exists(LOCATION_FILE_PATH):
+            try:
+                with open(LOCATION_FILE_PATH, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    cache.set(cache_key, data, 2592000)  # Cache for 30 days
+            except Exception as e:
+                print(f"Error reading location file: {e}")
+                data = {"provinces": []}
+        else:
+            data = {"provinces": []}
+    return data
 
 def get_provinces(request):
-    try:
-        data = load_locations_data()
-        # Return provinces without nested cities to keep payload small
-        provinces = [{k: v for k, v in p.items() if k != 'cities'} for p in data.get('provinces', [])]
-        return JsonResponse(provinces, safe=False)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+    """
+    Fetch provinces from local JSON file for speed and sort them alphabetically.
+    """
+    data = get_location_data()
+    provinces = []
+    for p in data.get('provinces', []):
+        provinces.append({
+            'code': p.get('code'),
+            'name': p.get('name')
+        })
+    # Sort by name ascending
+    provinces.sort(key=lambda x: x['name'])
+    return JsonResponse(provinces, safe=False)
 
 def get_cities(request, province_code):
-    try:
-        data = load_locations_data()
-        # Find the province
-        province = next((p for p in data.get('provinces', []) if p['code'] == province_code), None)
-        
-        if province:
-            # Return cities without nested barangays
-            cities = [{k: v for k, v in c.items() if k != 'barangays'} for c in province.get('cities', [])]
-            return JsonResponse(cities, safe=False)
-        else:
-            return JsonResponse([], safe=False)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+    """
+    Fetch cities for a province from local JSON file and sort them alphabetically.
+    """
+    data = get_location_data()
+    cities = []
+    for p in data.get('provinces', []):
+        if str(p.get('code')) == str(province_code):
+            for c in p.get('cities', []):
+                cities.append({
+                    'code': c.get('code'),
+                    'name': c.get('name')
+                })
+            break
+    # Sort by name ascending
+    cities.sort(key=lambda x: x['name'])
+    return JsonResponse(cities, safe=False)
 
 def get_barangays(request, city_code):
-    try:
-        data = load_locations_data()
-        # We need to find the city. Iterate provinces then cities.
-        # This might be slightly slow but acceptable for in-memory data.
-        # Optimization: could build a map, but let's keep it simple first.
-        
-        for p in data.get('provinces', []):
-            for c in p.get('cities', []):
-                if c['code'] == city_code:
-                    return JsonResponse(c.get('barangays', []), safe=False)
-        
-        return JsonResponse([], safe=False)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-# --- 6. USER MANAGEMENT (CRUD) ---
+    """
+    Fetch barangays for a city from local JSON file and sort them alphabetically.
+    """
+    data = get_location_data()
+    barangays = []
+    for p in data.get('provinces', []):
+        for c in p.get('cities', []):
+            if str(c.get('code')) == str(city_code):
+                for b in c.get('barangays', []):
+                    barangays.append({
+                        'code': b.get('code'),
+                        'name': b.get('name')
+                    })
+                # Sort by name ascending
+                barangays.sort(key=lambda x: x['name'])
+                return JsonResponse(barangays, safe=False)
+    return JsonResponse(barangays, safe=False)
+
+# --- USER MANAGEMENT ---
 def is_admin(user):
-    return user.is_staff or user.is_superuser
+    return user.is_superuser
 
 @login_required
+@user_passes_test(is_admin)
 def user_list(request):
-    users = User.objects.all().select_related('profile').order_by('username')
-    return render(request, 'user_list.html', {'users': users, 'can_manage': is_admin(request.user)})
+    users = User.objects.all()
+    return render(request, 'user_list.html', {'users': users})
 
 @login_required
+@user_passes_test(is_admin)
 def user_create(request):
-    if not is_admin(request.user):
-        return redirect('dashboard')
     if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
-        full_name = request.POST.get('full_name', '').strip()
-        password1 = request.POST.get('password1', '')
-        password2 = request.POST.get('password2', '')
-        role = request.POST.get('role', 'USER')
-        if not username or not full_name or not password1 or password1 != password2:
-            return render(request, 'user_form.html', {'error_message': 'Invalid data or passwords do not match.', 'mode': 'create'})
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
         if User.objects.filter(username=username).exists():
-            return render(request, 'user_form.html', {'error_message': 'Username already exists.', 'mode': 'create'})
-        u = User.objects.create_user(username=username, password=password1)
-        UserProfile.objects.create(user=u, full_name=full_name)
-        if role == 'ADMIN' and is_admin(request.user):
-            u.is_staff = True
-        else:
-            u.is_staff = False
-        u.save()
-        Notification.objects.create(
-            category='USER',
-            message=f"New user added: {u.username}"
-        )
+            return render(request, 'user_form.html', {'error_message': 'Username already exists.'})
+        user = User.objects.create_user(username=username, email=email, password=password)
+        user.save()
         return redirect('user_list')
-    return render(request, 'user_form.html', {'mode': 'create'})
+    return render(request, 'user_form.html')
 
 @login_required
+@user_passes_test(is_admin)
 def user_update(request, user_id):
-    target = User.objects.get(id=user_id)
-    profile, _ = UserProfile.objects.get_or_create(user=target, defaults={'full_name': target.username})
-    if not is_admin(request.user):
-        return render(request, 'user_form.html', {'error_message': 'Insufficient permissions.', 'mode': 'update', 'target': target, 'profile': profile})
+    target = get_object_or_404(User, pk=user_id)
+    profile = getattr(target, 'profile', None)
     if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
-        full_name = request.POST.get('full_name', '').strip()
-        role = request.POST.get('role', 'USER')
-        status = request.POST.get('status', 'ACT')
-        if username:
-            target.username = username
-        if full_name:
-            profile.full_name = full_name
-        target.is_staff = (role == 'ADMIN')
-        target.is_active = (status == 'ACT')
-        password1 = request.POST.get('password1', '')
-        password2 = request.POST.get('password2', '')
+        target.username = request.POST.get('username')
+        target.email = request.POST.get('email')
+        password1 = request.POST.get('password')
+        password2 = request.POST.get('confirm_password')
+        
         if password1:
             if password1 != password2:
                 return render(request, 'user_form.html', {'error_message': 'Passwords do not match.', 'mode': 'update', 'target': target, 'profile': profile})
             target.set_password(password1)
         target.save()
-        profile.save()
+        if profile:
+            profile.save()
         Notification.objects.create(
+            user=request.user,
             category='USER',
             message=f"User updated: {target.username}"
         )
@@ -816,6 +758,7 @@ def user_delete(request, user_id):
         username = target.username
         target.delete()
         Notification.objects.create(
+            user=request.user,
             category='USER',
             message=f"User deleted: {username}"
         )
@@ -853,6 +796,7 @@ def upload_document(request, pk):
         )
         
         Notification.objects.create(
+            user=request.user,
             category='PROPERTY',
             message=f"New document uploaded for Property: {property_obj.title_no}"
         )
@@ -868,18 +812,17 @@ def ai_usage_api(request):
     This replaces client-side tracking with server-side truth.
     """
     now = timezone.now()
-    one_day_ago = now - timedelta(days=1)
     one_minute_ago = now - timedelta(minutes=1)
 
     # Count GLOBAL usage (Project Level)
-    # If we want per-user, we filter by user=request.user
-    # But user asked for "Google AI Studio" connection, which is Project Level.
-    # However, to avoid one user depleting others, we might want per-user?
-    # User's prompt: "Connect it to the google AI Studio... request per minute (RPM) and request per day (RPD)"
-    # This implies showing the PROJECT quota usage.
-    
-    daily_count = AIRequestLog.objects.filter(timestamp__gte=one_day_ago).count()
-    minute_count = AIRequestLog.objects.filter(timestamp__gte=one_minute_ago).count()
+    # Reset at midnight (Local Time)
+    now = timezone.now()
+    local_now = timezone.localtime(now)
+    today_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Filter by range to be robust against timezone conversions
+    # Filter by USER to ensure individual quotas
+    daily_count = AIRequestLog.objects.filter(user=request.user, timestamp__gte=today_start).count()
+    minute_count = AIRequestLog.objects.filter(user=request.user, timestamp__gte=one_minute_ago).count()
 
     return JsonResponse({
         'daily': daily_count,
@@ -902,3 +845,246 @@ def ai_chat_api(request):
         return JsonResponse({'response': ai_response})
     
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@login_required
+def generate_transmittal_number(request):
+    year_suffix = datetime.now().strftime('%y')
+    prefix = f"TM-{year_suffix}-"
+    
+    # Find last number for this year
+    last_mov = TitleMovementRequest.objects.filter(tm_transmittal_no__startswith=prefix).order_by('tm_transmittal_no').last()
+    
+    if last_mov:
+        try:
+            last_seq = int(last_mov.tm_transmittal_no.split('-')[-1])
+            new_seq = last_seq + 1
+        except ValueError:
+            new_seq = 1
+    else:
+        new_seq = 1
+        
+    new_tm = f"{prefix}{new_seq:05d}"
+    return JsonResponse({'tm_number': new_tm})
+
+@login_required
+def add_title_movement(request, pk):
+    if request.method == 'POST':
+        property_obj = get_object_or_404(Property, pk=pk)
+        
+        tm_purpose = request.POST.get('tm_purpose', '').strip()
+        tm_transmittal_no = request.POST.get('tm_transmittal_no', '').strip()
+        tm_received_by = request.POST.get('tm_received_by', '').strip()
+        
+        if not tm_purpose or not tm_transmittal_no or not tm_received_by:
+            return JsonResponse({'error': 'All fields are required.'}, status=400)
+            
+        movement = TitleMovementRequest.objects.create(
+            property=property_obj,
+            tm_purpose=tm_purpose,
+            tm_transmittal_no=tm_transmittal_no,
+            tm_received_by=tm_received_by,
+            tm_released_by=request.user,
+            tm_approved_by=request.user
+        )
+        
+        # Track movement record addition in history
+        movement_info = f"Purpose: {tm_purpose}, Transmittal No: {tm_transmittal_no}, Received By: {tm_received_by}"
+        track_field_change(
+            property_obj, 
+            request.user, 
+            "Title Movement", 
+            None, 
+            movement_info, 
+            change_type='ADD',
+            reason=f"Requested title movement"
+        )
+        
+        # Handle file uploads
+        files = request.FILES.getlist('tm_documents')
+        MAX_SIZE_MB = 10
+        
+        for f in files:
+            if f.size <= MAX_SIZE_MB * 1024 * 1024:
+                TitleMovementDocument.objects.create(
+                    movement=movement,
+                    file=f
+                )
+        
+        Notification.objects.create(
+            user=request.user,
+            category='MOVEMENT',
+            message=f"Title Movement Requested for Property: {property_obj.title_no}"
+        )
+        
+        return JsonResponse({'success': True, 'message': 'Title Movement requested successfully.'})
+        
+    return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+
+class TitleMovementListView(ListView):
+    model = TitleMovementRequest
+    template_name = "movements/movement_list.html"
+    context_object_name = 'movements'
+    paginate_by = 10
+
+    def get_queryset(self):
+        qs = TitleMovementRequest.objects.all().select_related(
+            'property', 
+            'tm_released_by', 
+            'tm_approved_by'
+        ).prefetch_related('property__ownerinformation_set').order_by('-created_at')
+        
+        # Search filter
+        q = self.request.GET.get('q')
+        if q:
+            qs = qs.filter(
+                Q(tm_transmittal_no__icontains=q) |
+                Q(property__title_no__icontains=q) |
+                Q(property__property_id__icontains=q)
+            )
+            
+        # Status filter
+        status = self.request.GET.get('status')
+        if status and status != 'All Status':
+            qs = qs.filter(status=status)
+            
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Summary Counts
+        context['released_count'] = TitleMovementRequest.objects.filter(status='Released').count()
+        context['in_transit_count'] = TitleMovementRequest.objects.filter(status='In Transit').count()
+        context['received_count'] = TitleMovementRequest.objects.filter(status='Received').count()
+        context['returned_count'] = TitleMovementRequest.objects.filter(status='Returned').count()
+        context['lost_count'] = TitleMovementRequest.objects.filter(status='Lost').count()
+        context['pending_return_count'] = TitleMovementRequest.objects.filter(status='Pending Return').count()
+        
+        # Filters for template
+        context['current_q'] = self.request.GET.get('q', '')
+        context['current_status'] = self.request.GET.get('status', 'All Status')
+        
+        return context
+
+class UpdateTitleMovementStatusView(View):
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=401)
+            
+        movement_id = request.POST.get('movement_id')
+        new_status = request.POST.get('new_status')
+        transmittal_no = request.POST.get('tm_transmittal_no')
+        turned_over_by = request.POST.get('tm_turned_over_by')
+        received_by = request.POST.get('tm_received_by')
+        returned_by = request.POST.get('tm_returned_by')
+        received_by_on_return = request.POST.get('tm_received_by_on_return')
+        
+        if not movement_id or not new_status:
+             return JsonResponse({'success': False, 'error': 'Missing movement_id or new_status'})
+        
+        try:
+            movement = TitleMovementRequest.objects.get(pk=movement_id)
+            old_status = movement.status
+            movement.status = new_status
+            
+            # Update returned_at logic if needed
+            if new_status == 'Returned':
+                 movement.returned_at = timezone.now()
+                 if returned_by:
+                     movement.tm_returned_by = returned_by
+                 if received_by_on_return:
+                     movement.tm_received_by_on_return = received_by_on_return
+            elif new_status == 'Released':
+                 movement.returned_at = None
+            elif new_status == 'In Transit':
+                 if transmittal_no:
+                     movement.tm_transmittal_no = transmittal_no
+            elif new_status == 'Received':
+                 if turned_over_by:
+                     movement.tm_turned_over_by = turned_over_by
+                 if received_by:
+                     movement.tm_received_by = received_by
+            elif new_status == 'Lost':
+                 # Any specific logic for lost? For now just set the status
+                 pass
+            elif new_status == 'Pending Return':
+                 # Set returned_at to None if it was previously set, or keep it?
+                 # Usually pending return means it's not yet returned.
+                 movement.returned_at = None
+            
+            movement.save()
+            
+            # Track status change in history
+            track_field_change(
+                movement.property, 
+                request.user, 
+                'Movement Status', 
+                old_status, 
+                new_status, 
+                change_type='STATUS_CHANGE',
+                reason=f"Title movement updated to {new_status}"
+            )
+            
+            Notification.objects.create(
+                user=request.user,
+                category='MOVEMENT',
+                message=f"Title Movement Status Updated: {movement.tm_transmittal_no} -> {new_status}"
+            )
+            
+            return JsonResponse({'success': True})
+        except TitleMovementRequest.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Movement not found'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+# --- DELETE VIEWS ---
+@login_required
+@user_passes_test(is_admin)
+def property_delete(request, pk):
+    """Delete a property and its related information."""
+    property_obj = get_object_or_404(Property, pk=pk)
+    if request.method == 'POST':
+        title_no = property_obj.title_no
+        property_obj.delete()
+        Notification.objects.create(
+            user=request.user,
+            category='PROPERTY',
+            message=f"Property deleted: {title_no}"
+        )
+        return redirect('property_list')
+    return redirect('property_detail', pk=pk)
+
+@login_required
+@user_passes_test(is_admin)
+def tax_record_delete(request, pk):
+    """Delete a property tax record."""
+    tax = get_object_or_404(PropertyTax, pk=pk)
+    if request.method == 'POST':
+        property_title = tax.property.title_no
+        tax_year = tax.tax_year
+        tax.delete()
+        Notification.objects.create(
+            user=request.user,
+            category='TAX',
+            message=f"Tax record deleted for {property_title} (Year: {tax_year})"
+        )
+        return redirect('all_tax_records')
+    return redirect('all_tax_records')
+
+@login_required
+@user_passes_test(is_admin)
+def movement_delete(request, pk):
+    """Delete a title movement record."""
+    movement = get_object_or_404(TitleMovementRequest, pk=pk)
+    if request.method == 'POST':
+        transmittal_no = movement.tm_transmittal_no
+        movement.delete()
+        Notification.objects.create(
+            user=request.user,
+            category='MOVEMENT',
+            message=f"Title Movement deleted: {transmittal_no}"
+        )
+        return redirect('movement_list')
+    return redirect('movement_list')

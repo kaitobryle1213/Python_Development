@@ -220,11 +220,33 @@
     </form>
 </div>
 <script>
-// Cascading selects using Proxy API (fetching from psgc.gitlab.io via Django)
+// Cascading selects using Proxy API with localStorage caching
 document.addEventListener('DOMContentLoaded', function () {
     const provinceSelect = document.getElementById('provinceSelect');
     const citySelect = document.getElementById('citySelect');
     const barangaySelect = document.getElementById('barangaySelect');
+
+    const CACHE_PREFIX = 'psgc_v2_';
+    const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+
+    function getCachedData(key) {
+        const item = localStorage.getItem(CACHE_PREFIX + key);
+        if (!item) return null;
+        const parsed = JSON.parse(item);
+        if (Date.now() > parsed.expiry) {
+            localStorage.removeItem(CACHE_PREFIX + key);
+            return null;
+        }
+        return parsed.data;
+    }
+
+    function setCachedData(key, data) {
+        const item = {
+            data: data,
+            expiry: Date.now() + CACHE_EXPIRY
+        };
+        localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(item));
+    }
 
     function resetSelect(select, placeholder, disabled=true) {
         select.innerHTML = `<option value="" selected>${placeholder}</option>`;
@@ -237,27 +259,37 @@ document.addEventListener('DOMContentLoaded', function () {
     provinceSelect.disabled = true;
 
     // 1. Fetch Provinces
-    fetch("{% url 'get_provinces' %}")
-        .then(r => r.json())
-        .then(data => {
-            provinceSelect.innerHTML = `<option value="" selected>Select province...</option>`;
-            if (data.error) {
-                console.error(data.error);
-                return;
-            }
-            data.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.name; // Save name
-                opt.textContent = p.name;
-                opt.dataset.code = p.code; // Use code for next fetch
-                provinceSelect.appendChild(opt);
+    const cachedProvinces = getCachedData('provinces');
+    if (cachedProvinces) {
+        populateProvinces(cachedProvinces);
+    } else {
+        fetch("{% url 'get_provinces' %}")
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    console.error(data.error);
+                    return;
+                }
+                setCachedData('provinces', data);
+                populateProvinces(data);
+            })
+            .catch(err => {
+                console.error(err);
+                provinceSelect.innerHTML = `<option value="">Error loading provinces</option>`;
             });
-            provinceSelect.disabled = false;
-        })
-        .catch(err => {
-            console.error(err);
-            provinceSelect.innerHTML = `<option value="">Error loading provinces</option>`;
+    }
+
+    function populateProvinces(data) {
+        provinceSelect.innerHTML = `<option value="" selected>Select province...</option>`;
+        data.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.name;
+            opt.textContent = p.name;
+            opt.dataset.code = p.code;
+            provinceSelect.appendChild(opt);
         });
+        provinceSelect.disabled = false;
+    }
 
     // 2. On Province Change -> Fetch Cities
     provinceSelect.addEventListener('change', function () {
@@ -267,29 +299,38 @@ document.addEventListener('DOMContentLoaded', function () {
         
         if (!code) return;
 
-        citySelect.innerHTML = `<option value="" selected>Loading cities...</option>`;
-        
-        fetch(`{% url 'get_provinces' %}../cities/${code}/`)
-            .then(r => r.json())
-            .then(data => {
-                resetSelect(citySelect, 'Select city...', false);
-                if (data.error) {
-                    console.error(data.error);
-                    return;
-                }
-                data.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.name;
-                    opt.textContent = c.name;
-                    opt.dataset.code = c.code;
-                    citySelect.appendChild(opt);
+        const cachedCities = getCachedData('cities_' + code);
+        if (cachedCities) {
+            populateCities(cachedCities);
+        } else {
+            citySelect.innerHTML = `<option value="" selected>Loading cities...</option>`;
+            fetch(`/api/locations/cities/${code}/`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error(data.error);
+                        return;
+                    }
+                    setCachedData('cities_' + code, data);
+                    populateCities(data);
+                })
+                .catch(err => {
+                    console.error(err);
+                    resetSelect(citySelect, 'Error loading cities', true);
                 });
-            })
-            .catch(err => {
-                console.error(err);
-                resetSelect(citySelect, 'Error loading cities', true);
-            });
+        }
     });
+
+    function populateCities(data) {
+        resetSelect(citySelect, 'Select city...', false);
+        data.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.name;
+            opt.textContent = c.name;
+            opt.dataset.code = c.code;
+            citySelect.appendChild(opt);
+        });
+    }
 
     // 3. On City Change -> Fetch Barangays
     citySelect.addEventListener('change', function () {
@@ -298,28 +339,37 @@ document.addEventListener('DOMContentLoaded', function () {
         
         if (!code) return;
 
-        barangaySelect.innerHTML = `<option value="" selected>Loading barangays...</option>`;
-
-        fetch(`{% url 'get_provinces' %}../barangays/${code}/`)
-            .then(r => r.json())
-            .then(data => {
-                resetSelect(barangaySelect, 'Select barangay...', false);
-                if (data.error) {
-                    console.error(data.error);
-                    return;
-                }
-                data.forEach(b => {
-                    const opt = document.createElement('option');
-                    opt.value = b.name;
-                    opt.textContent = b.name;
-                    barangaySelect.appendChild(opt);
+        const cachedBarangays = getCachedData('barangays_' + code);
+        if (cachedBarangays) {
+            populateBarangays(cachedBarangays);
+        } else {
+            barangaySelect.innerHTML = `<option value="" selected>Loading barangays...</option>`;
+            fetch(`/api/locations/barangays/${code}/`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error(data.error);
+                        return;
+                    }
+                    setCachedData('barangays_' + code, data);
+                    populateBarangays(data);
+                })
+                .catch(err => {
+                    console.error(err);
+                    resetSelect(barangaySelect, 'Error loading barangays', true);
                 });
-            })
-            .catch(err => {
-                console.error(err);
-                resetSelect(barangaySelect, 'Error loading barangays', true);
-            });
+        }
     });
+
+    function populateBarangays(data) {
+        resetSelect(barangaySelect, 'Select barangay...', false);
+        data.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b.name;
+            opt.textContent = b.name;
+            barangaySelect.appendChild(opt);
+        });
+    }
 
     const fileInput = document.getElementById('aiSuppDocsInput');
     const filesWrapper = document.getElementById('uploadedFilesWrapper');

@@ -250,7 +250,7 @@
     </form>
 </div>
 <script>
-// Cascading selects using Proxy API (fetching from psgc.gitlab.io via Django)
+// Cascading selects using Proxy API with localStorage caching
 document.addEventListener('DOMContentLoaded', function () {
     const provinceSelect = document.getElementById('provinceSelect');
     const citySelect = document.getElementById('citySelect');
@@ -259,6 +259,28 @@ document.addEventListener('DOMContentLoaded', function () {
     const savedProvince = document.getElementById('savedProvince').value;
     const savedCity = document.getElementById('savedCity').value;
     const savedBarangay = document.getElementById('savedBarangay').value;
+
+    const CACHE_PREFIX = 'psgc_v2_';
+    const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+
+    function getCachedData(key) {
+        const item = localStorage.getItem(CACHE_PREFIX + key);
+        if (!item) return null;
+        const parsed = JSON.parse(item);
+        if (Date.now() > parsed.expiry) {
+            localStorage.removeItem(CACHE_PREFIX + key);
+            return null;
+        }
+        return parsed.data;
+    }
+
+    function setCachedData(key, data) {
+        const item = {
+            data: data,
+            expiry: Date.now() + CACHE_EXPIRY
+        };
+        localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(item));
+    }
 
     function resetSelect(select, placeholder, disabled=true) {
         select.innerHTML = `<option value="" selected>${placeholder}</option>`;
@@ -270,83 +292,118 @@ document.addEventListener('DOMContentLoaded', function () {
     provinceSelect.disabled = true;
 
     // 1. Fetch Provinces
-    fetch("{% url 'get_provinces' %}")
-        .then(r => r.json())
-        .then(data => {
-            provinceSelect.innerHTML = `<option value="">Select province...</option>`;
-            if (data.error) {
-                console.error(data.error);
-                return;
-            }
-            let selectedCode = null;
-            data.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.name;
-                opt.textContent = p.name;
-                opt.dataset.code = p.code;
-                if (p.name === savedProvince) {
-                    opt.selected = true;
-                    selectedCode = p.code;
-                }
-                provinceSelect.appendChild(opt);
-            });
-            provinceSelect.disabled = false;
-            
-            // If we have a saved province, trigger city load
-            if (selectedCode) {
-                loadCities(selectedCode, savedCity, savedBarangay);
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            provinceSelect.innerHTML = `<option value="">Error loading provinces</option>`;
-        });
-
-    function loadCities(provinceCode, selectedCityName = null, selectedBarangayName = null) {
-        citySelect.innerHTML = `<option value="" selected>Loading cities...</option>`;
-        citySelect.disabled = true;
-        
-        fetch(`{% url 'get_provinces' %}../cities/${provinceCode}/`)
+    const cachedProvinces = getCachedData('provinces');
+    if (cachedProvinces) {
+        populateProvinces(cachedProvinces);
+    } else {
+        fetch("{% url 'get_provinces' %}")
             .then(r => r.json())
             .then(data => {
-                resetSelect(citySelect, 'Select city...', false);
-                let selectedCode = null;
-                data.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.name;
-                    opt.textContent = c.name;
-                    opt.dataset.code = c.code;
-                    if (c.name === selectedCityName) {
-                        opt.selected = true;
-                        selectedCode = c.code;
-                    }
-                    citySelect.appendChild(opt);
-                });
-                
-                if (selectedCode && selectedBarangayName) {
-                    loadBarangays(selectedCode, selectedBarangayName);
+                if (data.error) {
+                    console.error(data.error);
+                    return;
                 }
+                setCachedData('provinces', data);
+                populateProvinces(data);
+            })
+            .catch(err => {
+                console.error(err);
+                provinceSelect.innerHTML = `<option value="">Error loading provinces</option>`;
             });
     }
 
-    function loadBarangays(cityCode, selectedBarangayName = null) {
-        barangaySelect.innerHTML = `<option value="" selected>Loading barangays...</option>`;
-        barangaySelect.disabled = true;
+    function populateProvinces(data) {
+        provinceSelect.innerHTML = `<option value="">Select province...</option>`;
+        let selectedCode = null;
+        data.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.name;
+            opt.textContent = p.name;
+            opt.dataset.code = p.code;
+            if (p.name === savedProvince) {
+                opt.selected = true;
+                selectedCode = p.code;
+            }
+            provinceSelect.appendChild(opt);
+        });
+        provinceSelect.disabled = false;
+        
+        if (selectedCode) {
+            loadCities(selectedCode, savedCity, savedBarangay);
+        }
+    }
 
-        fetch(`{% url 'get_provinces' %}../barangays/${cityCode}/`)
-            .then(r => r.json())
-            .then(data => {
-                resetSelect(barangaySelect, 'Select barangay...', false);
-                data.forEach(b => {
-                    const opt = document.createElement('option');
-                    opt.value = b.name;
-                    opt.textContent = b.name;
-                    if (b.name === selectedBarangayName) {
-                        opt.selected = true;
+    function loadCities(provinceCode, selectedCityName = null, selectedBarangayName = null) {
+        const cachedCities = getCachedData('cities_' + provinceCode);
+        if (cachedCities) {
+            populateCities(cachedCities, selectedCityName, selectedBarangayName);
+        } else {
+            citySelect.innerHTML = `<option value="" selected>Loading cities...</option>`;
+            citySelect.disabled = true;
+            fetch(`/api/locations/cities/${provinceCode}/`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error(data.error);
+                        return;
                     }
-                    barangaySelect.appendChild(opt);
+                    setCachedData('cities_' + provinceCode, data);
+                    populateCities(data, selectedCityName, selectedBarangayName);
                 });
-            });
+        }
+    }
+
+    function populateCities(data, selectedCityName, selectedBarangayName) {
+        resetSelect(citySelect, 'Select city...', false);
+        let selectedCode = null;
+        data.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.name;
+            opt.textContent = c.name;
+            opt.dataset.code = c.code;
+            if (c.name === selectedCityName) {
+                opt.selected = true;
+                selectedCode = c.code;
+            }
+            citySelect.appendChild(opt);
+        });
+        
+        if (selectedCode && selectedBarangayName) {
+            loadBarangays(selectedCode, selectedBarangayName);
+        }
+    }
+
+    function loadBarangays(cityCode, selectedBarangayName = null) {
+        const cachedBarangays = getCachedData('barangays_' + cityCode);
+        if (cachedBarangays) {
+            populateBarangays(cachedBarangays, selectedBarangayName);
+        } else {
+            barangaySelect.innerHTML = `<option value="" selected>Loading barangays...</option>`;
+            barangaySelect.disabled = true;
+            fetch(`/api/locations/barangays/${cityCode}/`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error(data.error);
+                        return;
+                    }
+                    setCachedData('barangays_' + cityCode, data);
+                    populateBarangays(data, selectedBarangayName);
+                });
+        }
+    }
+
+    function populateBarangays(data, selectedBarangayName) {
+        resetSelect(barangaySelect, 'Select barangay...', false);
+        data.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b.name;
+            opt.textContent = b.name;
+            if (b.name === selectedBarangayName) {
+                opt.selected = true;
+            }
+            barangaySelect.appendChild(opt);
+        });
     }
 
     // Event Listeners for User Interaction

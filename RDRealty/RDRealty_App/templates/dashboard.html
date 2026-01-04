@@ -3,6 +3,8 @@
 {% load humanize %} 
 {% load property_tags %}
 
+{% block title %}Dashboard{% endblock %}
+
 {% block breadcrumbs %}
 <i class="fa-solid fa-house me-2 text-dark"></i> 
 <span class="fw-bold text-dark">Dashboard</span>
@@ -10,77 +12,331 @@
 
 {% block content %}
 <style>
-    /* We target the class specifically */
+    /* Card Hover Effect */
     .custom-hover-card {
         transition: all 0.2s ease-in-out !important;
-        /* We use a transparent border to reserve space so the card doesn't jump */
-        border: 2px solid transparent !important;
+        border: 1px solid #e5e7eb !important;
         cursor: pointer;
         position: relative;
     }
 
-    /* The Hover State */
     .custom-hover-card:hover {
-        transform: scale(1.01) !important; /* Zoom effect */
-        border-color: #007bff !important; /* Blue border */
-        box-shadow: 0 10px 20px rgba(0, 123, 255, 0.2) !important; /* Blue glow */
-        z-index: 999; /* Ensures the card stays on top of everything else while zooming */
+        transform: translateY(-2px) !important;
+        border-color: #3b82f6 !important;
+        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.1) !important;
+        z-index: 5;
+    }
+
+    .x-small { font-size: 0.75rem; }
+    .xx-small { font-size: 0.65rem; }
+    
+    .progress { height: 8px; border-radius: 4px; }
+    .progress-bar-blue { background-color: #3b82f6; }
+    .progress-bar-purple { background-color: #a855f7; }
+    
+    .bg-orange { background-color: #f97316 !important; }
+    .bg-success-custom { background-color: #10b981 !important; }
+    .bg-warning-custom { background-color: #fbbf24 !important; }
+    .bg-danger-custom { background-color: #ef4444 !important; }
+    .text-orange { color: #f97316 !important; }
+    
+    .quick-action-card {
+        transition: all 0.2s ease;
+        border: 1px solid #f3f4f6;
+    }
+    .quick-action-card:hover {
+        background-color: #f9fafb;
     }
 </style>
 
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="fw-bold">Dashboard</h1> 
-        <p class="text-muted mb-0">Welcome {% user_full_name request.user %}. Today is {{ today|date:"F d, Y" }}.</p>
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="mb-4">
+        <h2 class="fw-bold mb-1">Dashboard</h2> 
+        <p class="text-muted">Welcome back! Here's an overview of your property management system.</p>
     </div>
     
-    <div class="row mb-4">
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card shadow-sm h-100 border-0 position-relative custom-hover-card"> 
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <h5 class="card-title text-uppercase text-muted small">Total Properties</h5>
-                        <i class="fa-solid fa-building fa-2x text-secondary"></i>
+    <!-- Top Summary Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Total Properties -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 border-0 custom-hover-card rounded-3"> 
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h6 class="text-muted fw-medium mb-0">Total Properties</h6>
+                        <div class="bg-light p-2 rounded">
+                            <i class="fa-solid fa-building text-secondary small"></i>
+                        </div>
                     </div>
-                    
-                    <div class="display-4 fw-bold">
-                        {{ total_properties|default:0 }}
-                    </div>
-                    
-                    <p class="card-text text-muted">
-                        {{ total_properties|default:0 }} Active<br> 
-                        <span class="text-success">
-                            <i class="fa-solid fa-arrow-up"></i> {{ current_month_added|default:0 }} Added from this month
-                        </span>
+                    <h2 class="fw-bold mb-2">{{ total_properties|default:0 }}</h2>
+                    <p class="text-muted x-small mb-2">
+                        {{ active_properties|default:0 }} active, {{ collateral_properties|default:0 }} collateral
                     </p>
-
+                    <div class="d-flex align-items-center text-success x-small fw-medium">
+                        <i class="fa-solid fa-arrow-up me-1"></i>
+                        <span>{{ properties_this_month|default:0 }} added this month</span>
+                    </div>
                     <a href="{% url 'property_list' %}" class="stretched-link"></a>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card shadow-sm h-100 border-0 position-relative custom-hover-card"> 
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <h5 class="card-title text-uppercase text-muted small">Tax Collection</h5>
-                        <i class="fas fa-file-invoice-dollar fa-2x text-muted" style="opacity: 0.8;"></i>
+        <!-- Tax Collection -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 border-0 custom-hover-card rounded-3"> 
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h6 class="text-muted fw-medium mb-0">Tax Collection</h6>
+                        <div class="bg-light p-2 rounded">
+                            <i class="fas fa-file-invoice-dollar text-secondary small"></i>
+                        </div>
                     </div>
-                    
-                    <div class="d-flex align-items-baseline">
-                        <h2 class="fw-bold mb-0 me-1">₱{{ total_tax_paid|default:0|intcomma }}</h2>
+                    <h2 class="fw-bold mb-2">₱{{ total_tax_paid|default:0|intcomma }}</h2>
+                    <p class="text-muted x-small mb-2">
+                        {{ collection_rate|default:0 }}% collection rate
+                    </p>
+                    <div class="d-flex align-items-center text-muted x-small">
+                        <span>{{ overdue_payments|default:0 }} overdue payments</span>
                     </div>
-                    <p class="text-muted small mb-0 mt-2">Total Tax Collected</p>
-                    
                     <a href="{% url 'all_tax_records' %}" class="stretched-link"></a>
                 </div>
             </div>
         </div>
-    </div> 
-    
-    <div class="row">
-        <div class="col-lg-8 col-md-6 mb-4">
+
+        <!-- Title Movements -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 border-0 custom-hover-card rounded-3"> 
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h6 class="text-muted fw-medium mb-0">Title Movements</h6>
+                        <div class="bg-light p-2 rounded">
+                            <i class="fas fa-exchange-alt text-secondary small"></i>
+                        </div>
+                    </div>
+                    <h2 class="fw-bold mb-2">{{ total_movements|default:0 }}</h2>
+                    <p class="text-muted x-small mb-2">
+                        {{ returned_movements|default:0 }} returned
+                    </p>
+                    <div class="d-flex align-items-center text-success x-small fw-medium">
+                        <i class="fa-solid fa-arrow-up me-1"></i>
+                        <span>{{ overdue_returns|default:0 }} overdue returns</span>
+                    </div>
+                    <a href="{% url 'movement_list' %}" class="stretched-link"></a>
+                </div>
             </div>
+        </div>
+    </div> 
+
+    <!-- Middle Section -->
+    <div class="row g-4">
+        <!-- Property Classifications -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="fw-bold mb-0">Property Classifications</h6>
+                        <i class="far fa-clock text-muted small"></i>
+                    </div>
+                    
+                    {% for class in classifications %}
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold x-small text-uppercase">{{ class.name }}</span>
+                            <span class="text-muted x-small">{{ class.count }} ({{ class.percentage }}%)</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar {% if forloop.first %}progress-bar-blue{% else %}progress-bar-purple{% endif %} dynamic-progress" 
+                                 role="progressbar" data-progress="{{ class.percentage|default:0 }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tax Status Overview -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="fw-bold mb-0">Tax Status Overview</h6>
+                        <i class="fas fa-chart-bar text-muted small"></i>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <p class="text-muted x-small mb-1">Total Due</p>
+                            <h4 class="fw-bold text-danger mb-0">₱{{ total_tax_due|default:0|intcomma }}</h4>
+                        </div>
+                        <div class="col-6 border-start">
+                            <p class="text-muted x-small mb-1">Total Paid</p>
+                            <h4 class="fw-bold text-success mb-0">₱{{ total_tax_paid|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+
+                    <div class="list-group list-group-flush border-top pt-3">
+                        {% for status in tax_status_overview %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle me-2 
+                                    {% if status.tax_status == 'Paid' %}bg-success-custom
+                                    {% elif status.tax_status == 'Overdue' %}bg-danger-custom
+                                    {% else %}bg-warning-custom{% endif %}" 
+                                     style="width: 10px; height: 10px;"></div>
+                                <span class="fw-bold x-small text-uppercase">{{ status.tax_status }}</span>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold x-small">{{ status.count }}</div>
+                                <div class="text-muted xx-small">₱{{ status.total_amount|default:0|intcomma }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-4">
+                        <i class="fas fa-bolt text-dark me-2 small"></i>
+                        <h6 class="fw-bold mb-0">Quick Actions</h6>
+                    </div>
+                    
+                    <a href="{% url 'add_property' %}" class="text-decoration-none">
+                        <div class="quick-action-card p-3 rounded-3 mb-3 d-flex align-items-center">
+                            <div class="bg-light p-2 rounded me-3">
+                                <i class="fas fa-plus text-secondary small"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold text-dark mb-0 x-small">Add Property</h6>
+                                <p class="text-muted mb-0 xx-small">Register a new property in the system</p>
+                            </div>
+                        </div>
+                    </a>
+
+                    <div class="quick-action-card p-3 rounded-3 mb-3 d-flex align-items-center" style="cursor: not-allowed; opacity: 0.8;">
+                        <div class="bg-light p-2 rounded me-3">
+                            <i class="fas fa-check-square text-secondary small"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0 x-small">Review Approvals</h6>
+                            <p class="text-muted mb-0 xx-small">Process pending approval requests</p>
+                        </div>
+                    </div>
+
+                    <a href="{% url 'property_list' %}" class="text-decoration-none">
+                        <div class="quick-action-card p-3 rounded-3 mb-3 d-flex align-items-center">
+                            <div class="bg-light p-2 rounded me-3">
+                                <i class="fas fa-search text-secondary small"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold text-dark mb-0 x-small">Search Properties</h6>
+                                <p class="text-muted mb-0 xx-small">Find and manage properties</p>
+                            </div>
+                        </div>
+                    </a>
+
+                    <div class="quick-action-card p-3 rounded-3 d-flex align-items-center" style="cursor: not-allowed; opacity: 0.8;">
+                        <div class="bg-light p-2 rounded me-3">
+                            <i class="fas fa-folder-open text-secondary small"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0 x-small">Manage Documents</h6>
+                            <p class="text-muted mb-0 xx-small">Upload and organize documents</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Section -->
+    <div class="row g-4 mt-1">
+        <!-- Title Movement Status -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="fw-bold mb-0">Title Movement Status</h6>
+                        <i class="fas fa-exchange-alt text-muted small"></i>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <p class="text-muted x-small mb-1">Currently Out</p>
+                            <h4 class="fw-bold text-orange mb-0">{{ currently_out|default:0 }}</h4>
+                        </div>
+                        <div class="col-6 border-start">
+                            <p class="text-muted x-small mb-1">Overdue Returns</p>
+                            <h4 class="fw-bold text-danger mb-0">{{ overdue_returns|default:0 }}</h4>
+                        </div>
+                    </div>
+
+                    <div class="list-group list-group-flush border-top pt-3">
+                        {% for status in movement_status_overview %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle me-2 {% if status.status == 'Returned' %}bg-success-custom{% else %}bg-orange{% endif %}" 
+                                     style="width: 10px; height: 10px;"></div>
+                                <span class="fw-bold x-small text-uppercase">{{ status.status }}</span>
+                            </div>
+                            <span class="badge bg-light text-muted rounded-pill x-small">{{ status.count }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Added Properties -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">Recently Added Properties</h6>
+                        <span class="badge bg-light text-muted rounded-pill x-small px-2">{{ recent_properties|length }}</span>
+                    </div>
+                    
+                    <div class="list-group list-group-flush">
+                        {% for prop in recent_properties %}
+                        <a href="{% url 'property_detail' pk=prop.pk %}" class="list-group-item list-group-item-action border-0 px-0 mb-2">
+                            <div class="quick-action-card p-2 rounded-3 border">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <h6 class="fw-bold text-dark mb-0 x-small">{{ prop.title_no }}</h6>
+                                    <span class="badge bg-light text-muted xx-small text-uppercase">{{ prop.get_title_classification_display }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <p class="text-muted mb-0 xx-small">
+                                        {% with owner=prop.ownerinformation_set.first %}
+                                            {{ owner.oi_fullname|default:"RD Realty Development Corporation" }}
+                                        {% endwith %}
+                                    </p>
+                                    <span class="text-muted xx-small">{{ prop.date_added|date:"m/d/Y" }}</span>
+                                </div>
+                            </div>
+                        </a>
+                        {% empty %}
+                        <p class="text-muted x-small text-center py-4">No recent properties</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Apply dynamic progress bar widths to avoid linter errors with inline styles
+        document.querySelectorAll('.dynamic-progress').forEach(function(bar) {
+            const progress = bar.getAttribute('data-progress');
+            if (progress) {
+                bar.style.width = progress;
+            }
+        });
+    });
+</script>
 {% endblock content %}

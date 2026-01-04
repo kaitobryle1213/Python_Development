@@ -237,8 +237,12 @@ def get_ai_response(user_message, image_file=None, user=None):
             
         is_first_question = False
         if user:
-            today = timezone.now().date()
-            request_count = AIRequestLog.objects.filter(user=user, timestamp__date=today).count()
+            # Use local date range to ensure "midnight" reset aligns with user's timezone and DB storage
+            now = timezone.now()
+            local_now = timezone.localtime(now)
+            today_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            request_count = AIRequestLog.objects.filter(user=user, timestamp__gte=today_start).count()
             if request_count <= 1:
                 is_first_question = True
     except Exception as e:
@@ -298,6 +302,7 @@ def get_ai_response(user_message, image_file=None, user=None):
     )
 
     # 3. Try Gemini (Online)
+    gemini_error = None
     if api_key:
         try:
             genai.configure(api_key=api_key)
@@ -316,7 +321,8 @@ def get_ai_response(user_message, image_file=None, user=None):
             response = model.generate_content(chat_content)
             return response.text
         except Exception as e:
-            print(f"Gemini Error (Switching to Offline Mode): {e}")
+            gemini_error = str(e)
+            print(f"Gemini Error (Switching to Offline Mode): {gemini_error}")
             # Fall through to local
             pass
             
@@ -329,4 +335,8 @@ def get_ai_response(user_message, image_file=None, user=None):
     if not api_key:
         return "Error: No Internet Connection and 'Ollama' (Local AI) is not running.\nPlease install Ollama (https://ollama.com) and run 'ollama run llama3' to use offline mode."
     else:
-        return "Error: Could not connect to Google AI (Cloud) or Ollama (Local). Please check your internet or start your local AI server."
+        error_msg = "Error: Could not connect to Google AI (Cloud) or Ollama (Local)."
+        if gemini_error:
+            error_msg += f"\n\nGoogle AI Error: {gemini_error}"
+        error_msg += "\n\nPlease check your internet, API key, or start your local AI server."
+        return error_msg

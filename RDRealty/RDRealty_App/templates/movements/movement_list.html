@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Title Movements{% endblock %}
+
+{% block breadcrumbs %}
+<i class="fa-solid fa-house me-2 text-dark"></i>
+<span class="text-muted small me-2">Dashboard</span>
+<i class="fa-solid fa-chevron-right me-2 text-muted small"></i>
+<span class="fw-bold text-dark">Title Movements</span>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1 text-dark">Title Movements</h2>
+            <p class="text-muted mb-0">Track and manage property title movements and transfers</p>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-5">
+        <!-- Released -->
+        <div class="col-xl col-md-4 col-sm-6">
+            <div class="card border shadow-sm h-100 rounded-3">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-dark fw-bold small">Released</span>
+                        <div class="bg-light p-2 rounded-circle">
+                            <i class="fas fa-file-invoice text-muted small"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-0 text-primary">{{ released_count }}</h3>
+                    <p class="text-muted x-small mb-0">Currently released</p>
+                </div>
+            </div>
+        </div>
+        <!-- In Transit -->
+        <div class="col-xl col-md-4 col-sm-6">
+            <div class="card border shadow-sm h-100 rounded-3">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-dark fw-bold small">In Transit</span>
+                        <div class="bg-light p-2 rounded-circle">
+                            <i class="fas fa-truck text-muted small"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-0 text-warning">{{ in_transit_count }}</h3>
+                    <p class="text-muted x-small mb-0">Being transferred</p>
+                </div>
+            </div>
+        </div>
+        <!-- Received -->
+        <div class="col-xl col-md-4 col-sm-6">
+            <div class="card border shadow-sm h-100 rounded-3">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-dark fw-bold small">Received</span>
+                        <div class="bg-light p-2 rounded-circle">
+                            <i class="fas fa-check-double text-muted small"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-0 text-success">{{ received_count }}</h3>
+                    <p class="text-muted x-small mb-0">Successfully received</p>
+                </div>
+            </div>
+        </div>
+        <!-- Returned -->
+        <div class="col-xl col-md-4 col-sm-6">
+            <div class="card border shadow-sm h-100 rounded-3">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-dark fw-bold small">Returned</span>
+                        <div class="bg-light p-2 rounded-circle">
+                            <i class="fas fa-undo text-muted small"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-0 text-info">{{ returned_count }}</h3>
+                    <p class="text-muted x-small mb-0">Back in custody</p>
+                </div>
+            </div>
+        </div>
+        <!-- Lost -->
+        <div class="col-xl col-md-4 col-sm-6">
+            <div class="card border shadow-sm h-100 rounded-3">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-dark fw-bold small">Lost</span>
+                        <div class="bg-light p-2 rounded-circle">
+                            <i class="fas fa-exclamation-triangle text-muted small"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-0 text-danger">{{ lost_count }}</h3>
+                    <p class="text-muted x-small mb-0">Missing titles</p>
+                </div>
+            </div>
+        </div>
+        <!-- Pending Return -->
+        <div class="col-xl col-md-4 col-sm-6">
+            <div class="card border shadow-sm h-100 rounded-3">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-dark fw-bold small">Pending Return</span>
+                        <div class="bg-light p-2 rounded-circle">
+                            <i class="fas fa-clock text-muted small"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-0 text-secondary">{{ pending_return_count }}</h3>
+                    <p class="text-muted x-small mb-0">Awaiting return</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and List -->
+    <div class="mb-4">
+        <form method="GET" class="row g-3 align-items-center">
+            <div class="col-md-4 col-lg-3">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted small"></i></span>
+                    <input type="text" name="q" class="form-control border-start-0 ps-0 small" placeholder="Search title movements..." value="{{ current_q }}">
+                </div>
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <select name="status" class="form-select small text-muted" onchange="this.form.submit()">
+                    <option value="All Status" {% if current_status == 'All Status' %}selected{% endif %}>Movement Status</option>
+                    <option value="Released" {% if current_status == 'Released' %}selected{% endif %}>Released</option>
+                    <option value="In Transit" {% if current_status == 'In Transit' %}selected{% endif %}>In Transit</option>
+                    <option value="Received" {% if current_status == 'Received' %}selected{% endif %}>Received</option>
+                    <option value="Returned" {% if current_status == 'Returned' %}selected{% endif %}>Returned</option>
+                    <option value="Lost" {% if current_status == 'Lost' %}selected{% endif %}>Lost</option>
+                    <option value="Pending Return" {% if current_status == 'Pending Return' %}selected{% endif %}>Pending Return</option>
+                </select>
+            </div>
+        </form>
+    </div>
+
+    <div class="mb-4">
+        <p class="text-muted small">Showing {{ movements.count }} of {{ paginator.count|default:movements.count }} title movements</p>
+    </div>
+
+    <div class="row g-4">
+        {% for movement in movements %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm border rounded-3 h-100">
+                <div class="card-body p-4">
+                    <!-- Title and Status -->
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="fw-bold text-dark mb-1">{{ movement.property.title_no }}</h5>
+                            <p class="text-muted x-small mb-0">
+                                {% with owner=movement.property.ownerinformation_set.first %}
+                                    {{ owner.oi_fullname|default:"RD Realty Development Corporation" }}
+                                {% endwith %}
+                            </p>
+                        </div>
+                        <span class="badge rounded-pill px-3 py-2 fw-bold 
+                            {% if movement.status == 'Returned' %}status-badge-returned
+                            {% elif movement.status == 'Lost' %}status-badge-lost
+                            {% elif movement.status == 'Released' %}status-badge-released
+                            {% elif movement.status == 'In Transit' %}status-badge-transit
+                            {% elif movement.status == 'Received' %}status-badge-received
+                            {% else %}status-badge-pending{% endif %}">
+                            <i class="fas fa-check-square me-1"></i> {{ movement.status|upper }}
+                        </span>
+                    </div>
+
+                    <!-- Details -->
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="far fa-user text-muted me-2 small"></i>
+                            <span class="text-muted small">Released by: {{ movement.tm_released_by.get_full_name|default:"System Administrator" }}</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="far fa-calendar text-muted me-2 small"></i>
+                            <span class="text-muted small">{{ movement.created_at|date:"m/d/Y" }}</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <i class="far fa-file-alt text-muted me-2 small"></i>
+                            <span class="text-muted small">{{ movement.tm_purpose }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Moved By and Action -->
+                    <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
+                        <p class="text-muted small mb-0">Moved by: {{ movement.tm_released_by.get_full_name|default:"System Administrator" }}</p>
+                        <div class="d-flex align-items-center">
+                            <a href="{% url 'property_detail' pk=movement.property.pk %}#title-movements" class="btn btn-light btn-sm border">
+                                <i class="far fa-eye"></i>
+                            </a>
+                            {% if request.user.is_staff or request.user.is_superuser %}
+                            <form method="post" action="{% url 'movement_delete' pk=movement.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this movement record?')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-light btn-sm border ms-1">
+                                    <i class="far fa-trash-alt text-danger"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Timeline -->
+                    <div class="movement-timeline d-flex align-items-center justify-content-between mt-auto">
+                        <div class="timeline-step {% if movement.status == 'Released' or movement.status == 'In Transit' or movement.status == 'Received' or movement.status == 'Returned' %}active{% endif %}">
+                            <span class="dot"></span>
+                            <span class="label">Released</span>
+                        </div>
+                        <i class="fas fa-arrow-right text-light small mx-1"></i>
+                        <div class="timeline-step {% if movement.status == 'In Transit' or movement.status == 'Received' or movement.status == 'Returned' %}active{% endif %}">
+                            <span class="dot"></span>
+                            <span class="label">In Transit</span>
+                        </div>
+                        <i class="fas fa-arrow-right text-light small mx-1"></i>
+                        <div class="timeline-step {% if movement.status == 'Received' or movement.status == 'Returned' %}active{% endif %}">
+                            <span class="dot"></span>
+                            <span class="label">Received</span>
+                        </div>
+                        <i class="fas fa-arrow-right text-light small mx-1"></i>
+                        <div class="timeline-step {% if movement.status == 'Returned' %}active{% endif %}">
+                            <span class="dot"></span>
+                            <span class="label">Returned</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <div class="mb-3">
+                <i class="fas fa-box-open fa-3x text-light-emphasis"></i>
+            </div>
+            <p class="text-muted mb-0">No movement records found.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="mt-5">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-item link-secondary" href="?page={{ page_obj.previous_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status != 'All Status' %}&status={{ current_status }}{% endif %}">Previous</a>
+            </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status != 'All Status' %}&status={{ current_status }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status != 'All Status' %}&status={{ current_status }}{% endif %}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<style>
+    .x-small { font-size: 0.75rem; }
+    
+    /* Status Badges */
+    .status-badge-returned { background-color: #d1fae5; color: #065f46; }
+    .status-badge-lost { background-color: #fee2e2; color: #991b1b; }
+    .status-badge-released { background-color: #dcfce7; color: #166534; }
+    .status-badge-transit { background-color: #fef9c3; color: #854d0e; }
+    .status-badge-received { background-color: #e0f2fe; color: #075985; }
+    .status-badge-pending { background-color: #f3f4f6; color: #374151; }
+
+    /* Timeline Styling */
+    .movement-timeline {
+        padding-top: 10px;
+    }
+    .timeline-step {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 5px;
+    }
+    .timeline-step .dot {
+        width: 8px;
+        height: 8px;
+        background-color: #e5e7eb;
+        border-radius: 50%;
+    }
+    .timeline-step .label {
+        font-size: 0.65rem;
+        color: #9ca3af;
+        font-weight: 500;
+    }
+    .timeline-step.active .dot {
+        background-color: #10b981;
+    }
+    .timeline-step.active .label {
+        color: #111827;
+    }
+    
+    /* Active step specific colors if needed */
+    .timeline-step.active .dot {
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    }
+</style>
+{% endblock %}
