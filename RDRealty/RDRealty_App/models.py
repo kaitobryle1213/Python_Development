@@ -108,6 +108,7 @@ class PropertyHistory(models.Model):
         ('STATUS_CHANGE', 'Status Change'),
         ('TAX_UPDATE', 'Tax Update'),
         ('MOVEMENT_UPDATE', 'Movement Update'),
+        ('DOCUMENT_DELETE', 'Document Deletion'),
     ]
 
     property = models.ForeignKey(
@@ -341,6 +342,7 @@ class Notification(models.Model):
         ('USER', 'User'),
         ('TAX', 'Tax Record'),
         ('MOVEMENT', 'Title Movement'),
+        ('DOCUMENT', 'Document'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     read_by = models.ManyToManyField(User, related_name='read_notifications', blank=True)

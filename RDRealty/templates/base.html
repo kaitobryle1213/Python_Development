@@ -803,6 +803,18 @@
                     </li>
                 </ul>
             </li>
+            <li>
+                <a href="#reportSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                    <i class="fas fa-chart-bar"></i> <span>Reports</span>
+                </a>
+                <ul class="collapse list-unstyled" id="reportSubmenu">
+                    <li>
+                        <a href="{% url 'property_tax_movement_report' %}">
+                             <span>Property & Tax Report</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
         </ul>
         
         <!-- User Profile Footer -->
@@ -1320,8 +1332,9 @@
             
             items.forEach(item => {
                 const idNum = typeof item.id === 'number' ? item.id : parseInt(item.id, 10);
-                // Notification is unread if server says is_read is false AND it's higher than our last locally read ID
-                const isUnread = !item.is_read && (!isNaN(idNum) && idNum > lastRead);
+                // Notification is unread if server says is_read is false
+                // REMOVED: local storage comparison that was causing notifications to disappear
+                const isUnread = !item.is_read;
                 
                 if (isUnread) {
                     hasUnread = true;
@@ -1430,12 +1443,8 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    // Update local storage to match server state for the dot logic
-                    const maxId = Math.max(...ids);
-                    const currentRead = parseInt(localStorage.getItem(STORAGE_KEY_READ) || '0', 10);
-                    if (maxId > currentRead) {
-                        localStorage.setItem(STORAGE_KEY_READ, maxId.toString());
-                    }
+                    // REMOVED: Local storage update since we're now using server-side is_read status only
+                    // Notifications will persist until explicitly cleared by the user
                 }
             })
             .catch(err => console.error('Error marking read:', err));
@@ -1458,15 +1467,8 @@
             notificationBell.addEventListener('click', function (e) {
                 e.stopPropagation();
                 notificationDropdown.classList.toggle('show');
-                notificationDot.classList.add('d-none');
-                if (latestNotificationId) {
-                    const latestIdNum = typeof latestNotificationId === 'number'
-                        ? latestNotificationId
-                        : parseInt(latestNotificationId, 10);
-                    if (!isNaN(latestIdNum)) {
-                        localStorage.setItem(STORAGE_KEY_READ, latestIdNum.toString());
-                    }
-                }
+                // REMOVED: Automatic marking of notifications as read
+                // Notifications should only be marked as read when explicitly cleared by the user
             });
 
             if (markAllAsReadBtn) {
@@ -1565,9 +1567,14 @@
         z-index: 1060;
         overflow: hidden;
         border: 1px solid #e2e8f0;
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+        transition: all 0.3s ease;
     }
     #aiChatWindow.show {
         display: flex;
+        opacity: 1;
+        transform: translateY(0) scale(1);
     }
     
     .ai-chat-header {
@@ -1600,6 +1607,10 @@
         border-radius: 12px;
         font-size: 0.9rem;
         line-height: 1.5;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: messageAppear 0.4s ease forwards;
+        animation-delay: 0.1s;
     }
     .ai-message.bot {
         align-self: flex-start;
@@ -1607,12 +1618,63 @@
         border: 1px solid #e2e8f0;
         color: #334155;
         border-top-left-radius: 2px;
+        animation-delay: 0.2s;
     }
     .ai-message.user {
         align-self: flex-end;
         background-color: #4f46e5;
         color: white;
         border-top-right-radius: 2px;
+    }
+    
+    @keyframes messageAppear {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes typingIndicator {
+        0%, 60%, 100% {
+            opacity: 0.4;
+            transform: scale(0.8);
+        }
+        30% {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+    }
+    
+    .typing-indicator {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        padding: 12px 16px;
+        background-color: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        max-width: 80px;
+        align-self: flex-start;
+    }
+    
+    .typing-dot {
+        width: 6px;
+        height: 6px;
+        background-color: #64748b;
+        border-radius: 50%;
+        animation: typingIndicator 1.4s infinite;
+    }
+    
+    .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+    
+    .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
     }
     
     .ai-chat-input-area {
@@ -1677,19 +1739,23 @@
         <!-- Messages will be loaded via JS -->
     </div>
     <div class="ai-chat-input-area">
-        <input type="file" id="aiImageInput" accept="image/*" style="display: none;">
-        <button id="attachAiImage" title="Upload Image" style="background-color: #f1f5f9; color: #64748b;">
-            <i class="fas fa-paperclip"></i>
-        </button>
         <input type="text" id="aiChatInput" placeholder="Type a message...">
         <button id="sendAiMessage">
             <i class="fas fa-paper-plane"></i>
         </button>
     </div>
-    <div id="imagePreviewArea" style="display: none; padding: 0 15px 10px; background: white; font-size: 0.8rem; color: #64748b;">
-        <i class="fas fa-image me-1"></i> <span id="imageFileName"></span> 
-        <i class="fas fa-times ms-2" style="cursor: pointer;" id="removeImage"></i>
+    
+    <!-- Document Selection Dropdown -->
+    <div id="documentSelectionArea" style="padding: 10px 15px; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">
+        <select id="documentSelect" class="form-select form-select-sm" style="font-size: 0.85rem;">
+            <option value="">Select uploaded document to analyze</option>
+        </select>
+        <div class="form-text small text-muted mt-1">
+            <i class="fas fa-lightbulb me-1"></i>
+            Ask questions like "What does this document show?" or "Explain this image"
+        </div>
     </div>
+
 </div>
 
 <script>
@@ -1701,11 +1767,8 @@
         const sendAiMessage = document.getElementById('sendAiMessage');
         const aiChatMessages = document.getElementById('aiChatMessages');
         
-        const attachAiImage = document.getElementById('attachAiImage');
-        const aiImageInput = document.getElementById('aiImageInput');
-        const imagePreviewArea = document.getElementById('imagePreviewArea');
-        const imageFileName = document.getElementById('imageFileName');
-        const removeImage = document.getElementById('removeImage');
+        const documentSelectionArea = document.getElementById('documentSelectionArea');
+        const documentSelect = document.getElementById('documentSelect');
 
         const STORAGE_KEY = 'rdrealty_ai_chat_history';
         const LOGOUT_URL = "{% url 'app_logout' %}";
@@ -1719,7 +1782,7 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
         }
 
-        function addMessage(text, sender, save = true) {
+        function addMessage(text, sender, save = true, scrollToBottom = true) {
             const div = document.createElement('div');
             div.classList.add('ai-message', sender);
             
@@ -1735,7 +1798,12 @@
             }
             
             aiChatMessages.appendChild(div);
-            aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+            
+            // Only scroll to bottom for user messages or when explicitly requested
+            // This prevents interrupting users who are reading previous messages
+            if (scrollToBottom) {
+                aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+            }
 
             if (save) {
                 saveMessage(text, sender);
@@ -1744,14 +1812,17 @@
 
         function loadHistory() {
             const history = localStorage.getItem(STORAGE_KEY);
+            console.log('Loading chat history:', history ? 'Found history' : 'No history');
             aiChatMessages.innerHTML = '';
             
             if (history) {
                 try {
                     const messages = JSON.parse(history);
+                    console.log('Parsed messages:', messages.length);
                     if (messages.length > 0) {
-                        messages.forEach(msg => addMessage(msg.text, msg.sender, false));
+                        messages.forEach(msg => addMessage(msg.text, msg.sender, false, false));
                     } else {
+                        console.log('No messages in history, showing welcome message');
                         showWelcomeMessage();
                     }
                 } catch (e) {
@@ -1759,12 +1830,14 @@
                     showWelcomeMessage();
                 }
             } else {
+                console.log('No history found, showing welcome message');
                 showWelcomeMessage();
             }
         }
 
         function showWelcomeMessage() {
-            addMessage("Hello! I am Kaito your RDRealty AI Assistant. I can help you identify upcoming due dates, analyze financial data, and suggest actions. How can I assist you today?", 'bot', true);
+            addMessage("Hello! I am Kaito your RDRealty AI Assistant. I can help you identify upcoming due dates, analyze financial data, and suggest actions. How can I assist you today?", 'bot', true, false);
+            // Welcome message added to chat history but chatbox remains closed
         }
 
         // Clear history on logout
@@ -1803,28 +1876,70 @@
             });
         }
 
-        // Image Attachment Logic
-        if (attachAiImage) {
-            attachAiImage.addEventListener('click', () => aiImageInput.click());
+        // Image Attachment Logic (Removed - using document selection instead)
+
+        // Document Selection Functionality
+        function populateDocumentDropdown() {
+            console.log('Populating document dropdown...');
+            
+            documentSelectionArea.style.display = 'block';
+            documentSelect.innerHTML = '<option value="">Select uploaded document to analyze</option>';
+            documentSelect.disabled = true;
+            
+            // Show loading state
+            const loadingOption = document.createElement('option');
+            loadingOption.textContent = 'Loading documents...';
+            loadingOption.disabled = true;
+            documentSelect.appendChild(loadingOption);
+            
+            // Fetch documents from server API
+            fetch("{% url 'get_available_documents' %}")
+                .then(response => response.json())
+                .then(data => {
+                    documentSelect.innerHTML = '<option value="">Select uploaded document to analyze</option>';
+                    
+                    if (data.documents && data.documents.length > 0) {
+                        data.documents.forEach(doc => {
+                            const option = document.createElement('option');
+                            option.value = doc.url;
+                            option.textContent = doc.name;
+                            documentSelect.appendChild(option);
+                        });
+                        documentSelect.disabled = false;
+                        console.log('Documents loaded from server:', data.documents.length);
+                    } else {
+                        const noDocsOption = document.createElement('option');
+                        noDocsOption.textContent = 'No documents available';
+                        noDocsOption.disabled = true;
+                        documentSelect.appendChild(noDocsOption);
+                        console.log('No documents available');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching documents:', error);
+                    documentSelect.innerHTML = '<option value="">Error loading documents</option>';
+                    documentSelect.disabled = true;
+                });
         }
-        
-        if (aiImageInput) {
-            aiImageInput.addEventListener('change', function() {
-                if (this.files && this.files[0]) {
-                    imageFileName.textContent = this.files[0].name;
-                    imagePreviewArea.style.display = 'block';
-                    attachAiImage.style.color = '#4f46e5';
-                }
+
+        // Handle document selection
+        if (documentSelect) {
+            documentSelect.addEventListener('change', function() {
+                // Document selection changed - no preview needed since we removed image preview
+                // The selected document will be sent directly to the AI when the user sends a message
             });
         }
 
-        if (removeImage) {
-            removeImage.addEventListener('click', function() {
-                aiImageInput.value = '';
-                imagePreviewArea.style.display = 'none';
-                attachAiImage.style.color = '#64748b';
+        // Auto-populate document dropdown when chat opens
+        if (aiChatButton && documentSelectionArea) {
+            aiChatButton.addEventListener('click', function() {
+                // Small delay to ensure chat window is visible before populating
+                setTimeout(populateDocumentDropdown, 100);
             });
         }
+
+        // Populate document dropdown on page load
+        populateDocumentDropdown();
 
         // --- Server-Side Rate Limit Tracking ---
         let currentUsage = { daily: 0, minute: 0, daily_limit: 1500, minute_limit: 15 };
@@ -1882,40 +1997,80 @@
             }
 
             const text = aiChatInput.value.trim();
-            const file = aiImageInput.files[0];
+            const selectedDocumentUrl = documentSelect ? documentSelect.value : '';
             
-            if (!text && !file) return;
+            if (!text && !selectedDocumentUrl) return;
 
             // User UI Update
             let userMsg = text;
-            if (file) userMsg += ` [Attached: ${file.name}]`;
-            addMessage(userMsg, 'user', true);
+            if (selectedDocumentUrl) {
+                const docName = documentSelect.options[documentSelect.selectedIndex].text;
+                userMsg += ` [Analyzing: ${docName}]`;
+            }
+            addMessage(userMsg, 'user', true, true); // Scroll to bottom for user messages
             
             aiChatInput.value = '';
             
-            // Clear Image Selection in UI
-            if (file) {
-                 aiImageInput.value = '';
-                 imagePreviewArea.style.display = 'none';
-                 attachAiImage.style.color = '#64748b';
+            // Clear Document Selection in UI
+            if (selectedDocumentUrl) {
+                 documentSelect.value = '';
             }
 
             // Show Thinking (Don't save this to history)
-            const loadingId = 'loading-' + Date.now();
-            const loadingDiv = document.createElement('div');
-            loadingDiv.classList.add('ai-message', 'bot');
-            loadingDiv.id = loadingId;
-            loadingDiv.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Analyzing...';
-            aiChatMessages.appendChild(loadingDiv);
-            aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+        const loadingId = 'loading-' + Date.now();
+        const loadingDiv = document.createElement('div');
+        loadingDiv.classList.add('typing-indicator');
+        loadingDiv.id = loadingId;
+        loadingDiv.innerHTML = `
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        `;
+        aiChatMessages.appendChild(loadingDiv);
+        aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
 
             // Send to Backend
             const formData = new FormData();
             formData.append('message', text);
-            if (file) {
-                formData.append('image', file);
+            
+            if (selectedDocumentUrl) {
+                // Fetch the selected document and add it as a file
+                fetch(selectedDocumentUrl)
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const file = new File([blob], 'document.jpg', { type: 'image/jpeg' });
+                        formData.append('image', file);
+                        
+                        // Continue with the API call
+                        return fetch("{% url 'ai_chat_api' %}", {
+                            method: 'POST',
+                            body: formData
+                        });
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        const loadingMsg = document.getElementById(loadingId);
+                        if (loadingMsg) loadingMsg.remove();
+
+                        if (data.response) {
+                            addMessage(data.response, 'bot', true, false); // Don't scroll for AI responses
+                            // Refresh usage stats immediately after successful response
+                            updateUsageStats();
+                        } else if (data.error) {
+                            addMessage("Error: " + data.error, 'bot', true, false); // Don't scroll for errors
+                        }
+                    })
+                    .catch(error => {
+                        const loadingMsg = document.getElementById(loadingId);
+                        if (loadingMsg) loadingMsg.remove();
+                        addMessage("Sorry, I couldn't process the selected document. Please try again.", 'bot', true, false);
+                        console.error('Error:', error);
+                    });
+                
+                return; // Exit early since we're handling the fetch in the then chain
             }
 
+            // Regular text-only message
             fetch("{% url 'ai_chat_api' %}", {
                 method: 'POST',
                 body: formData
@@ -1926,17 +2081,17 @@
                 if (loadingMsg) loadingMsg.remove();
 
                 if (data.response) {
-                    addMessage(data.response, 'bot', true);
+                    addMessage(data.response, 'bot', true, false); // Don't scroll for AI responses
                     // Refresh usage stats immediately after successful response
                     updateUsageStats();
                 } else if (data.error) {
-                    addMessage("Error: " + data.error, 'bot', true);
+                    addMessage("Error: " + data.error, 'bot', true, false); // Don't scroll for errors
                 }
             })
             .catch(error => {
                 const loadingMsg = document.getElementById(loadingId);
                 if (loadingMsg) loadingMsg.remove();
-                addMessage("Sorry, I encountered a network error. Please check your connection.", 'bot', true);
+                addMessage("Sorry, I encountered a network error. Please check your connection.", 'bot', true, false); // Don't scroll for errors
                 console.error('Error:', error);
             });
         }

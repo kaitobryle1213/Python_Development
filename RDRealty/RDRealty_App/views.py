@@ -8,6 +8,8 @@ from datetime import date, datetime, time, timedelta
 from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.contrib.auth.models import User
 from django.shortcuts import render, redirect, get_object_or_404
 import json
@@ -313,7 +315,45 @@ def save_related_info(property_obj, request, change_type='UPDATE'):
     # 6. Delete Supporting Documents if requested
     delete_ids = request.POST.getlist('delete_files')
     if delete_ids:
-        SupportingDocument.objects.filter(id__in=delete_ids, property=property_obj).delete()
+        # Get documents to be deleted
+        docs_to_delete = SupportingDocument.objects.filter(id__in=delete_ids, property=property_obj)
+        
+        # Create Deleted_Files directory if it doesn't exist
+        deleted_files_dir = os.path.join(settings.MEDIA_ROOT, 'supporting_docs', 'Deleted_Files')
+        os.makedirs(deleted_files_dir, exist_ok=True)
+        
+        # Create a zip file for the deleted documents
+        zip_filename = f"deleted_docs_{property_obj.property_id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        zip_path = os.path.join(deleted_files_dir, zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for doc in docs_to_delete:
+                if doc.file and os.path.exists(doc.file.path):
+                    # Add file to zip archive
+                    zipf.write(doc.file.path, os.path.basename(doc.file.path))
+        
+        # Delete the original files from filesystem and record in change history
+        deleted_file_names = []
+        for doc in docs_to_delete:
+            if doc.file and os.path.exists(doc.file.path):
+                # Record file deletion in change history
+                deleted_file_names.append(os.path.basename(doc.file.path))
+                os.remove(doc.file.path)
+        
+        # Record file deletions in change history
+        if deleted_file_names:
+            track_field_change(
+                property_obj,
+                request.user,
+                'Supporting Documents',
+                ', '.join(deleted_file_names),
+                '',
+                change_type='DOCUMENT_DELETE',
+                reason=f"Deleted {len(deleted_file_names)} supporting document(s)"
+            )
+        
+        # Delete the documents from database
+        docs_to_delete.delete()
 
 class PropertyDetailView(DetailView):
     model = Property
@@ -344,14 +384,30 @@ class PropertyDetailView(DetailView):
                 Q(field_name__icontains=q) |
                 Q(old_value__icontains=q) |
                 Q(new_value__icontains=q) |
-                Q(reason__icontains=q)
+                Q(reason__icontains=q) |
+                Q(change_type__icontains=q) |
+                Q(changed_at__icontains=q) |
+                Q(changed_by__username__icontains=q) |
+                Q(changed_by__first_name__icontains=q) |
+                Q(changed_by__last_name__icontains=q) |
+                Q(changed_by__email__icontains=q)
             )
             
         h_type = self.request.GET.get('history_type')
         if h_type and h_type != 'All Types':
             history_qs = history_qs.filter(change_type=h_type)
             
-        context['change_history'] = history_qs
+        # Paginate change history - 8 records per page
+        paginator = Paginator(history_qs, 8)
+        history_page = self.request.GET.get('history_page', 1)
+        
+        try:
+            change_history = paginator.page(history_page)
+        except (PageNotAnInteger, EmptyPage):
+            # If page is not an integer or out of range, deliver first page
+            change_history = paginator.page(1)
+            
+        context['change_history'] = change_history
         
         return context
 
@@ -575,19 +631,24 @@ def global_search(request):
 @login_required
 def notifications_api(request):
     """
-    Returns unread notifications for the current user.
-    A notification is unread if the user is not in the read_by relationship.
+    Returns all notifications for the current user, with read status.
+    Notifications should persist until explicitly cleared by the user.
     """
-    # Filter notifications that the current user has NOT read yet
-    notifs = Notification.objects.exclude(read_by=request.user).order_by('-created_at')[:20]
+    # Get all notifications, not just unread ones
+    notifs = Notification.objects.filter(user=request.user).order_by('-created_at')[:20]
     
-    data = [{
-        'id': n.id,
-        'category': n.category,
-        'message': n.message, 
-        'created_at': n.created_at.strftime('%Y-%m-%d %H:%M'),
-        'is_read': False # They are all unread because of the filter above
-    } for n in notifs]
+    data = []
+    for n in notifs:
+        # Check if the current user has read this notification
+        is_read = n.read_by.filter(id=request.user.id).exists()
+        data.append({
+            'id': n.id,
+            'category': n.category,
+            'message': n.message, 
+            'created_at': n.created_at.strftime('%Y-%m-%d %H:%M'),
+            'is_read': is_read
+        })
+    
     return JsonResponse({'notifications': data})
 
 @login_required
@@ -608,15 +669,13 @@ def mark_notifications_read(request):
 @login_required
 def clear_all_notifications(request):
     """
-    Marks all notifications as read for the current user.
+    Deletes all notifications for the current user when they click "Clear".
+    This should completely remove notifications from the system.
     """
     if request.method == 'POST':
         try:
-            # Find all notifications that this user hasn't read yet
-            unread_notifs = Notification.objects.exclude(read_by=request.user)
-            # Add the user to the read_by relationship for all of them
-            for n in unread_notifs:
-                n.read_by.add(request.user)
+            # Delete all notifications for the current user
+            Notification.objects.filter(user=request.user).delete()
             return JsonResponse({'success': True})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
@@ -704,34 +763,63 @@ def get_barangays(request, city_code):
 def is_admin(user):
     return user.is_superuser
 
+def is_regular_user(user):
+    return not user.is_superuser and user.is_authenticated
+
+def check_admin_permission(user):
+    """Check if user is admin, otherwise raise PermissionDenied"""
+    if not user.is_superuser:
+        raise PermissionDenied("Only administrators can access user management.")
+
 @login_required
-@user_passes_test(is_admin)
 def user_list(request):
+    check_admin_permission(request.user)
     users = User.objects.all()
     return render(request, 'user_list.html', {'users': users})
 
 @login_required
-@user_passes_test(is_admin)
 def user_create(request):
+    check_admin_permission(request.user)
     if request.method == 'POST':
         username = request.POST.get('username')
         email = request.POST.get('email')
-        password = request.POST.get('password')
+        password1 = request.POST.get('password1')
+        password2 = request.POST.get('password2')
+        full_name = request.POST.get('full_name')
+        role = request.POST.get('role')
+        
         if User.objects.filter(username=username).exists():
             return render(request, 'user_form.html', {'error_message': 'Username already exists.'})
-        user = User.objects.create_user(username=username, email=email, password=password)
-        user.save()
+        
+        # Check if passwords match
+        if password1 != password2:
+            return render(request, 'user_form.html', {'error_message': 'Passwords do not match.'})
+        
+        user = User.objects.create_user(username=username, email=email, password=password1)
+        
+        # Set user role (staff status)
+        if role == 'ADMIN':
+            user.is_staff = True
+            user.save()
+        
+        # Create user profile with full name
+        from .models import UserProfile
+        UserProfile.objects.create(user=user, full_name=full_name)
+        
         return redirect('user_list')
     return render(request, 'user_form.html')
 
 @login_required
-@user_passes_test(is_admin)
 def user_update(request, user_id):
+    check_admin_permission(request.user)
     target = get_object_or_404(User, pk=user_id)
     profile = getattr(target, 'profile', None)
     if request.method == 'POST':
         target.username = request.POST.get('username')
-        target.email = request.POST.get('email')
+        # Only update email if provided, otherwise keep existing value
+        email = request.POST.get('email')
+        if email:
+            target.email = email
         password1 = request.POST.get('password')
         password2 = request.POST.get('confirm_password')
         
@@ -739,9 +827,18 @@ def user_update(request, user_id):
             if password1 != password2:
                 return render(request, 'user_form.html', {'error_message': 'Passwords do not match.', 'mode': 'update', 'target': target, 'profile': profile})
             target.set_password(password1)
-        target.save()
+        
+        # Update user profile full name
+        full_name = request.POST.get('full_name')
         if profile:
+            profile.full_name = full_name
             profile.save()
+        else:
+            # Create profile if it doesn't exist
+            from .models import UserProfile
+            UserProfile.objects.create(user=target, full_name=full_name)
+        
+        target.save()
         Notification.objects.create(
             user=request.user,
             category='USER',
@@ -751,8 +848,8 @@ def user_update(request, user_id):
     return render(request, 'user_form.html', {'mode': 'update', 'target': target, 'profile': profile})
 
 @login_required
-@user_passes_test(is_admin)
 def user_delete(request, user_id):
+    check_admin_permission(request.user)
     target = User.objects.get(id=user_id)
     if request.method == 'POST':
         username = target.username
@@ -766,8 +863,8 @@ def user_delete(request, user_id):
     return render(request, 'user_form.html', {'mode': 'delete', 'target': target})
 
 @login_required
-@user_passes_test(is_admin)
 def user_view(request, user_id):
+    check_admin_permission(request.user)
     target = User.objects.get(id=user_id)
     profile = getattr(target, 'profile', None)
     return render(request, 'user_view.html', {'target': target, 'profile': profile})
@@ -845,6 +942,27 @@ def ai_chat_api(request):
         return JsonResponse({'response': ai_response})
     
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@login_required
+def get_available_documents(request):
+    """
+    API endpoint to fetch all available documents for the current user
+    """
+    # Get all supporting documents that the user has access to
+    # For now, return all documents - you might want to filter by user permissions later
+    documents = SupportingDocument.objects.all()
+    
+    document_list = []
+    for doc in documents:
+        document_list.append({
+            'name': doc.file.name.split('/')[-1],  # Get just the filename
+            'url': doc.file.url  # Full URL to the document
+        })
+    
+    return JsonResponse({
+        'documents': document_list,
+        'count': len(document_list)
+    })
 
 
 @login_required
@@ -973,6 +1091,10 @@ class UpdateTitleMovementStatusView(View):
         if not request.user.is_authenticated:
             return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=401)
             
+        # Check if user is admin
+        if not request.user.is_superuser:
+            return JsonResponse({'success': False, 'error': 'Only administrators can update title movements'}, status=403)
+            
         movement_id = request.POST.get('movement_id')
         new_status = request.POST.get('new_status')
         transmittal_no = request.POST.get('tm_transmittal_no')
@@ -1087,4 +1209,197 @@ def movement_delete(request, pk):
             message=f"Title Movement deleted: {transmittal_no}"
         )
         return redirect('movement_list')
-    return redirect('movement_list')
+
+
+# --- REPORT VIEWS ---
+@login_required
+def property_tax_movement_report(request):
+    """
+    Generate a comprehensive report of properties with tax and movement information
+    with filtering capabilities.
+    """
+    # Get all properties with related data
+    properties = Property.objects.all().select_related().prefetch_related(
+        'propertytax_set',
+        'title_movements',
+        'ownerinformation_set'
+    )
+    
+    # Apply filters
+    property_status = request.GET.get('property_status')
+    tax_status = request.GET.get('tax_status')
+    movement_status = request.GET.get('movement_status')
+    due_date_from = request.GET.get('due_date_from')
+    due_date_to = request.GET.get('due_date_to')
+    owner_name = request.GET.get('owner_name')
+    
+    if property_status:
+        properties = properties.filter(title_status=property_status)
+    
+    # Build report data
+    report_data = []
+    
+    for property in properties:
+        # Get owner information
+        owner_info = property.ownerinformation_set.first()
+        owner_name_val = owner_info.oi_fullname if owner_info else None
+        
+        # Apply owner name filter
+        if owner_name and owner_name_val:
+            if owner_name.lower() not in owner_name_val.lower():
+                continue
+        elif owner_name and not owner_name_val:
+            # If filtering by owner name but property has no owner info, skip
+            continue
+        
+        # Get latest tax record
+        tax_records = property.propertytax_set.all()
+        if tax_status:
+            tax_records = tax_records.filter(tax_status=tax_status)
+        if due_date_from:
+            tax_records = tax_records.filter(tax_due_date__gte=due_date_from)
+        if due_date_to:
+            tax_records = tax_records.filter(tax_due_date__lte=due_date_to)
+        
+        latest_tax = tax_records.order_by('-tax_due_date').first()
+        
+        # Get latest movement
+        movements = property.title_movements.all()
+        if movement_status:
+            movements = movements.filter(status=movement_status)
+        
+        latest_movement = movements.order_by('-created_at').first()
+        
+        # Only include properties that match all filters
+        if (tax_status and not tax_records.exists()) or (movement_status and not movements.exists()):
+            continue
+        
+        report_data.append({
+            'property_id': property.property_id,
+            'title_no': property.title_no,
+            'lot_no': property.lot_no,
+            'owner_name': owner_name_val,
+            'property_status': property.title_status,
+            'tax_amount': latest_tax.tax_amount if latest_tax else None,
+            'tax_status': latest_tax.tax_status if latest_tax else None,
+            'due_date': latest_tax.tax_due_date if latest_tax else None,
+            'movement_status': latest_movement.status if latest_movement else None,
+            'last_movement_date': latest_movement.created_at if latest_movement else None
+        })
+    
+    # Pagination
+    paginator = Paginator(report_data, 25)  # Show 25 properties per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Summary counts
+    total_properties = Property.objects.count()
+    due_taxes_count = PropertyTax.objects.filter(tax_status='Due').count()
+    overdue_taxes_count = PropertyTax.objects.filter(tax_status='Overdue').count()
+    active_movements_count = TitleMovementRequest.objects.filter(
+        Q(status='Released') | Q(status='In Transit') | Q(status='Received')
+    ).count()
+    
+    context = {
+        'report_data': page_obj,
+        'total_properties': total_properties,
+        'due_taxes_count': due_taxes_count,
+        'overdue_taxes_count': overdue_taxes_count,
+        'active_movements_count': active_movements_count,
+    }
+    
+    return render(request, 'reports/property_tax_movement_report.html', context)
+
+
+@login_required
+def delete_document_with_compression(request, doc_id):
+    """
+    API endpoint to delete a supporting document with compression and archiving
+    """
+    try:
+        # Get the document
+        document = get_object_or_404(SupportingDocument, id=doc_id)
+        
+        # Check if user has permission to delete this document
+        # (For now, allow deletion if user is authenticated)
+        
+        # Create Deleted_Files directory if it doesn't exist
+        deleted_files_dir = os.path.join(settings.MEDIA_ROOT, 'supporting_docs', 'Deleted_Files')
+        os.makedirs(deleted_files_dir, exist_ok=True)
+        
+        # Generate archive filename with timestamp
+        timestamp = timezone.localtime(timezone.now()).strftime("%Y%m%d_%H%M%S")
+        original_filename = os.path.basename(document.file.name)
+        archive_filename = f"deleted_{timestamp}_{original_filename}.zip"
+        archive_path = os.path.join(deleted_files_dir, archive_filename)
+        
+        # Create compressed archive
+        with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # Add the original file to the archive
+            zipf.write(document.file.path, original_filename)
+            
+            # Add metadata file
+            metadata = {
+                'original_filename': original_filename,
+                'deleted_at': timezone.localtime(timezone.now()).isoformat(),
+                'deleted_by': request.user.username if request.user.is_authenticated else 'unknown',
+                'property_id': document.property.property_id if document.property else 'unknown',
+                'original_path': document.file.name,
+                'file_size': os.path.getsize(document.file.path)
+            }
+            
+            # Create metadata file content
+            metadata_content = '\n'.join([f"{key}: {value}" for key, value in metadata.items()])
+            zipf.writestr('deletion_metadata.txt', metadata_content)
+        
+        # Delete the original file from filesystem
+        if os.path.exists(document.file.path):
+            os.remove(document.file.path)
+        
+        # Record the deletion in change history
+        if document.property:
+            PropertyHistory.objects.create(
+                property=document.property,
+                field_name='Supporting Document',
+                old_value=original_filename,
+                new_value='DELETED',
+                change_type='DOCUMENT_DELETE',
+                reason=f'Document archived to {archive_filename}',
+                changed_by=request.user
+            )
+        
+        # Create notification for document deletion
+        notification_message = f'Document "{original_filename}" was deleted and archived'
+        if document.property:
+            notification_message += f' for property {document.property.title_no}'
+        
+        Notification.objects.create(
+            category='DOCUMENT',
+            message=notification_message,
+            user=request.user
+        )
+        
+        # Delete the database record
+        document.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Document archived to {archive_filename}',
+            'archive_path': archive_path
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error deleting document: {str(e)}'
+        }, status=500)
+
+
+def handler403(request, exception=None):
+    """Custom 403 Forbidden error handler"""
+    if isinstance(exception, PermissionDenied):
+        message = str(exception)
+    else:
+        message = "You don't have permission to access this page."
+    
+    return render(request, '403.html', {'message': message}, status=403)

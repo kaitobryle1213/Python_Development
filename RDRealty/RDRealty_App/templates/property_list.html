@@ -147,9 +147,16 @@
                             </span>
                         </div>
                         <div class="d-flex align-items-start mb-2 text-muted">
-                            <i class="fas fa-align-left me-2 mt-1 text-center" style="width: 20px;"></i>
-                            <span class="small">{{ property.title_description|truncatechars:50|default:"No description" }}</span>
-                        </div>
+                        <i class="fas fa-map-marker-alt me-2 mt-1 text-center" style="width: 20px;"></i>
+                        <span class="small">
+                            {% with location=property.localinformation_set.all|first %}
+                                {{ location.loc_specific|default:"" }}{% if location.loc_specific and location.loc_barangay %}, {% endif %}
+                                {{ location.loc_barangay|default:"" }}{% if location.loc_barangay and location.loc_city %}, {% endif %}
+                                {{ location.loc_city|default:"" }}{% if location.loc_city and location.loc_province %}, {% endif %}
+                                {{ location.loc_province|default:"No location info" }}
+                            {% endwith %}
+                        </span>
+                    </div>
                         <div class="d-flex align-items-center mb-2 text-muted">
                             <i class="fas fa-ruler-combined me-2 text-center" style="width: 20px;"></i>
                             <span class="small">{{ property.lot_area|intcomma }} sqm</span>

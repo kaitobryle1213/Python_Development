@@ -19,58 +19,130 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="fw-bold mb-0">User Details</h2>
-        <a href="{% url 'user_list' %}" class="btn btn-secondary">Back</a>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">User Details</h2>
+            <p class="text-muted mb-0">View detailed information about this user account</p>
+        </div>
+        <a href="{% url 'user_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Users
+        </a>
     </div>
-    <div class="card border-0 shadow-sm">
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Username</label>
-                    <div class="form-control-plaintext">{{ target.username }}</div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user-circle me-2 text-primary"></i>
+                        Account Information
+                    </h5>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Fullname</label>
-                    <div class="form-control-plaintext">
-                        {% if profile %}
-                        {{ profile.full_name }}
-                        {% else %}
-                        -
-                        {% endif %}
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold text-muted small">Username</label>
+                            <div class="fs-5 fw-semibold text-dark">{{ target.username }}</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold text-muted small">Full Name</label>
+                            <div class="fs-5 fw-semibold text-dark">
+                                {% if profile and profile.full_name %}
+                                {{ profile.full_name }}
+                                {% else %}
+                                <span class="text-muted">Not provided</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold text-muted small">Role</label>
+                            <div>
+                                {% if target.is_staff %}
+                                <span class="badge bg-dark fs-6">Administrator</span>
+                                {% else %}
+                                <span class="badge bg-secondary fs-6">Standard User</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold text-muted small">Status</label>
+                            <div>
+                                {% if target.is_active %}
+                                <span class="badge bg-success fs-6">Active</span>
+                                {% else %}
+                                <span class="badge bg-danger fs-6">Inactive</span>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Role</label>
-                    <div class="form-control-plaintext">
-                        {% if target.is_staff %}Admin{% else %}User{% endif %}
-                    </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-2 text-primary"></i>
+                        Activity Timeline
+                    </h5>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Status</label>
-                    <div class="form-control-plaintext">
-                        {% if target.is_active %}Active{% else %}Inactive{% endif %}
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-muted small">Date Joined</label>
+                        <div class="fw-semibold text-dark">
+                            <i class="far fa-calendar-alt me-1 text-primary"></i>
+                            {{ target.date_joined|date:"M j, Y H:i" }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-muted small">Last Login</label>
+                        <div class="fw-semibold text-dark">
+                            <i class="far fa-clock me-1 text-primary"></i>
+                            {% if target.last_login %}
+                            {{ target.last_login|date:"M j, Y H:i" }}
+                            {% else %}
+                            <span class="text-muted">Never logged in</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if profile and profile.last_updated %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-muted small">Last Updated</label>
+                        <div class="fw-semibold text-dark">
+                            <i class="fas fa-sync-alt me-1 text-primary"></i>
+                            {{ profile.last_updated|date:"M j, Y H:i" }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if can_manage %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cog me-2 text-primary"></i>
+                        User Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'user_update' target.id %}" class="btn btn-outline-primary">
+                            <i class="far fa-edit me-1"></i> Edit User
+                        </a>
+                        <a href="{% url 'user_delete' target.id %}" class="btn btn-outline-danger">
+                            <i class="far fa-trash-alt me-1"></i> Delete User
+                        </a>
                     </div>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Date Joined</label>
-                    <div class="form-control-plaintext">{{ target.date_joined|date:"Y-m-d H:i" }}</div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Last Login</label>
-                    <div class="form-control-plaintext">
-                        {% if target.last_login %}
-                        {{ target.last_login|date:"Y-m-d H:i" }}
-                        {% else %}
-                        Never
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 </div>

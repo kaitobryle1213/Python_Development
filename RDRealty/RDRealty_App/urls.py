@@ -3,8 +3,8 @@ from .views import (
     DashboardView, PropertyCreateView, PropertyListView, PropertyDetailView, PropertyUpdateView,
     global_search, notifications_api, mark_notifications_read, clear_all_notifications, logout_view, user_list, user_create, user_update, user_delete, user_view,
     get_provinces, get_cities, get_barangays, upload_document, add_property_tax, update_property_tax, AllTaxRecordsView,
-    ai_chat_api, ai_usage_api, TitleMovementListView, add_title_movement, generate_transmittal_number, UpdateTitleMovementStatusView,
-    property_delete, tax_record_delete, movement_delete
+    ai_chat_api, ai_usage_api, get_available_documents, TitleMovementListView, add_title_movement, generate_transmittal_number, UpdateTitleMovementStatusView,
+    property_delete, tax_record_delete, movement_delete, property_tax_movement_report, delete_document_with_compression
 )
 
 urlpatterns = [
@@ -16,6 +16,8 @@ urlpatterns = [
     # AI Chat API
     path('api/ai-chat/', ai_chat_api, name='ai_chat_api'),
     path('api/ai-usage/', ai_usage_api, name='ai_usage_api'),
+    path('api/available-documents/', get_available_documents, name='get_available_documents'),
+    path('api/delete-document/<int:doc_id>/', delete_document_with_compression, name='delete_document'),
 
     # Landing page: Login is now handled by root redirect to /accounts/login/
     # logout is still handled locally if needed, or can use django.contrib.auth.urls
@@ -67,4 +69,7 @@ urlpatterns = [
     path('user-management/<int:user_id>/view/', user_view, name='user_view'),
     path('user-management/<int:user_id>/edit/', user_update, name='user_update'),
     path('user-management/<int:user_id>/delete/', user_delete, name='user_delete'),
+    
+    # 7. Reports
+    path('reports/property-tax-movement/', property_tax_movement_report, name='property_tax_movement_report'),
 ]

@@ -145,7 +145,8 @@
     <div class="row g-4">
         {% for movement in movements %}
         <div class="col-md-6 col-lg-4">
-            <div class="card shadow-sm border rounded-3 h-100">
+            <div class="card shadow-sm border rounded-3 h-100 clickable-card" data-property-url="{% url 'property_detail' pk=movement.property.pk %}">
+
                 <div class="card-body p-4">
                     <!-- Title and Status -->
                     <div class="d-flex justify-content-between align-items-start mb-3">
@@ -306,5 +307,39 @@
     .timeline-step.active .dot {
         box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
     }
+    
+    /* Clickable Card Styling */
+    .clickable-card {
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+    }
+    .clickable-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        border-color: #3b82f6 !important;
+    }
+    .clickable-card:active {
+        transform: translateY(0);
+    }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const clickableCards = document.querySelectorAll('.clickable-card');
+        
+        clickableCards.forEach(card => {
+            card.addEventListener('click', function(e) {
+                // Don't redirect if the click was on a button or form element
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button') || e.target.closest('a') || e.target.closest('form')) {
+                    return;
+                }
+                
+                const propertyUrl = this.getAttribute('data-property-url');
+                if (propertyUrl) {
+                    window.location.href = propertyUrl;
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}

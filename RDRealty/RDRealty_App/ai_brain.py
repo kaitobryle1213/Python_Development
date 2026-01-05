@@ -7,7 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Q
-from .models import Property, PropertyTax, AIRequestLog, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument
+from .models import Property, PropertyTax, AIRequestLog, LocalInformation, OwnerInformation, FinancialInformation, AdditionalInformation, SupportingDocument, TitleMovementRequest
 
 def get_specific_property_context(user_message):
     """
@@ -68,6 +68,12 @@ def get_specific_property_context(user_message):
         # Property Tax Table
         q_objects |= Q(propertytax__tax_remarks__icontains=word)
         q_objects |= Q(propertytax__tax_status__icontains=word)
+        
+        # Title Movement Table
+        q_objects |= Q(title_movements__tm_transmittal_no__icontains=word)
+        q_objects |= Q(title_movements__tm_purpose__icontains=word)
+        q_objects |= Q(title_movements__tm_received_by__icontains=word)
+        q_objects |= Q(title_movements__status__icontains=word)
     
     # Execute Query
     matching_props = Property.objects.filter(q_objects).distinct()[:15] # Limit to 15 to manage context size
@@ -83,32 +89,45 @@ def get_specific_property_context(user_message):
                 add_info = prop.additionalinformation_set.first()
                 docs = prop.supportingdocument_set.all()
                 taxes = prop.propertytax_set.all().order_by('-tax_year', '-tax_quarter')
+                title_movements = prop.title_movements.all().order_by('-created_at')
                 
                 owner_name = owner.oi_fullname if owner else "N/A"
                 owner_bank = owner.oi_bankname if owner else "N/A"
                 custody = owner.oi_custody_title if owner else "N/A"
                 location = f"{loc.loc_barangay or ''}, {loc.loc_city or ''}, {loc.loc_province or ''}".strip(', ') if loc else "N/A"
                 
-                context_str += f"Property ID: {prop.property_id} | Title: {prop.title_no} | Lot: {prop.lot_no}\n"
-                context_str += f"  - Owner: {owner_name} (Bank: {owner_bank})\n"
-                context_str += f"  - Custody of Title: {custody}\n"
-                context_str += f"  - Location: {location}\n"
-                context_str += f"  - Status: {prop.get_title_status_display()} | Class: {prop.get_title_classification_display()}\n"
-                context_str += f"  - Area: {prop.lot_area} sqm\n"
+                context_str += f"**Property**: {prop.title_no} | **Lot**: {prop.lot_no}\n"
+                context_str += f"  - **Owner**: {owner_name} (Bank: {owner_bank})\n"
+                context_str += f"  - **Custody of Title**: {custody}\n"
+                context_str += f"  - **Location**: {location}\n"
+                context_str += f"  - **Status**: {prop.get_title_status_display()} | **Class**: {prop.get_title_classification_display()}\n"
+                context_str += f"  - **Area**: {prop.lot_area} sqm\n"
+                context_str += f"  - **Date Added**: {prop.date_added.date() if prop.date_added else 'N/A'}\n"
                 
                 if fin:
-                    context_str += f"  - Financials: Mortgaged to {fin.fi_mortgage or 'None'} | Encumbrance: {fin.fi_encumbrance or 'None'} | Borrower: {fin.fi_borrower or 'None'}\n"
+                    context_str += f"  - **Financials**: Mortgaged to {fin.fi_mortgage or 'None'} | Encumbrance: {fin.fi_encumbrance or 'None'} | Borrower: {fin.fi_borrower or 'None'}\n"
                 
                 if add_info and add_info.ai_remarks:
-                    context_str += f"  - Remarks: {add_info.ai_remarks}\n"
+                    context_str += f"  - **Remarks**: {add_info.ai_remarks}\n"
                 
                 if docs.exists():
                     doc_names = ", ".join([os.path.basename(d.file.name) for d in docs])
-                    context_str += f"  - Documents: {doc_names}\n"
+                    context_str += f"  - **Documents**: {doc_names}\n"
                 
-                context_str += "  - Tax History:\n"
+                context_str += "  - **Tax History**:\n"
                 for t in taxes: # List all taxes for matched properties
+                    created_by = f" by {t.created_by.get_full_name()}" if t.created_by else ""
                     context_str += f"    * {t.tax_year} {t.tax_quarter}: {t.tax_amount} ({t.tax_status}) - Due: {t.tax_due_date} [{t.tax_remarks or ''}]\n"
+                    context_str += f"      Created: {t.created_at.date()}{created_by}\n"
+                
+                context_str += "  - **Title Movements**:\n"
+                for movement in title_movements:
+                    released_by = f" by {movement.tm_released_by.get_full_name()}" if movement.tm_released_by else ""
+                    approved_by = f" by {movement.tm_approved_by.get_full_name()}" if movement.tm_approved_by else ""
+                    context_str += f"    * {movement.tm_transmittal_no}: {movement.tm_purpose} - Status: {movement.status}\n"
+                    context_str += f"      Received by: {movement.tm_received_by}, Created: {movement.created_at.date()}\n"
+                    context_str += f"      Released{released_by}, Approved{approved_by}\n"
+                
                 context_str += "--------------------------------------------------\n"
             except Exception as e:
                 continue
@@ -138,19 +157,33 @@ def get_project_context(user_message=""):
     # 3. Property Summary
     total_properties = Property.objects.count()
     active_properties = Property.objects.filter(title_status='ACT').count()
+    
+    # 4. Title Movement Summary
+    total_title_movements = TitleMovementRequest.objects.count()
+    recent_title_movements = TitleMovementRequest.objects.filter(created_at__gte=today - timedelta(days=30)).count()
+    
+    # 5. Property Tax Summary
+    total_tax_records = PropertyTax.objects.count()
+    paid_taxes = PropertyTax.objects.filter(tax_status='Paid').count()
+    overdue_tax_count = overdue_taxes.count()
 
     # Build the context string
     context_str = f"Current Date: {today}\n\n"
     context_str += "--- PROJECT SUMMARY ---\n"
     context_str += f"Total Properties: {total_properties}\n"
-    context_str += f"Active Properties: {active_properties}\n\n"
+    context_str += f"Active Properties: {active_properties}\n"
+    context_str += f"Total Title Movements: {total_title_movements}\n"
+    context_str += f"Recent Title Movements (30 days): {recent_title_movements}\n"
+    context_str += f"Total Tax Records: {total_tax_records}\n"
+    context_str += f"Paid Taxes: {paid_taxes}\n"
+    context_str += f"Overdue Taxes: {overdue_tax_count}\n\n"
 
     # 4. Full Property List (Summary)
     # Provides a high-level view of all properties so the AI knows what exists.
     # Capped at 50 to preserve token limit.
     all_props = Property.objects.all().order_by('property_id')[:50]
     
-    context_str += "--- ALL PROPERTIES INDEX (ID | Title | Lot | Owner) ---\n"
+    context_str += "--- ALL PROPERTIES INDEX (Title | Lot | Owner | Status) ---\n"
     for p in all_props:
         owner_name = "N/A"
         # Access reverse relation safely
@@ -158,7 +191,7 @@ def get_project_context(user_message=""):
         if owner:
             owner_name = owner.oi_fullname
             
-        context_str += f"ID: {p.property_id} | Title: {p.title_no} | Lot: {p.lot_no} | Owner: {owner_name}\n"
+        context_str += f"Title: {p.title_no} | Lot: {p.lot_no} | Owner: {owner_name} | Status: {p.get_title_status_display()}\n"
         
     if total_properties > 50:
         context_str += f"... [Truncated] and {total_properties - 50} more properties available. Ask specifically to find them.\n"
@@ -263,41 +296,47 @@ def get_ai_response(user_message, image_file=None, user=None):
     report_instruction = (
         "--- REPORT GENERATION ---\n"
         "If the user asks for a report (e.g., 'generate a report', 'summary', 'overview'), follow these steps:\n"
-        "1. Present the data in a DETAILED, narrative format.\n"
+        "1. Present the data in a DETAILED, narrative format using bullet points (•) for easy reading\n"
         "2. Act as if you are a manager presenting to a client or non-technical stakeholder.\n"
-        "3. Do NOT use technical jargon.\n"
-        "4. Be thorough and explain the significance of the numbers.\n"
-        "5. Structure the report logically (e.g., Executive Summary, Key Findings, Action Items).\n\n"
+        "3. Do NOT use technical jargon or markdown tables - use simple bullet points and clear language\n"
+        "4. Be thorough and explain the significance of the numbers in plain English\n"
+        "5. Structure the report logically with clear section headings and bullet points\n"
+        "6. NEVER use markdown tables or complex formatting - use simple bullet points for all data\n\n"
     )
 
     system_prompt = (
         "You are the RDRealty AI Assistant, a friendly and professional Real Estate Property Manager.\n"
-        "Speak naturally and conversationally, like a human colleague. Avoid robotic, overly formal, or repetitive phrasing.\n"
-        "Your goal is to help the user manage properties, identify due dates, and analyze financial data.\n"
-        "You have READ-ONLY access to the project data below.\n\n"
-        "--- FORMATTING RULES (CRITICAL) ---\n"
-        "1. DO NOT use Markdown tables (e.g., | Header | Row |). Non-tech users find them hard to read on mobile or small screens.\n"
-        "2. Instead, use clear, simple lists or paragraphs.\n"
-        "   - Use bullet points (•) for lists.\n"
-        "   - Use bold text (**Text**) for emphasis on keys/labels.\n"
-        "   - Example: \n"
-        "     **Property**: Title 123-456\n"
-        "     **Owner**: Juan Cruz\n"
-        "     **Status**: Active\n"
-        "3. Keep the layout clean and spacious. Add blank lines between sections.\n\n"
+        "Speak naturally and conversationally, like a human colleague. Use warm, engaging language and avoid robotic or overly formal phrasing.\n"
+        "Your goal is to help the user manage properties, identify due dates, analyze financial data, and provide valuable insights.\n"
+        "You have READ-ONLY access to the project data below - you can view all information but cannot edit, update, or delete any records.\n\n"
+        "--- RESPONSE STYLE GUIDE ---\n"
+        "1. **Be Human**: Use natural language, contractions, and friendly tone like 'I'd be happy to help' or 'Let me check that for you'\n"
+        "2. **Be Helpful**: Always provide context and explanations, not just raw data\n"
+        "3. **Be Proactive**: Offer suggestions and next steps based on the data\n"
+        "4. **Use Title Numbers**: Always refer to properties by their title numbers (e.g., 'Title 123-456'), never by internal property IDs\n"
+        "5. **Format Clearly**: Use **bold** for labels, bullet points (•) for lists, and blank lines between sections\n"
+        "6. **No Markdown Tables**: NEVER use markdown tables or complex formatting - use simple bullet points that are easy for non-technical users to understand\n"
+        "7. **Use Philippine Currency**: ALWAYS use Philippine Peso (₱) symbol instead of Dollar ($) for all monetary amounts\n\n"
         f"{report_instruction}"
-        "--- IMAGE ANALYSIS INSTRUCTIONS ---\n"
-        "If the user uploads an image, you must:\n"
-        "1. EXTRACT all visible text, dates, amounts, and names from the image.\n"
-        "2. COMPARE this information with the Project Data below.\n"
-        "3. USE the image content as the primary source of truth for the specific question if it contains new info (e.g., a new receipt).\n"
-        "4. EXPLAIN what you see in the image clearly to the user.\n\n"
-        "--- GENERAL RULES ---\n"
-        "1. Do NOT invent data. Base your answers strictly on the context provided or the image uploaded.\n"
-        "2. If the answer is not in the data, simply say you don't have that information.\n"
-        "3. Be concise but warm.\n\n"
+        "--- DOCUMENT & IMAGE ANALYSIS ---\n"
+        "When users upload documents or images, you must:\n"
+        "1. **Extract Everything**: Read all text, numbers, dates, names, and amounts visible in the image\n"
+        "2. **Cross-Reference**: Compare extracted information with the project database below\n"
+        "3. **Explain Clearly**: Describe what you see in simple terms and how it relates to existing records\n"
+        "4. **Identify New Info**: If the document contains new information (receipts, updates, etc.), treat it as current truth\n"
+        "5. **Provide Context**: Explain the significance of the document content to the user\n\n"
+        "--- RECOMMENDATION ENGINE ---\n"
+        "Always provide helpful suggestions based on the data:\n"
+        "• **Overdue Items**: Highlight urgent actions needed for overdue taxes or pending movements\n"
+        "• **Best Practices**: Suggest property management tips and next steps\n"
+        "• **Data Gaps**: Point out missing information that would be valuable to collect\n"
+        "• **Follow-up Actions**: Recommend specific tasks based on the current situation\n\n"
+        "--- DATA INTEGRITY ---\n"
+        "1. **Never Invent**: Only use information from the project data or uploaded documents\n"
+        "2. **Be Honest**: Clearly state when information is missing or unavailable\n"
+        "3. **Stay Current**: Use the most recent data available in the system\n\n"
         f"{suggestion_instruction}"
-        f"--- DATA CONTEXT ---\n{project_data}\n"
+        f"--- PROJECT DATA CONTEXT ---\n{project_data}\n"
         "--------------------\n"
     )
 
@@ -314,9 +353,22 @@ def get_ai_response(user_message, image_file=None, user=None):
             
             if image_file:
                 from PIL import Image
-                image = Image.open(image_file)
-                chat_content.append(image)
-                chat_content.append("\n[System: The user has uploaded an image. Please transcribe and analyze it carefully to answer the question.]")
+                import mimetypes
+                
+                # Check if file is actually an image
+                file_type = mimetypes.guess_type(image_file.name)[0]
+                if file_type and file_type.startswith('image/'):
+                    try:
+                        image = Image.open(image_file)
+                        chat_content.append(image)
+                        chat_content.append("\n[System: The user has uploaded an image. Please transcribe and analyze it carefully to answer the question.]")
+                    except Exception as img_error:
+                        # If image processing fails, treat it as a document
+                        gemini_error = f"Image processing failed: {img_error}. Treating as document reference."
+                        chat_content.append(f"\n[System: The user uploaded a file named '{image_file.name}'. Please analyze this document and help the user understand its contents.]")
+                else:
+                    # Handle non-image files (PDFs, documents, etc.)
+                    chat_content.append(f"\n[System: The user uploaded a document file: '{image_file.name}'. Please help analyze this document and provide insights based on its content.]")
             
             response = model.generate_content(chat_content)
             return response.text

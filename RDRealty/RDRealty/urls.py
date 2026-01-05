@@ -5,6 +5,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic.base import RedirectView
+from RDRealty_App.views import handler403
 
 urlpatterns = [
     # 1. Admin Interface (Standard Django Path)
@@ -22,6 +23,17 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
 ]
 
-# Serve media files in development
+# Media file serving - only in development mode
+# For production, use a proper web server like Nginx or Apache to serve media files
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    # In production, we'll use a secure view to serve media files
+    from django.views.static import serve
+    from django.urls import re_path
+    
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', serve, {
+            'document_root': settings.MEDIA_ROOT,
+        }),
+    ]
