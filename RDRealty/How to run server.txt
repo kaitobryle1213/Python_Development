@@ -4,3 +4,10 @@ activate the environment
 **.\\.venv\Scripts\Activate
 run the server
 **waitress-serve --port=8080 RDRealty.wsgi:application
+
+If .venv are made from different location
+1. delete the .venv in project file
+2. create new .venv (python -m venv .venv)
+3. activate the .venv (.\\.venv\Scripts\Activate)
+4. install requirements (pip install -r requirements.txt)
+5. run the server (waitress-serve --port=8080 RDRealty.wsgi:application)

@@ -300,9 +300,14 @@
                             <label class="form-label small fw-bold text-muted">Status</label>
                             <select class="form-select" id="taxStatusFilter">
                                 <option value="All Status">All Status</option>
-                                <option value="Paid">Paid</option>
                                 <option value="Pending">Pending</option>
+                                <option value="Due">Due</option>
                                 <option value="Overdue">Overdue</option>
+                                <option value="Paid">Paid</option>
+                                <option value="Partially Paid">Partially Paid</option>
+                                <option value="Contested">Contested</option>
+                                <option value="Exempted">Exempted</option>
+                                <option value="Waived">Waived</option>
                             </select>
                         </div>
                          <div class="col-lg-2">
@@ -318,71 +323,80 @@
                         </div>
                     </div>
 
-                    <!-- Table -->
-                     <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead class="bg-light">
-                                <tr>
-                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0 rounded-start">Receipt No</th> <!-- Assuming ID for now -->
-                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Title No</th>
-                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Lot No</th>
-                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Amount</th>
-                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Owner</th>
-                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Year</th>
-                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Due Date</th>
-                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0">Status</th>
-                                    <th class="py-3 text-muted small text-uppercase fw-bold border-0 rounded-end text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="taxTableBody">
-                                {% for tax in tax_records %}
-                                <tr class="tax-row">
-                                    <td class="fw-bold text-muted searchable">{{ tax.id }}</td>
-                                    <td>{{ property.title_no }}</td>
-                                    <td>{{ property.lot_no }}</td>
-                                    <td class="searchable">₱{{ tax.tax_amount|intcomma }}</td>
-                                    <td>{{ owner_info.oi_fullname|default:"-"|truncatechars:20 }}</td>
-                                    <td class="searchable">{{ tax.tax_year }}</td>
-                                    <td class="searchable">{{ tax.tax_due_date|date:"M d, Y" }}</td>
-                                    <td class="searchable">
-                                        <span class="badge rounded-pill 
-                                            {% if tax.tax_status == 'Paid' %}bg-success
-                                            {% elif tax.tax_status == 'Overdue' %}bg-danger
-                                            {% elif tax.tax_status == 'Pending' %}bg-warning text-dark
-                                            {% else %}bg-secondary{% endif %}">
-                                            {{ tax.tax_status }}
-                                        </span>
-                                    </td>
-                                    <td class="text-end">
-                                        {% if request.user.is_staff or request.user.is_superuser %}
-                                        <button class="btn btn-sm btn-light border edit-tax-btn" 
-                                            data-id="{{ tax.id }}"
-                                            data-year="{{ tax.tax_year }}"
-                                            data-quarter="{{ tax.tax_quarter }}"
-                                            data-amount="{{ tax.tax_amount }}"
-                                            data-due-date="{{ tax.tax_due_date|date:'Y-m-d' }}"
-                                            data-from="{{ tax.tax_from|date:'Y-m-d' }}"
-                                            data-to="{{ tax.tax_to|date:'Y-m-d' }}"
-                                            data-status="{{ tax.tax_status }}"
-                                            data-remarks="{{ tax.tax_remarks|default:'' }}"
-                                        >
-                                            <i class="fas fa-edit"></i> Edit
-                                        </button>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="9" class="text-center py-5 text-muted border-0">
-                                        <div class="mb-3">
-                                            <i class="fas fa-file-invoice-dollar fa-3x text-light-emphasis"></i>
+                    <!-- Card Grid -->
+                    <div class="row g-3" id="taxCardsContainer">
+                        {% for tax in tax_records %}
+                        <div class="col-12 col-md-6 col-lg-4 tax-card">
+                            <div class="card h-100 border shadow-sm hover-shadow">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold text-muted small">Tax Status</span>
+                                    <span class="badge rounded-pill 
+                                        {% if tax.tax_status == 'Paid' %}bg-success
+                                        {% elif tax.tax_status == 'Overdue' %}bg-danger
+                                        {% elif tax.tax_status == 'Pending' %}bg-warning text-dark
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ tax.tax_status }}
+                                    </span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Title No</small>
+                                            <span class="fw-medium searchable">{{ property.title_no }}</span>
                                         </div>
-                                        <p class="mb-0 fw-medium">No property tax records found.</p>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Lot No</small>
+                                            <span class="fw-medium searchable">{{ property.lot_no }}</span>
+                                        </div>
+                                        <div class="col-12">
+                                            <small class="text-muted d-block">Owner</small>
+                                            <span class="fw-medium text-truncate d-block searchable">{{ owner_info.oi_fullname|default:"-" }}</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Tax Year</small>
+                                            <span class="fw-medium searchable">{{ tax.tax_year }}</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Due Date</small>
+                                            <span class="fw-medium searchable">{{ tax.tax_due_date|date:"M d, Y" }}</span>
+                                        </div>
+                                        <div class="col-12">
+                                            <small class="text-muted d-block">Amount</small>
+                                            <span class="fw-bold text-primary fs-5 searchable">₱{{ tax.tax_amount|intcomma }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-0 pt-0">
+                                    {% if request.user.is_staff or request.user.is_superuser %}
+                                    <button class="btn default btn-primary w-100 edit-tax-btn" 
+                                        data-id="{{ tax.id }}"
+                                        data-year="{{ tax.tax_year }}"
+                                        data-quarter="{{ tax.tax_quarter }}"
+                                        data-amount="{{ tax.tax_amount }}"
+                                        data-due-date="{{ tax.tax_due_date|date:'Y-m-d' }}"
+                                        data-from="{{ tax.tax_from|date:'Y-m-d' }}"
+                                        data-to="{{ tax.tax_to|date:'Y-m-d' }}"
+                                        data-status="{{ tax.tax_status }}"
+                                        data-remarks="{{ tax.tax_remarks|default:'' }}"
+                                    >
+                                        <i class="fas fa-edit me-1"></i> Edit Record
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <div class="card border-0 text-center py-5">
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <i class="fas fa-file-invoice-dollar fa-3x text-light-emphasis"></i>
+                                    </div>
+                                    <p class="mb-0 fw-medium text-muted">No property tax records found.</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                      <div class="text-center mt-3 text-muted small">
                         Showing {{ tax_records|length }} of {{ tax_records|length }} tax records
@@ -416,17 +430,19 @@
                             <label class="form-label small fw-bold text-muted">Search</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                                <input type="text" class="form-control border-start-0 ps-0" placeholder="Search by status, released by, received by, or purpose...">
+                                <input type="text" id="movementSearchInput" class="form-control border-start-0 ps-0" placeholder="Search by status, released by, received by, or purpose...">
                             </div>
                         </div>
                         <div class="col-lg-2">
                             <label class="form-label small fw-bold text-muted">Movement Status</label>
-                            <select class="form-select">
-                                <option selected>All Status</option>
+                            <select class="form-select" id="movementStatusFilter">
+                                <option value="All Status" selected>All Status</option>
                                 <option value="Released">Released</option>
                                 <option value="In Transit">In Transit</option>
                                 <option value="Received">Received</option>
                                 <option value="Returned">Returned</option>
+                                <option value="Lost">Lost</option>
+                                <option value="Pending Return">Pending Return</option>
                             </select>
                         </div>
                         <div class="col-lg-3">
@@ -438,16 +454,16 @@
 
                     <div class="row g-4">
                         {% for movement in title_movements %}
-                        <div class="col-md-6 col-lg-4">
+                        <div class="col-md-6 col-lg-4 movement-card">
                             <div class="card h-100 shadow-sm border rounded-3">
                                 <div class="card-body p-4">
                                     <div class="d-flex justify-content-between align-items-start mb-3">
                                         <div>
                                             <div class="d-flex align-items-center mb-1">
                                                 <i class="fas fa-file-signature text-dark me-2"></i>
-                                                <h5 class="fw-bold mb-0 text-dark">Movement #{{ movement.id }}</h5>
+                                                <h5 class="fw-bold mb-0 text-dark searchable">Movement #{{ forloop.counter }}</h5>
                                             </div>
-                                            <p class="text-muted small mb-0">{{ movement.created_at|date:"M d, Y" }}</p>
+                                            <p class="text-muted small mb-0 searchable">{{ movement.created_at|date:"M d, Y" }}</p>
                                         </div>
                                     </div>
 
@@ -474,24 +490,24 @@
                                     <div class="mb-3">
                                         <div class="row mb-2">
                                             <div class="col-4 text-muted small">Released by:</div>
-                                            <div class="col-8 fw-medium text-dark text-end">{% if movement.tm_released_by %}{{ movement.tm_released_by.get_full_name|default:movement.tm_released_by.username }}{% else %}—{% endif %}</div>
+                                            <div class="col-8 fw-medium text-dark text-end searchable">{% if movement.tm_released_by %}{{ movement.tm_released_by.get_full_name|default:movement.tm_released_by.username }}{% else %}—{% endif %}</div>
                                         </div>
                                         <div class="row mb-2">
                                             <div class="col-4 text-muted small">Received by:</div>
-                                            <div class="col-8 fw-medium text-dark text-end">{{ movement.tm_received_by }}</div>
+                                            <div class="col-8 fw-medium text-dark text-end searchable">{{ movement.tm_received_by }}</div>
                                         </div>
                                         {% if movement.returned_at %}
                                         <div class="row mb-2">
                                             <div class="col-4 text-muted small">Returned by:</div>
-                                            <div class="col-8 fw-medium text-dark text-end">{{ movement.tm_returned_by|default:"-" }}</div>
+                                            <div class="col-8 fw-medium text-dark text-end searchable">{{ movement.tm_returned_by|default:"-" }}</div>
                                         </div>
                                         <div class="row mb-2">
                                             <div class="col-4 text-muted small">Received on Return:</div>
-                                            <div class="col-8 fw-medium text-dark text-end">{{ movement.tm_received_by_on_return|default:"-" }}</div>
+                                            <div class="col-8 fw-medium text-dark text-end searchable">{{ movement.tm_received_by_on_return|default:"-" }}</div>
                                         </div>
                                         <div class="row mb-2">
                                             <div class="col-4 text-muted small">Returned Date:</div>
-                                            <div class="col-8 fw-bold text-dark text-end">{{ movement.returned_at|date:"M d, Y" }}</div>
+                                            <div class="col-8 fw-bold text-dark text-end searchable">{{ movement.returned_at|date:"M d, Y" }}</div>
                                         </div>
                                         {% endif %}
                                     </div>
@@ -499,14 +515,14 @@
                                     <div class="mb-3">
                                         <label class="form-label text-muted small">Transmittal:</label>
                                         <div class="bg-light rounded p-2 border">
-                                            <span class="fw-medium">{{ movement.tm_transmittal_no }}</span>
+                                            <span class="fw-medium searchable">{{ movement.tm_transmittal_no }}</span>
                                         </div>
                                     </div>
 
                                     <div class="mb-4">
                                         <label class="form-label text-muted small">Purpose:</label>
                                         <div class="bg-light rounded p-2 border">
-                                            <span class="fw-medium">{{ movement.tm_purpose }}</span>
+                                            <span class="fw-medium searchable">{{ movement.tm_purpose }}</span>
                                         </div>
                                     </div>
 
@@ -983,9 +999,9 @@
                 <form id="uploadDocumentForm" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label for="documentFile" class="form-label">Select Image File</label>
-                        <input class="form-control" type="file" id="documentFile" name="document" accept="image/*" required>
-                        <div class="form-text">Only image files (jpg, png, etc.) are allowed. Max size: 10MB.</div>
+                        <label for="documentFile" class="form-label">Select Document File</label>
+                        <input class="form-control" type="file" id="documentFile" name="document" accept="image/*,.pdf,.doc,.docx,.zip,.rar" required>
+                        <div class="form-text">Allowed files: images (jpg, png, etc.), PDF, Word documents (.doc, .docx), and archives (.zip, .rar). Max size: 10MB.</div>
                     </div>
                     <div class="alert alert-danger d-none" id="uploadError"></div>
                 </form>
@@ -1234,7 +1250,7 @@
             const statusValue = taxStatusFilter ? taxStatusFilter.value : 'All Status';
             const yearValue = taxYearFilter ? taxYearFilter.value : 'All Years';
             
-            const rows = document.querySelectorAll('.tax-row');
+            const rows = document.querySelectorAll('.tax-card');
             
             // Check if query is numeric (digits, potentially with decimals)
             const isNumeric = /^\d+(\.\d+)?$/.test(query);
@@ -1353,6 +1369,63 @@
              });
         }
         populateYearDropdown();
+
+        // --- Movement Search Logic ---
+        const movementSearchInput = document.getElementById('movementSearchInput');
+        const movementStatusFilter = document.getElementById('movementStatusFilter');
+
+        function filterMovementRows() {
+            const query = movementSearchInput ? movementSearchInput.value.toLowerCase().trim() : '';
+            const statusValue = movementStatusFilter ? movementStatusFilter.value : 'All Status';
+            
+            const rows = document.querySelectorAll('.movement-card');
+            
+            rows.forEach(function(row) {
+                // 1. Text Search Filter
+                let textMatch = false;
+                
+                if (query === '') {
+                    textMatch = true;
+                } else {
+                    // Iterate through searchable cells
+                    const cells = row.querySelectorAll('.searchable');
+                    for (let cell of cells) {
+                        const content = cell.textContent.toLowerCase().trim();
+                        if (content.includes(query)) {
+                            textMatch = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // 2. Status Filter
+                let statusMatch = false;
+                if (statusValue === 'All Status') {
+                    statusMatch = true;
+                } else {
+                    // Find the status badge text
+                    const statusBadge = row.querySelector('.badge');
+                    if (statusBadge) {
+                        const statusText = statusBadge.textContent.trim();
+                        statusMatch = statusText.toLowerCase() === statusValue.toLowerCase();
+                    }
+                }
+                
+                // 3. Combined Filter
+                if (textMatch && statusMatch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        if (movementSearchInput) {
+            movementSearchInput.addEventListener('keyup', filterMovementRows);
+        }
+        if (movementStatusFilter) {
+            movementStatusFilter.addEventListener('change', filterMovementRows);
+        }
 
         
         // --- Tax Modal Logic ---
@@ -1474,16 +1547,34 @@
         
         // --- Request Movement Logic ---
         const generateTMBtn = document.getElementById('generateTMBtn');
+        const requestMovementModalEl = document.getElementById('requestMovementModal');
+        
+        // Function to generate transmittal number
+        function generateTransmittalNumber() {
+            // Get the current property ID from the page
+            const propertyId = "{{ property.property_id }}";
+            
+            fetch(`{% url 'generate_transmittal_number' %}?property_id=${propertyId}`)
+            .then(r => r.json())
+            .then(data => {
+                if(data.tm_number) {
+                    document.getElementById('tm_transmittal_no').value = data.tm_number;
+                }
+            })
+            .catch(err => console.error(err));
+        }
+        
         if (generateTMBtn) {
-            generateTMBtn.addEventListener('click', function() {
-                fetch("{% url 'generate_transmittal_number' %}")
-                .then(r => r.json())
-                .then(data => {
-                    if(data.tm_number) {
-                        document.getElementById('tm_transmittal_no').value = data.tm_number;
-                    }
-                })
-                .catch(err => console.error(err));
+            generateTMBtn.addEventListener('click', generateTransmittalNumber);
+        }
+        
+        // Automatically generate transmittal number when modal is opened
+        if (requestMovementModalEl) {
+            requestMovementModalEl.addEventListener('show.bs.modal', function() {
+                // Clear any existing transmittal number when modal opens
+                document.getElementById('tm_transmittal_no').value = '';
+                // Generate new transmittal number
+                generateTransmittalNumber();
             });
         }
         

@@ -40,10 +40,14 @@
                         <label class="form-label small fw-bold text-muted">Property Status</label>
                         <select name="property_status" class="form-select">
                             <option value="">All Status</option>
-                            <option value="Active" {% if request.GET.property_status == 'Active' %}selected{% endif %}>Active</option>
-                            <option value="Inactive" {% if request.GET.property_status == 'Inactive' %}selected{% endif %}>Inactive</option>
-                            <option value="Sold" {% if request.GET.property_status == 'Sold' %}selected{% endif %}>Sold</option>
-                            <option value="Foreclosed" {% if request.GET.property_status == 'Foreclosed' %}selected{% endif %}>Foreclosed</option>
+                            <option value="ACT" {% if request.GET.property_status == 'ACT' %}selected{% endif %}>ACTIVE</option>
+                            <option value="COL" {% if request.GET.property_status == 'COL' %}selected{% endif %}>COLLATERAL</option>
+                            <option value="SOLD" {% if request.GET.property_status == 'SOLD' %}selected{% endif %}>SOLD</option>
+                            <option value="UND" {% if request.GET.property_status == 'UND' %}selected{% endif %}>UNDER DEVELOPMENT</option>
+                            <option value="FORC" {% if request.GET.property_status == 'FORC' %}selected{% endif %}>FORECLOSED</option>
+                            <option value="DISP" {% if request.GET.property_status == 'DISP' %}selected{% endif %}>DISPOSED</option>
+                            <option value="PENT" {% if request.GET.property_status == 'PENT' %}selected{% endif %}>PENDING TRANSFER</option>
+                            <option value="INT" {% if request.GET.property_status == 'INT' %}selected{% endif %}>INACTIVE</option>
                         </select>
                     </div>
 
@@ -57,6 +61,9 @@
                             <option value="Overdue" {% if request.GET.tax_status == 'Overdue' %}selected{% endif %}>Overdue</option>
                             <option value="Paid" {% if request.GET.tax_status == 'Paid' %}selected{% endif %}>Paid</option>
                             <option value="Partially Paid" {% if request.GET.tax_status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
+                            <option value="Contested" {% if request.GET.tax_status == 'Contested' %}selected{% endif %}>Contested</option>
+                            <option value="Exempted" {% if request.GET.tax_status == 'Exempted' %}selected{% endif %}>Exempted</option>
+                            <option value="Waived" {% if request.GET.tax_status == 'Waived' %}selected{% endif %}>Waived</option>
                         </select>
                     </div>
 
@@ -70,6 +77,7 @@
                             <option value="Received" {% if request.GET.movement_status == 'Received' %}selected{% endif %}>Received</option>
                             <option value="Returned" {% if request.GET.movement_status == 'Returned' %}selected{% endif %}>Returned</option>
                             <option value="Lost" {% if request.GET.movement_status == 'Lost' %}selected{% endif %}>Lost</option>
+                            <option value="Pending Return" {% if request.GET.movement_status == 'Pending Return' %}selected{% endif %}>Pending Return</option>
                         </select>
                     </div>
 
@@ -192,39 +200,11 @@
                             <td>{{ item.title_no }}</td>
                             <td>{{ item.lot_no }}</td>
                             <td>{{ item.owner_name|default:"-" }}</td>
-                            <td>
-                                <span class="badge rounded-pill 
-                                    {% if item.property_status == 'Active' %}bg-success
-                                    {% elif item.property_status == 'Inactive' %}bg-secondary
-                                    {% elif item.property_status == 'Sold' %}bg-info
-                                    {% elif item.property_status == 'Foreclosed' %}bg-danger
-                                    {% else %}bg-warning text-dark{% endif %}">
-                                    {{ item.property_status }}
-                                </span>
-                            </td>
+                            <td>{{ item.property_status }}</td>
                             <td class="fw-bold">₱{{ item.tax_amount|default:0|intcomma }}</td>
-                            <td>
-                                <span class="badge rounded-pill 
-                                    {% if item.tax_status == 'Paid' %}bg-success
-                                    {% elif item.tax_status == 'Overdue' %}bg-danger
-                                    {% elif item.tax_status == 'Due' %}bg-warning text-dark
-                                    {% elif item.tax_status == 'Pending' %}bg-secondary
-                                    {% else %}bg-light text-dark{% endif %}">
-                                    {{ item.tax_status|default:"-" }}
-                                </span>
-                            </td>
+                            <td>{{ item.tax_status|default:"-" }}</td>
                             <td>{{ item.due_date|date:"M d, Y"|default:"-" }}</td>
-                            <td>
-                                <span class="badge rounded-pill 
-                                    {% if item.movement_status == 'Returned' %}bg-success
-                                    {% elif item.movement_status == 'Released' %}bg-primary
-                                    {% elif item.movement_status == 'In Transit' %}bg-info
-                                    {% elif item.movement_status == 'Received' %}bg-warning text-dark
-                                    {% elif item.movement_status == 'Lost' %}bg-danger
-                                    {% else %}bg-light text-dark{% endif %}">
-                                    {{ item.movement_status|default:"-" }}
-                                </span>
-                            </td>
+                            <td>{{ item.movement_status|default:"-" }}</td>
                             <td>{{ item.last_movement_date|date:"M d, Y"|default:"-" }}</td>
                         </tr>
                         {% empty %}

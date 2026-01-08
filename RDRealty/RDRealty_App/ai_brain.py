@@ -26,13 +26,6 @@ def get_specific_property_context(user_message):
     
     if not query_words:
         return ""
-
-    # Build a Q object for searching
-    # We want to match ANY of the significant words in the query against the fields
-    # But to be safe and accurate, let's stick to the full phrase or significant chunks if possible.
-    # For now, let's try to match the *entire* query string first, or key segments.
-    # Actually, a simple 'icontains' on the whole string might be too restrictive if the user types a sentence.
-    # Let's use the query_words approach: Find properties that match ANY of the significant words.
     
     q_objects = Q()
     for word in query_words:
@@ -179,8 +172,6 @@ def get_project_context(user_message=""):
     context_str += f"Overdue Taxes: {overdue_tax_count}\n\n"
 
     # 4. Full Property List (Summary)
-    # Provides a high-level view of all properties so the AI knows what exists.
-    # Capped at 50 to preserve token limit.
     all_props = Property.objects.all().order_by('property_id')[:50]
     
     context_str += "--- ALL PROPERTIES INDEX (Title | Lot | Owner | Status) ---\n"
@@ -230,8 +221,6 @@ def query_local_llm(system_prompt, user_message):
     # Construct a single text prompt
     full_prompt = f"{system_prompt}\n\nUser Question: {user_message}\nAnswer:"
     
-    # Try 'llama3' first, but we can't easily guess what the user has installed.
-    # 'llama3' is a safe bet for a modern install.
     payload = {
         "model": "llama3", 
         "prompt": full_prompt,

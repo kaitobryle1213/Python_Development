@@ -883,9 +883,31 @@ def upload_document(request, pk):
         if file.size > MAX_SIZE_MB * 1024 * 1024:
             return JsonResponse({'error': f'File size exceeds {MAX_SIZE_MB}MB limit.'}, status=400)
             
-        # Validate file type (image)
-        if not file.content_type.startswith('image/'):
-            return JsonResponse({'error': 'Only image files are allowed.'}, status=400)
+        # Validate file type (images, PDF, Word documents, archives)
+        allowed_types = [
+            'image/',  # Images
+            'application/pdf',  # PDF files
+            'application/msword',  # .doc files
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # .docx files
+            'application/zip',  # .zip files
+            'application/x-rar-compressed',  # .rar files
+            'application/vnd.rar'  # Alternative .rar MIME type
+        ]
+        
+        # Also check file extension as fallback (browsers may report different MIME types)
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.pdf', '.doc', '.docx', '.zip', '.rar']
+        
+        # Debug: Log the detected content type and filename
+        print(f"DEBUG: Uploaded file content_type: {file.content_type}")
+        print(f"DEBUG: Uploaded file name: {file.name}")
+        
+        # Check both MIME type and file extension
+        mime_type_valid = any(file.content_type.startswith(allowed_type) for allowed_type in allowed_types)
+        extension_valid = any(file.name.lower().endswith(ext) for ext in allowed_extensions)
+        
+        if not (mime_type_valid or extension_valid):
+            print(f"DEBUG: File type rejected. Content type: {file.content_type}, Filename: {file.name}")
+            return JsonResponse({'error': 'Only image, PDF, Word documents, and archive files (.zip, .rar) are allowed.'}, status=400)
             
         SupportingDocument.objects.create(
             property_id=property_obj.property_id,
@@ -967,23 +989,55 @@ def get_available_documents(request):
 
 @login_required
 def generate_transmittal_number(request):
-    year_suffix = datetime.now().strftime('%y')
-    prefix = f"TM-{year_suffix}-"
+    property_id = request.GET.get('property_id')
     
-    # Find last number for this year
-    last_mov = TitleMovementRequest.objects.filter(tm_transmittal_no__startswith=prefix).order_by('tm_transmittal_no').last()
-    
-    if last_mov:
-        try:
-            last_seq = int(last_mov.tm_transmittal_no.split('-')[-1])
-            new_seq = last_seq + 1
-        except ValueError:
-            new_seq = 1
-    else:
-        new_seq = 1
+    if property_id:
+        # Check if this property already has movement records with transmittal numbers
+        existing_movement = TitleMovementRequest.objects.filter(
+            property_id=property_id
+        ).exclude(tm_transmittal_no='').order_by('-created_at').first()
         
-    new_tm = f"{prefix}{new_seq:05d}"
-    return JsonResponse({'tm_number': new_tm})
+        if existing_movement:
+            # Use the existing transmittal number for this property
+            transmittal_no = existing_movement.tm_transmittal_no
+        else:
+            # Generate new sequential number for new property
+            year_suffix = datetime.now().strftime('%y')
+            prefix = f"TM-{year_suffix}-"
+            
+            # Find last number for this year
+            last_mov = TitleMovementRequest.objects.filter(tm_transmittal_no__startswith=prefix).order_by('tm_transmittal_no').last()
+            
+            if last_mov:
+                try:
+                    last_seq = int(last_mov.tm_transmittal_no.split('-')[-1])
+                    new_seq = last_seq + 1
+                except ValueError:
+                    new_seq = 1
+            else:
+                new_seq = 1
+                
+            transmittal_no = f"{prefix}{new_seq:05d}"
+    else:
+        # Fallback: generate sequential number (for backward compatibility)
+        year_suffix = datetime.now().strftime('%y')
+        prefix = f"TM-{year_suffix}-"
+        
+        # Find last number for this year
+        last_mov = TitleMovementRequest.objects.filter(tm_transmittal_no__startswith=prefix).order_by('tm_transmittal_no').last()
+        
+        if last_mov:
+            try:
+                last_seq = int(last_mov.tm_transmittal_no.split('-')[-1])
+                new_seq = last_seq + 1
+            except ValueError:
+                new_seq = 1
+        else:
+            new_seq = 1
+            
+        transmittal_no = f"{prefix}{new_seq:05d}"
+    
+    return JsonResponse({'tm_number': transmittal_no})
 
 @login_required
 def add_title_movement(request, pk):

@@ -1038,7 +1038,6 @@
         }
 
     // 3. On City Change -> Fetch Barangays
-    // ... (This logic is for the create page, but base.html doesn't have it. I am editing base.html)
 
     // Sidebar Submenu Persistence Logic
     const currentPath = window.location.pathname;
@@ -1310,7 +1309,7 @@
         const markAllAsReadBtn = document.getElementById('markAllAsRead');
         const clearNotificationsBtn = document.getElementById('clearNotifications');
         
-        // User-specific storage keys (kept for UI state, but server handles is_read)
+        // User-specific storage keys 
         const currentUserId = "{{ request.user.id|default:'' }}";
         const STORAGE_KEY_READ = currentUserId ? `rd_notif_read_${currentUserId}` : 'rd_notif_read_anon';
         
@@ -1332,8 +1331,6 @@
             
             items.forEach(item => {
                 const idNum = typeof item.id === 'number' ? item.id : parseInt(item.id, 10);
-                // Notification is unread if server says is_read is false
-                // REMOVED: local storage comparison that was causing notifications to disappear
                 const isUnread = !item.is_read;
                 
                 if (isUnread) {
@@ -1406,7 +1403,6 @@
                     const id = this.getAttribute('data-id');
                     if (id) {
                         markNotificationsAsReadServer([parseInt(id, 10)]);
-                        // Optimistically remove from UI
                         this.closest('.notification-item').remove();
                         if (notificationList.querySelectorAll('.notification-item').length === 0) {
                             notificationList.innerHTML = '<div class="notification-empty">No recent notifications.</div>';
@@ -1443,8 +1439,7 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    // REMOVED: Local storage update since we're now using server-side is_read status only
-                    // Notifications will persist until explicitly cleared by the user
+
                 }
             })
             .catch(err => console.error('Error marking read:', err));
@@ -1467,8 +1462,7 @@
             notificationBell.addEventListener('click', function (e) {
                 e.stopPropagation();
                 notificationDropdown.classList.toggle('show');
-                // REMOVED: Automatic marking of notifications as read
-                // Notifications should only be marked as read when explicitly cleared by the user
+
             });
 
             if (markAllAsReadBtn) {
@@ -1799,8 +1793,6 @@
             
             aiChatMessages.appendChild(div);
             
-            // Only scroll to bottom for user messages or when explicitly requested
-            // This prevents interrupting users who are reading previous messages
             if (scrollToBottom) {
                 aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
             }
@@ -1837,11 +1829,11 @@
 
         function showWelcomeMessage() {
             addMessage("Hello! I am Kaito your RDRealty AI Assistant. I can help you identify upcoming due dates, analyze financial data, and suggest actions. How can I assist you today?", 'bot', true, false);
-            // Welcome message added to chat history but chatbox remains closed
+            addMessage("NOTE: Request per day: 20. Request per minute: 5", 'bot', true, false);
+            
         }
 
         // Clear history on logout
-        // Select by href specifically to ensure we catch the logout link
         const logoutLinks = document.querySelectorAll(`a[href="${LOGOUT_URL}"]`);
         logoutLinks.forEach(link => {
             link.addEventListener('click', function() {
@@ -1855,7 +1847,7 @@
             aiChatWindow.classList.toggle('show');
             if (aiChatWindow.classList.contains('show')) {
                 aiChatInput.focus();
-                // Scroll to bottom when opening
+          
                 aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
             }
         }
@@ -1876,7 +1868,7 @@
             });
         }
 
-        // Image Attachment Logic (Removed - using document selection instead)
+       
 
         // Document Selection Functionality
         function populateDocumentDropdown() {
@@ -1925,8 +1917,7 @@
         // Handle document selection
         if (documentSelect) {
             documentSelect.addEventListener('change', function() {
-                // Document selection changed - no preview needed since we removed image preview
-                // The selected document will be sent directly to the AI when the user sends a message
+
             });
         }
 
@@ -1963,10 +1954,6 @@
             const minuteEl = document.getElementById('minuteLimitDisplay');
             const warningEl = document.getElementById('aiLimitWarning');
             
-            // Update the denominator text if possible, or just the numerator
-            // We assume the HTML structure has /5 and /20 hardcoded text next to spans.
-            // Ideally we should update the text nodes too, but for now let's just update the numbers.
-            
             if (dailyEl) dailyEl.textContent = dailyLeft;
             if (minuteEl) minuteEl.textContent = minuteLeft;
             
@@ -1990,7 +1977,6 @@
         updateUsageStats();
 
         function handleSend() {
-            // Client-side pre-check (optional, as server also checks)
             if (currentUsage.daily >= currentUsage.daily_limit || currentUsage.minute >= currentUsage.minute_limit) {
                 updateLimitUI();
                 return;
@@ -2007,7 +1993,7 @@
                 const docName = documentSelect.options[documentSelect.selectedIndex].text;
                 userMsg += ` [Analyzing: ${docName}]`;
             }
-            addMessage(userMsg, 'user', true, true); // Scroll to bottom for user messages
+            addMessage(userMsg, 'user', true, true); 
             
             aiChatInput.value = '';
             
@@ -2016,7 +2002,7 @@
                  documentSelect.value = '';
             }
 
-            // Show Thinking (Don't save this to history)
+           
         const loadingId = 'loading-' + Date.now();
         const loadingDiv = document.createElement('div');
         loadingDiv.classList.add('typing-indicator');
@@ -2053,11 +2039,11 @@
                         if (loadingMsg) loadingMsg.remove();
 
                         if (data.response) {
-                            addMessage(data.response, 'bot', true, false); // Don't scroll for AI responses
+                            addMessage(data.response, 'bot', true, false); 
                             // Refresh usage stats immediately after successful response
                             updateUsageStats();
                         } else if (data.error) {
-                            addMessage("Error: " + data.error, 'bot', true, false); // Don't scroll for errors
+                            addMessage("Error: " + data.error, 'bot', true, false); 
                         }
                     })
                     .catch(error => {
@@ -2067,7 +2053,7 @@
                         console.error('Error:', error);
                     });
                 
-                return; // Exit early since we're handling the fetch in the then chain
+                return;
             }
 
             // Regular text-only message
@@ -2081,17 +2067,17 @@
                 if (loadingMsg) loadingMsg.remove();
 
                 if (data.response) {
-                    addMessage(data.response, 'bot', true, false); // Don't scroll for AI responses
+                    addMessage(data.response, 'bot', true, false); 
                     // Refresh usage stats immediately after successful response
                     updateUsageStats();
                 } else if (data.error) {
-                    addMessage("Error: " + data.error, 'bot', true, false); // Don't scroll for errors
+                    addMessage("Error: " + data.error, 'bot', true, false); 
                 }
             })
             .catch(error => {
                 const loadingMsg = document.getElementById(loadingId);
                 if (loadingMsg) loadingMsg.remove();
-                addMessage("Sorry, I encountered a network error. Please check your connection.", 'bot', true, false); // Don't scroll for errors
+                addMessage("Sorry, I encountered a network error. Please check your connection.", 'bot', true, false); 
                 console.error('Error:', error);
             });
         }
