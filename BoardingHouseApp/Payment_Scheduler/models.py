@@ -47,7 +47,6 @@ class Room(models.Model):
     room_type = models.CharField(max_length=50, choices=[('Single', 'Single'), ('Bed Spacer', 'Bed Spacer')])
     capacity = models.IntegerField(default=1) # How many people can occupy
     price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Room Price")
-    date_created = models.DateField(auto_now_add=True) # Added for record keeping
     date_left = models.DateField(null=True, blank=True) # New field
     
 
@@ -74,8 +73,6 @@ class Customer(models.Model):
     due_date = models.DateField(null=True, blank=True)
     date_left = models.DateField(null=True, blank=True)
     date_entry = models.DateField(default=timezone.now, null=True, blank=True)
-
-    def __str__(self):due_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return self.name

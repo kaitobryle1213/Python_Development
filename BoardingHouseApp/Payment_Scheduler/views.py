@@ -441,7 +441,7 @@ def user_edit(request, pk):
 @login_required
 @admin_required
 def customer_view(request):
-    customers = Customer.objects.annotate(last_paid=Max('payments__date_paid')).order_by('-date_entry', '-last_paid')[:12]
+    customers = Customer.objects.filter(customer_id__isnull=False).annotate(last_paid=Max('payments__date_paid')).order_by('-date_entry', '-last_paid')[:12]
     return render(request, 'Payment_Scheduler/customer.html', {'customers': customers})
 
 @login_required
@@ -622,8 +622,17 @@ def dashboard_api(request):
 
         paid_payments = list(customer.payments.all())
         last_payment_date = None
+        last_payment_amount = 0
         if paid_payments:
-            last_payment_date = max((p.date_paid for p in paid_payments if p.date_paid), default=None)
+            paid_with_date = [p for p in paid_payments if p.date_paid]
+            if paid_with_date:
+                paid_with_date.sort(key=lambda p: p.date_paid)
+                last_payment = paid_with_date[-1]
+            else:
+                last_payment = paid_payments[-1]
+            last_payment_date = last_payment.date_paid
+            last_payment_amount = last_payment.amount_received or 0
+
         is_paid_today = last_payment_date == today
 
         cycle_paid = 0
@@ -667,7 +676,7 @@ def dashboard_api(request):
             'prev_payment': last_payment_date.strftime('%b %d, %Y') if last_payment_date else "-",
             'due_date': effective_due.strftime('%b %d, %Y') if effective_due else "N/A",
             'room_rate': f"₱{price}" if customer.room else "-",
-            'amount': f"₱{cycle_paid}" if cycle_paid else "-",
+            'amount': f"₱{last_payment_amount}" if last_payment_amount else "-",
             'status': status,
             'color': color
         })
@@ -809,13 +818,9 @@ def report_view(request):
     else:
         # No Date Filter: Show Status of all customers (Default View)
         for c in customers:
-            # Advance due date only after it passes (keep cycles aligned)
-            if c.due_date and c.due_date < today:
-                c.due_date = c.due_date + relativedelta(months=1)
-                c.save(update_fields=['due_date'])
-
             price = c.room.price if c.room else 0
-            cycle_qs = Payment.objects.filter(customer=c, due_date=c.due_date, is_paid=True)
+            # Consider all paid payments for this customer when computing collected amount and status
+            cycle_qs = Payment.objects.filter(customer=c, is_paid=True)
             cycle_sum = cycle_qs.aggregate(Sum('amount_received'))['amount_received__sum'] or 0
             last_paid = cycle_qs.order_by('-date_paid').first()
 

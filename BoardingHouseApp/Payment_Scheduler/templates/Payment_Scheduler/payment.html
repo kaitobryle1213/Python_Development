@@ -23,21 +23,14 @@
                         </div>
 
                         <div class="row g-3 mb-4">
-                            <div class="col-md-4">
-                                <label class="form-label text-secondary small">Customer ID</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light"><i class="fas fa-id-badge"></i></span>
-                                    <input type="text" class="form-control bg-light" id="customer_id_display" readonly>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label text-secondary small">Room No.</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light"><i class="fas fa-door-open"></i></span>
                                     <input type="text" class="form-control bg-light" id="room_no" readonly>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label text-secondary small">Date Today</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light"><i class="fas fa-calendar-day"></i></span>
@@ -198,7 +191,7 @@
                     const item = document.createElement('a');
                     item.className = 'list-group-item list-group-item-action py-3';
                     item.href = '#';
-                    item.innerHTML = `<strong>${c.name}</strong><br><small class="text-primary">${c.display_id} | Room ${c.room_no}</small>`;
+                    item.innerHTML = `<strong>${c.name}</strong><br><small class="text-primary">Room ${c.room_no}</small>`;
                     item.onclick = (e) => {
                         e.preventDefault();
                         selectCustomer(c.id);
@@ -219,9 +212,8 @@
         fetch(balanceUrl)
             .then(res => res.json())
             .then(data => {
-                // Populate both hidden and visible fields
+                // Populate hidden and visible fields (ID kept internal only)
                 document.getElementById('customer_db_id').value = data.customer_db_id;
-                document.getElementById('customer_id_display').value = data.customer_id;
                 document.getElementById('customer_name').value = data.name;
                 document.getElementById('room_no').value = data.room_no;
                 document.getElementById('due_date').value = data.due_date;

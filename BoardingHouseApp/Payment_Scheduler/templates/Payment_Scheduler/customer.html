@@ -33,8 +33,7 @@
         <table class="table table-hover mb-0">
             <thead class="bg-light" style="position: sticky; top: 0; z-index: 1;">
                 <tr>
-                    <th class="ps-4">ID</th>
-                    <th>Name</th>
+                    <th class="ps-4">Name</th>
                     <th>Address</th>
                     <th>Contact No.</th>
                     <th>Parent's Name</th>
@@ -49,8 +48,7 @@
             <tbody id="customers-table-body">
                 {% for customer in customers %}
                 <tr>
-                    <td class="ps-4 text-secondary">#{{ customer.customer_id }}</td>
-                    <td class="fw-medium">{{ customer.name }}</td>
+                    <td class="ps-4 text-secondary fw-medium">{{ customer.name }}</td>
                     <td class="text-secondary text-truncate" style="max-width: 150px;" title="{{ customer.address }}">{{ customer.address }}</td>
                     <td>{{ customer.contact_number|default:"-" }}</td>
                     <td>{{ customer.parents_name|default:"-" }}</td>
@@ -94,7 +92,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="11" class="text-center py-5 text-secondary">
+                    <td colspan="10" class="text-center py-5 text-secondary">
                         <i class="fas fa-users-slash fa-2x mb-3 d-block opacity-50"></i>
                         No customers found.
                     </td>
@@ -230,8 +228,7 @@
             const safeName = c.name ? c.name.replace(/'/g, "\\'") : '';
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="ps-4 text-secondary">#${c.customer_id}</td>
-                <td class="fw-medium">${c.name}</td>
+                <td class="ps-4 text-secondary fw-medium">${c.name}</td>
                 <td class="text-secondary text-truncate" style="max-width: 150px;" title="${c.address}">${c.address}</td>
                 <td>${c.contact_number}</td>
                 <td>${c.parents_name}</td>
